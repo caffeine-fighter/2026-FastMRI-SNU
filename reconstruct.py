@@ -27,11 +27,12 @@ def parse():
 
 if __name__ == '__main__':
     args = parse()
-    args.exp_dir = '../result' / args.net_name / 'checkpoints'
+    result_root = Path("../result")
+    args.exp_dir = result_root / args.net_name / "checkpoints"
 
     # acc4
     args.data_path = args.path_data / "acc4"
-    args.forward_dir = '../result' / args.net_name / 'reconstructions_leaderboard' / "acc4"
+    args.forward_dir = result_root / args.net_name / "reconstructions_leaderboard" / "acc4"
     print(args.forward_dir)
     start_acc4 = time.time()
     forward(args)
@@ -39,7 +40,7 @@ if __name__ == '__main__':
 
     # acc8
     args.data_path = args.path_data / "acc8"
-    args.forward_dir = '../result' / args.net_name / 'reconstructions_leaderboard' / "acc8"
+    args.forward_dir = result_root / args.net_name / "reconstructions_leaderboard" / "acc8"
     print(args.forward_dir)
     start_acc8 = time.time()
     forward(args)

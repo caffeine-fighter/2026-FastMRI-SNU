@@ -114,3 +114,69 @@ python reconstruct.py // sh reconstruct.sh
 - loss 그래프 혹은 기록
 - 모델 weight file
 - 모델 설명 ppt
+
+## VESSL smoke workflow
+
+This repository can be prepared locally, but final candidate training runs must be executed on the VESSL server.
+
+### Expected VESSL data layout
+
+```text
+/root/Data/train/image
+/root/Data/train/kspace
+/root/Data/val/image
+/root/Data/val/kspace
+```
+
+### EXP000 smoke training
+
+```bash
+python train.py \
+  -b 1 \
+  -e 1 \
+  -l 0.001 \
+  -r 10 \
+  -n EXP000_smoke_varnet_c1_ch9_s4_e1 \
+  -t /root/Data/train/ \
+  -v /root/Data/val/ \
+  --cascade 1 \
+  --chans 9 \
+  --sens_chans 4 \
+  --seed 430
+```
+
+### Validation metric command
+
+```bash
+python scripts/evaluate_val.py \
+  --exp-name EXP000_smoke_varnet_c1_ch9_s4_e1 \
+  --target-dir /root/Data/val/image \
+  --recon-dir ../result/EXP000_smoke_varnet_c1_ch9_s4_e1/reconstructions_val \
+  --out-dir ../result/EXP000_smoke_varnet_c1_ch9_s4_e1/metrics
+```
+
+### Loss plot command
+
+```bash
+python scripts/plot_loss.py \
+  --exp-name EXP000_smoke_varnet_c1_ch9_s4_e1
+```
+
+### Safety rules
+
+Never commit:
+
+```text
+Data/
+data/
+*.h5
+result/
+results/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+.env
+.env.local
+```
