@@ -1,3 +1,60 @@
-venv
-env
-__pycache__
+# secrets / local config
+.env
+.env.local
+
+# local data
+Data/
+data/
+*.h5
+
+# results / artifacts
+result/
+results/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# experiment trackers
+wandb/
+mlruns/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/*.log
+# secrets / local config
+.env
+.env.local
+
+# local data
+Data/
+data/
+*.h5
+
+# results / artifacts
+result/
+results/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# experiment trackers
+wandb/
+mlruns/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/*.log
