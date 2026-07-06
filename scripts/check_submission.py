@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
-import fnmatch
+﻿#!/usr/bin/env python3
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+
 
 REQUIRED_FILES = [
     "README.md",
@@ -12,6 +12,7 @@ REQUIRED_FILES = [
     "scripts/print_run_context.py",
     "scripts/evaluate_val.py",
     "scripts/plot_loss.py",
+    "scripts/check_submission.py",
     "experiments/experiment_log.csv",
     "docs/vessl_workflow.md",
     "docs/metric_notes.md",
@@ -19,44 +20,90 @@ REQUIRED_FILES = [
     "docs/decisions.md",
 ]
 
-FORBIDDEN_TRACKED_PATTERNS = [
-    "Data/*",
-    "data/*",
-    "*.h5",
-    "result/*",
-    "results/*",
-    "runs/*",
-    "checkpoints/*",
-    "*.pt",
-    "*.pth",
-    "*.ckpt",
-    ".env",
-    ".env.local",
-]
+ROOT_FORBIDDEN_DIRS = {
+    "Data",
+    "data",
+    "result",
+    "results",
+    "runs",
+    "checkpoints",
+    "wandb",
+    "mlruns",
+}
 
-def git_ls_files():
+DANGEROUS_SUFFIXES = {
+    ".h5",
+    ".pt",
+    ".pth",
+    ".ckpt",
+    ".pem",
+    ".key",
+}
+
+ALLOWLIST = {
+    ".env.example",
+}
+
+
+def run_git(args):
     try:
-        out = subprocess.check_output(["git", "ls-files"], text=True, stderr=subprocess.STDOUT)
+        out = subprocess.check_output(["git", *args], text=True, stderr=subprocess.STDOUT)
         return [line.strip() for line in out.splitlines() if line.strip()]
-    except Exception as exc:
-        print(f"[WARN] git ls-files unavailable: {exc}")
+    except subprocess.CalledProcessError as exc:
+        print(f"[WARN] git {' '.join(args)} failed:\n{exc.output}")
         return []
+
+
+def normalize(path):
+    return path.replace("\\", "/")
+
+
+def is_forbidden_tracked(path):
+    p = normalize(path)
+    posix = PurePosixPath(p)
+    name = posix.name
+    parts = posix.parts
+
+    if p in ALLOWLIST or name in ALLOWLIST:
+        return None
+
+    if parts and parts[0] in ROOT_FORBIDDEN_DIRS:
+        return f"tracked file under forbidden root directory: {parts[0]}/"
+
+    if name == ".env" or name.startswith(".env.") or name.endswith(".env") or name == "secrets.env":
+        return "tracked environment or secret file"
+
+    if name.startswith("id_rsa") or name.startswith("id_ed25519"):
+        return "tracked private key candidate"
+
+    for suffix in DANGEROUS_SUFFIXES:
+        if name.endswith(suffix):
+            return f"tracked forbidden artifact suffix: {suffix}"
+
+    return None
+
 
 def main():
     errors = []
 
-    for path in REQUIRED_FILES:
-        if Path(path).exists():
-            print(f"[OK] {path}")
+    for file_path in REQUIRED_FILES:
+        if Path(file_path).exists():
+            print(f"[OK] {file_path}")
         else:
-            errors.append(f"missing required file: {path}")
+            errors.append(f"missing required file: {file_path}")
 
-    tracked = git_ls_files()
+    tracked = run_git(["ls-files"])
     for path in tracked:
-        normalized = path.replace("\\", "/")
-        for pattern in FORBIDDEN_TRACKED_PATTERNS:
-            if fnmatch.fnmatch(normalized, pattern):
-                errors.append(f"forbidden tracked file: {path}")
+        reason = is_forbidden_tracked(path)
+        if reason:
+            errors.append(f"{reason}: {path}")
+
+    ignored_tracked = run_git(["ls-files", "-ci", "--exclude-standard"])
+    for path in ignored_tracked:
+        errors.append(
+            "tracked file is ignored by .gitignore; fix .gitignore or untrack it: "
+            + path
+        )
 
     if errors:
         print("\nBlocking issues:")
@@ -66,6 +113,7 @@ def main():
         print("\nNo blocking submission-safety issues found.")
 
     raise SystemExit(1 if errors else 0)
+
 
 if __name__ == "__main__":
     main()

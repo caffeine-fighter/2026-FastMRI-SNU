@@ -2,23 +2,42 @@ venv
 env
 __pycache__
 
-# local VESSL safety
+# local environment and secrets
 .env
-.env.local
-Data/
-data/
+.env.*
+*.env
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+secrets.*
+!.env.example
+
+# repo-root MRI data directories only
+/Data/
+/data/
+
+# MRI data files anywhere
 *.h5
-result/
-results/
-runs/
-checkpoints/
+
+# repo-root results and large artifacts only
+/result/
+/results/
+/runs/
+/checkpoints/
+/wandb/
+/mlruns/
+
+# model artifacts anywhere
 *.pt
 *.pth
 *.ckpt
-wandb/
-mlruns/
+
+# Python / Jupyter
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# OS / editor
 .DS_Store
 .vscode/*.log
