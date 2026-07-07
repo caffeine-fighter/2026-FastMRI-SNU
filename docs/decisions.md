@@ -64,3 +64,28 @@ Metrics:
 
 Conclusion:
 Compare against EXP001. If overall SSIM_bbox and acc8 SSIM_bbox improve, continue the cascade sweep with EXP011 cascade=4. If metrics degrade, consider longer training for cascade=2 or learning-rate adjustment before increasing model size.
+
+## 2026-07-07 EXP010 cascade 2 result
+
+EXP010_varnet_c2_ch9_s4_e10 completed successfully on VESSL.
+
+Metrics:
+- overall SSIM_full: 0.8946281794350307
+- overall SSIM_bbox: 0.9089210673889018
+- acc4 SSIM_full: 0.9110714525204033
+- acc4 SSIM_bbox: 0.9182333801394311
+- acc8 SSIM_full: 0.8772000228054821
+- acc8 SSIM_bbox: 0.8904688921239641
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+- skipped: []
+
+Comparison against EXP001:
+- overall SSIM_full improved by +0.0171260946
+- overall SSIM_bbox improved by +0.0354535846
+- acc4 SSIM_bbox improved by +0.0363545925
+- acc8 SSIM_bbox improved by +0.0336682543
+
+Conclusion:
+Cascade 2 is a clear improvement over the 5-epoch cascade 1 baseline. Continue cascade sweep with EXP011: cascade=4, chans=9, sens_chans=4, epochs=10.
