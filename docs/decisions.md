@@ -26,3 +26,22 @@ Metrics:
 
 Conclusion:
 The VESSL data mount, training loop, checkpoint saving, validation reconstruction saving, metric script, and loss plot script are working. Proceed to EXP001 5-epoch baseline.
+
+## 2026-07-07 EXP001 baseline result
+
+EXP001_baseline_varnet_c1_ch9_s4_e5 completed successfully on VESSL.
+
+Metrics:
+- val_loss: 3.742339516087377
+- overall SSIM_full: 0.8775020848333308
+- overall SSIM_bbox: 0.8734674827652689
+- acc4 SSIM_full: 0.895139145763266
+- acc4 SSIM_bbox: 0.8818787876690659
+- acc8 SSIM_full: 0.8588086374414464
+- acc8 SSIM_bbox: 0.8568006378633005
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+
+Conclusion:
+EXP001 is the initial 5-epoch baseline. Use this as the reference for the first capacity sweep. Next experiment: EXP010, cascade 2 with chans 9 and sens_chans 4.
