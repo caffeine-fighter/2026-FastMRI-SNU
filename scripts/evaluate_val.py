@@ -7,6 +7,11 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate validation reconstructions with official 2026 FastMRI metric helpers.")
     parser.add_argument("--exp-name", type=str, default=None, help="Experiment name under ../result/<exp-name>.")
