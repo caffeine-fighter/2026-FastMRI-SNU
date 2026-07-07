@@ -41,14 +41,11 @@ def load_runtime_deps():
         )
     return h5py, np, torch, SSIM, foreground_mask, ssim_full, ssim_bbox
 
-def first_existing_dataset(hf, preferred_keys):
-    for key in preferred_keys:
-        if key in hf:
-            return key
+def required_dataset(hf, key, path, role):
+    if key in hf:
+        return key
     keys = list(hf.keys())
-    if len(keys) == 1:
-        return keys[0]
-    raise KeyError(f"none of preferred keys {preferred_keys} found; available keys={keys}")
+    raise KeyError(f"{role} dataset '{key}' not found in {path}; available keys={keys}")
 
 def to_float(value, default_value):
     try:
@@ -105,36 +102,49 @@ def slice_index_from_obj(obj):
 
 def parse_annotations(raw, num_slices):
     boxes_by_slice = defaultdict(list)
-    skipped_unassigned = 0
+    skipped = []
 
     if raw is None:
-        return boxes_by_slice, 0, skipped_unassigned
+        return boxes_by_slice, 0, skipped
 
-    if isinstance(raw, bytes):
-        raw = raw.decode("utf-8")
+    try:
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        elif hasattr(raw, "decode") and not isinstance(raw, str):
+            raw = raw.decode("utf-8")
+    except Exception as exc:
+        skipped.append(f"annotations attribute could not be decoded as UTF-8: {exc}")
+        return boxes_by_slice, 0, skipped
 
-    if raw == "" or raw == "null":
-        return boxes_by_slice, 0, skipped_unassigned
+    if isinstance(raw, str) and raw.strip() in {"", "null"}:
+        return boxes_by_slice, 0, skipped
 
     try:
         data = json.loads(raw) if isinstance(raw, str) else raw
-    except Exception:
-        return boxes_by_slice, 0, skipped_unassigned
+    except Exception as exc:
+        skipped.append(f"annotations attribute could not be parsed as JSON: {exc}")
+        return boxes_by_slice, 0, skipped
 
     def visit(node, slice_hint=None, root_list=False):
-        nonlocal skipped_unassigned
-
         box = normalize_annotation_box(node)
         if box is not None:
             explicit_slice = slice_index_from_obj(node)
             slice_idx = explicit_slice if explicit_slice is not None else slice_hint
             if slice_idx is None or slice_idx < 0 or slice_idx >= num_slices:
-                skipped_unassigned += 1
+                skipped.append(
+                    "bbox annotation skipped because slice index could not be inferred "
+                    f"or is out of range: {node}"
+                )
                 return
             boxes_by_slice[int(slice_idx)].append(box)
             return
 
         if isinstance(node, dict):
+            box_like_keys = {"x", "y", "width", "height", "bbox", "box"}
+            if box_like_keys.intersection(node.keys()):
+                skipped.append(f"bbox annotation skipped because box fields could not be normalized: {node}")
+                return
+
             explicit_slice = slice_index_from_obj(node)
             next_hint = explicit_slice if explicit_slice is not None else slice_hint
 
@@ -153,7 +163,7 @@ def parse_annotations(raw, num_slices):
     visit(data, slice_hint=None, root_list=isinstance(data, list))
 
     total = sum(len(v) for v in boxes_by_slice.values())
-    return boxes_by_slice, total, skipped_unassigned
+    return boxes_by_slice, total, skipped
 
 def mean_or_none(values):
     values = [v for v in values if v is not None and not math.isnan(v)]
@@ -226,8 +236,8 @@ def main():
 
         try:
             with h5py.File(target_path, "r") as target_hf, h5py.File(recon_path, "r") as recon_hf:
-                target_key = first_existing_dataset(target_hf, [args.target_key, "target", "image", "reconstruction"])
-                recon_key = first_existing_dataset(recon_hf, [args.recon_key, "image", "target"])
+                target_key = required_dataset(target_hf, args.target_key, target_path, "target")
+                recon_key = required_dataset(recon_hf, args.recon_key, recon_path, "reconstruction")
 
                 target = np.asarray(target_hf[target_key])
                 recon = np.asarray(recon_hf[recon_key])
@@ -253,12 +263,9 @@ def main():
                 data_range = to_float(target_hf.attrs.get(args.max_key, data_range_default), data_range_default)
 
                 raw_annotations = target_hf.attrs.get("annotations", None)
-                boxes_by_slice, box_count, skipped_unassigned = parse_annotations(raw_annotations, target.shape[0])
-                if skipped_unassigned:
-                    skipped.append({
-                        "file": target_path.name,
-                        "reason": f"{skipped_unassigned} annotations skipped because slice index could not be inferred",
-                    })
+                boxes_by_slice, box_count, annotation_skips = parse_annotations(raw_annotations, target.shape[0])
+                for reason in annotation_skips:
+                    skipped.append({"file": target_path.name, "reason": reason})
 
                 values["overall"]["volumes"] += 1
                 values[acc]["volumes"] += 1
@@ -286,6 +293,11 @@ def main():
                         if bbox_value is not None:
                             values["overall"]["bbox"].append(float(bbox_value))
                             values[acc]["bbox"].append(float(bbox_value))
+                        else:
+                            skipped.append({
+                                "file": target_path.name,
+                                "reason": f"bbox annotation too small for SSIM window on slice {slice_idx}: {box}",
+                            })
 
         except Exception as exc:
             skipped.append({"file": target_path.name, "reason": f"exception: {exc}"})

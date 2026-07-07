@@ -3,6 +3,8 @@ import subprocess
 from pathlib import Path, PurePosixPath
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 REQUIRED_FILES = [
     "README.md",
     "train.py",
@@ -46,12 +48,19 @@ ALLOWLIST = {
 
 
 def run_git(args):
+    safe_root = str(REPO_ROOT).replace("\\", "/")
+    cmd = ["git", "-c", f"safe.directory={safe_root}", "-C", str(REPO_ROOT), *args]
     try:
-        out = subprocess.check_output(["git", *args], text=True, stderr=subprocess.STDOUT)
+        out = subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT)
         return [line.strip() for line in out.splitlines() if line.strip()]
-    except subprocess.CalledProcessError as exc:
-        print(f"[WARN] git {' '.join(args)} failed:\n{exc.output}")
-        return []
+    except Exception as exc:
+        output = getattr(exc, "output", "")
+        message = f"git {' '.join(args)} failed"
+        if output:
+            message += f":\n{output}"
+        else:
+            message += f": {exc}"
+        raise RuntimeError(message) from exc
 
 
 def normalize(path):
@@ -92,13 +101,23 @@ def main():
         else:
             errors.append(f"missing required file: {file_path}")
 
-    tracked = run_git(["ls-files"])
+    try:
+        tracked = run_git(["ls-files"])
+    except RuntimeError as exc:
+        errors.append(str(exc))
+        tracked = []
+
     for path in tracked:
         reason = is_forbidden_tracked(path)
         if reason:
             errors.append(f"{reason}: {path}")
 
-    ignored_tracked = run_git(["ls-files", "-ci", "--exclude-standard"])
+    try:
+        ignored_tracked = run_git(["ls-files", "-ci", "--exclude-standard"])
+    except RuntimeError as exc:
+        errors.append(str(exc))
+        ignored_tracked = []
+
     for path in ignored_tracked:
         errors.append(
             "tracked file is ignored by .gitignore; fix .gitignore or untrack it: "
