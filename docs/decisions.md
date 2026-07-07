@@ -7,3 +7,22 @@
 - Keep raw data, H5 files, checkpoints, and result artifacts out of Git.
 - Add local scripts while VESSL is blocked by resource quota exceeded.
 - Reuse official metric helpers for SSIM_full and SSIM_bbox.
+
+## 2026-07-07 EXP000 smoke result
+
+EXP000_smoke_varnet_c1_ch9_s4_e1 completed successfully on VESSL.
+
+Metrics:
+- overall SSIM_full: 0.8555344924914702
+- overall SSIM_bbox: 0.8488467528212885
+- acc4 SSIM_full: 0.8752739521736594
+- acc4 SSIM_bbox: 0.8550138779889758
+- acc8 SSIM_full: 0.8346127214220663
+- acc8 SSIM_bbox: 0.8366267085075378
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+- skipped: []
+
+Conclusion:
+The VESSL data mount, training loop, checkpoint saving, validation reconstruction saving, metric script, and loss plot script are working. Proceed to EXP001 5-epoch baseline.
