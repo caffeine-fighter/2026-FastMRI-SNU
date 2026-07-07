@@ -45,3 +45,22 @@ Metrics:
 
 Conclusion:
 EXP001 is the initial 5-epoch baseline. Use this as the reference for the first capacity sweep. Next experiment: EXP010, cascade 2 with chans 9 and sens_chans 4.
+
+## 2026-07-07 EXP010 cascade 2 result
+
+EXP010_varnet_c2_ch9_s4_e10 completed successfully on VESSL.
+
+Metrics:
+- val_loss: 3.3869223552422363
+- overall SSIM_full: 0.8946281794350307
+- overall SSIM_bbox: 0.9089210673889018
+- acc4 SSIM_full: 0.9110714525204033
+- acc4 SSIM_bbox: 0.9182333801394311
+- acc8 SSIM_full: 0.8772000228054821
+- acc8 SSIM_bbox: 0.8904688921239641
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+
+Conclusion:
+Compare against EXP001. If overall SSIM_bbox and acc8 SSIM_bbox improve, continue the cascade sweep with EXP011 cascade=4. If metrics degrade, consider longer training for cascade=2 or learning-rate adjustment before increasing model size.
