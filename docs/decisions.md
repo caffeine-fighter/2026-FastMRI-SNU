@@ -114,3 +114,28 @@ Comparison against EXP010:
 
 Conclusion:
 Use this comparison to decide whether to continue increasing capacity. If cascade 4 improves bbox metrics, proceed to EXP012 with cascade=4, chans=12, sens_chans=4. If it degrades, keep EXP010 as the current best and test longer training or learning-rate adjustment.
+
+## 2026-07-08 EXP011 cascade 4 result
+
+EXP011_varnet_c4_ch9_s4_e10 completed successfully on VESSL.
+
+Metrics:
+- overall SSIM_full: 0.8994653502999606
+- overall SSIM_bbox: 0.9182903899909547
+- acc4 SSIM_full: 0.9153357927277868
+- acc4 SSIM_bbox: 0.9281987882106104
+- acc8 SSIM_full: 0.8826443344975511
+- acc8 SSIM_bbox: 0.8986570824075628
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+- skipped: []
+
+Comparison against EXP010:
+- overall SSIM_full delta: +0.0048371709
+- overall SSIM_bbox delta: +0.0093693226
+- acc4 SSIM_bbox delta: +0.0099654081
+- acc8 SSIM_bbox delta: +0.0081881903
+
+Conclusion:
+Cascade 4 is now the best configuration tested so far. Continue with EXP012: cascade=4, chans=12, sens_chans=4, epochs=10.
