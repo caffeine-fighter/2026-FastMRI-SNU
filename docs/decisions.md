@@ -139,3 +139,27 @@ Comparison against EXP010:
 
 Conclusion:
 Cascade 4 is now the best configuration tested so far. Continue with EXP012: cascade=4, chans=12, sens_chans=4, epochs=10.
+## 2026-07-08 EXP012 result
+
+EXP012 completed on VESSL.
+
+Configuration:
+- cascade: 4
+- chans: 12
+- sens_chans: 4
+- seed: 430
+
+Metrics:
+- overall SSIM_full: 0.8994141339351495
+- overall SSIM_bbox: 0.9187541341189271
+- acc4 SSIM_full: 0.9150149570343242
+- acc4 SSIM_bbox: 0.9278178315296352
+- acc8 SSIM_full: 0.8828788865357637
+- acc8 SSIM_bbox: 0.9007945855458578
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+- skipped: []
+
+Decision:
+Compare EXP012 against EXP010 before launching the next VESSL run.
