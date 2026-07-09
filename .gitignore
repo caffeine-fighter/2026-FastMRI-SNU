@@ -41,3 +41,6 @@ __pycache__/
 # OS / editor
 .DS_Store
 .vscode/*.log
+
+# Phase 2 local candidate symlink/checkpoint area
+checkpoints_phase2/

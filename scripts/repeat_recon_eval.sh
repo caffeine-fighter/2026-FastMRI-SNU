@@ -42,11 +42,8 @@ for p in score_files:
     data["run_dir"] = str(p.parent)
     rows.append(data)
 
-rows_sorted = sorted(rows, key=lambda x: (float(x["time_ms_per_slice"]), -float(x["total_score"])))
-best_time = rows_sorted[0]
-
-rows_score = sorted(rows, key=lambda x: (-float(x["total_score"]), float(x["time_ms_per_slice"])))
-best_score = rows_score[0]
+best_by_time = min(rows, key=lambda x: (float(x["time_ms_per_slice"]), -float(x["total_score"])))
+best_by_total_score = max(rows, key=lambda x: (float(x["total_score"]), -float(x["time_ms_per_slice"])))
 
 fields = sorted(set().union(*(r.keys() for r in rows)))
 
@@ -58,8 +55,8 @@ with csv_path.open("w", newline="", encoding="utf-8") as f:
 
 summary = {
     "num_runs": len(rows),
-    "best_by_time": best_time,
-    "best_by_total_score": best_score,
+    "best_by_minimum_ms_per_slice": best_by_time,
+    "best_by_total_score": best_by_total_score,
 }
 
 json_path = root / "repeat_summary.json"
@@ -68,13 +65,13 @@ json_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 print("=== repeat summary ===")
 print(f"runs: {len(rows)}")
 print("")
-print("best_by_time:")
+print("best_by_minimum_ms_per_slice:")
 for k in ["tag", "ssim_full", "ssim_bbox", "quality_score", "time_ms_per_slice", "time_score", "total_score", "run_dir"]:
-    print(f"  {k}: {best_time.get(k)}")
+    print(f"  {k}: {best_by_time.get(k)}")
 print("")
 print("best_by_total_score:")
 for k in ["tag", "ssim_full", "ssim_bbox", "quality_score", "time_ms_per_slice", "time_score", "total_score", "run_dir"]:
-    print(f"  {k}: {best_score.get(k)}")
+    print(f"  {k}: {best_by_total_score.get(k)}")
 print("")
 print(f"saved: {csv_path}")
 print(f"saved: {json_path}")

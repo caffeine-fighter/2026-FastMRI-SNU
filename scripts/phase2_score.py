@@ -7,6 +7,9 @@ from pathlib import Path
 
 
 def tiebreaker(ms_per_slice: float) -> float:
+    # Official time tiebreaker:
+    # <= 80 ms/slice receives 0.001; >= 2000 ms/slice receives 0;
+    # values between those endpoints are linearly interpolated.
     if ms_per_slice <= 80.0:
         return 0.001
     if ms_per_slice >= 2000.0:
@@ -66,6 +69,8 @@ def main():
         [
             r"Leaderboard\s+Recon\s+Time\s*:\s*[0-9.]+\s*s\s*\(\s*([0-9.]+)\s*ms\s*/\s*slice\s*\)",
             r"\(\s*([0-9.]+)\s*ms\s*/\s*slice\s*\)",
+            r"ms\s*/\s*slice\s*[:=]\s*([0-9.]+)",
+            r"time_ms_per_slice\s*[:=]\s*([0-9.]+)",
         ],
         text,
         "ms/slice",

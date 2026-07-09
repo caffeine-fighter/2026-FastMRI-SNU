@@ -22,6 +22,7 @@ fi
 
 mkdir -p checkpoints_phase2 reports/phase2
 
+# Link the selected checkpoint; do not copy model weights into the repo.
 ln -sfn "$CKPT" checkpoints_phase2/best_model.pt
 
 cat > reports/phase2/current_candidate.env <<EOC

@@ -24,7 +24,8 @@ echo ""
 echo "=== running official recon_eval.sh ==="
 set -o pipefail
 
-# stdbuf keeps logs streaming under tee. It does not change model behavior.
+# This script intentionally wraps only the official bash recon_eval.sh entrypoint.
+# stdbuf keeps logs streaming under tee and does not change model behavior.
 stdbuf -oL -eL bash recon_eval.sh 2>&1 | tee "$LOG"
 
 echo ""
