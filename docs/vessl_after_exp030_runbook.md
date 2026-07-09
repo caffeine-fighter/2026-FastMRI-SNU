@@ -2,7 +2,7 @@
 
 Use this only after `EXP030_varnet_c4_ch12_s8_e20` has finished training on VESSL.
 
-Do **not** run these VESSL commands while `EXP030` is still training.
+Do **not** run these VESSL commands while `EXP030` is still training. If any `EXP030` training process is still present, stop and wait.
 
 ## 0. Enter the VESSL workspace
 
@@ -16,16 +16,18 @@ git status -sb
 
 ## 1. Check the `EXP030` process
 
-Confirm training is no longer active:
+Copy-paste:
 
 ```bash
 ps -ef | grep -E 'EXP030|train.py|python' | grep -v grep || true
 nvidia-smi
 ```
 
-If any `EXP030` training process is still present, stop and wait.
+Stop here if any `EXP030` training process is still running.
 
 ## 2. Check `EXP030` artifacts
+
+Copy-paste:
 
 ```bash
 EXP=EXP030_varnet_c4_ch12_s8_e20
@@ -34,6 +36,7 @@ ls -lah ../result/$EXP/checkpoints
 ls -lah ../result/$EXP/checkpoints/best_model.pt
 ls -lah ../result/$EXP/val_loss_log.npy || true
 ls -lah ../result/$EXP/reconstructions_val 2>/dev/null | sed -n '1,120p' || true
+find ../result/$EXP -maxdepth 3 -type f | sort | sed -n '1,200p'
 ```
 
 Do not copy checkpoints into git. Do not stage weights, reconstructions, or mounted data.
@@ -46,14 +49,14 @@ First inspect the current CLI:
 python scripts/evaluate_val.py --help
 ```
 
-Then run the evaluation using the correct flags for this repository. Template:
+Then run validation evaluation. Use the repository's actual `evaluate_val.py` flags if the help text differs from this template:
 
 ```bash
 python scripts/evaluate_val.py \
   --recon-dir ../result/EXP030_varnet_c4_ch12_s8_e20/reconstructions_val \
   --target-dir /root/Data/val/image \
-  --out-json reports/EXP030_eval.json \
-  --out-csv reports/EXP030_eval.csv
+  --out-json ../result/EXP030_varnet_c4_ch12_s8_e20/metrics/metrics.json \
+  --out-csv ../result/EXP030_varnet_c4_ch12_s8_e20/metrics/metrics.csv
 ```
 
 Record:
@@ -84,7 +87,27 @@ python scripts/plot_loss.py \
   --out reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png
 ```
 
-## 5. Compare `EXP030` against `EXP012`
+If `plot_loss.py --help` shows different flags, use that help text and keep the output under `reports/figures/`.
+
+## 5. Print `metrics.csv` and `skipped.json`
+
+Copy-paste:
+
+```bash
+EXP=EXP030_varnet_c4_ch12_s8_e20
+printf '\n=== metrics.csv ===\n'
+sed -n '1,120p' ../result/$EXP/metrics/metrics.csv
+printf '\n=== skipped.json ===\n'
+if [ -f ../result/$EXP/skipped.json ]; then
+  python -m json.tool ../result/$EXP/skipped.json
+elif [ -f ../result/$EXP/metrics/skipped.json ]; then
+  python -m json.tool ../result/$EXP/metrics/skipped.json
+else
+  echo 'skipped.json not found'
+fi
+```
+
+## 6. Compare `EXP030` against `EXP012`
 
 Known `EXP012` reference:
 
@@ -96,17 +119,51 @@ SSIM_bbox     = 0.9187541341189271
 quality_score = 0.9090841340270383
 ```
 
-Compute `EXP030` quality after evaluation:
+Copy-paste this comparison helper after `EXP030` metrics are available:
 
 ```bash
 python - <<'PY'
-full = float(input('EXP030 SSIM_full: ').strip())
-bbox = float(input('EXP030 SSIM_bbox: ').strip())
+import csv
+from pathlib import Path
+
+exp012_quality = 0.9090841340270383
+exp012_full = 0.8994141339351495
+exp012_bbox = 0.9187541341189271
+exp012_loss = 3.2876096990602717
+
+metrics_path = Path('../result/EXP030_varnet_c4_ch12_s8_e20/metrics/metrics.csv')
+rows = list(csv.DictReader(metrics_path.open()))
+
+def pick(row, *names):
+    by_lower = {k.lower(): k for k in row}
+    for name in names:
+        key = by_lower.get(name.lower())
+        if key is not None and row[key] != '':
+            return float(row[key])
+    raise KeyError(names)
+
+# Prefer an overall row if metrics.csv is row-oriented.
+overall = None
+for row in rows:
+    label = ' '.join(str(v).lower() for v in row.values())
+    if 'overall' in label or 'all' in label:
+        overall = row
+        break
+if overall is None:
+    overall = rows[0]
+
+full = pick(overall, 'ssim_full_mean', 'ssim_full', 'full')
+bbox = pick(overall, 'ssim_bbox_mean', 'ssim_bbox', 'bbox')
 quality = 0.5 * full + 0.5 * bbox
-exp012 = 0.9090841340270383
+
+print(f'EXP030 SSIM_full={full:.16f}')
+print(f'EXP030 SSIM_bbox={bbox:.16f}')
 print(f'EXP030 quality_score={quality:.16f}')
-print(f'EXP012 quality_score={exp012:.16f}')
-print(f'delta_EXP030_minus_EXP012={quality - exp012:.16f}')
+print(f'EXP012 SSIM_full={exp012_full:.16f}')
+print(f'EXP012 SSIM_bbox={exp012_bbox:.16f}')
+print(f'EXP012 quality_score={exp012_quality:.16f}')
+print(f'delta_quality_EXP030_minus_EXP012={quality - exp012_quality:.16f}')
+print(f'EXP012 val_loss={exp012_loss:.16f}')
 PY
 ```
 
@@ -116,7 +173,7 @@ Decision rule:
 - If validation quality is effectively tied, compare official Phase 2 `ms/slice` after repeated wrapper runs.
 - Never select a `LOCAL_` checkpoint as final.
 
-## 6. Record `EXP030` in `experiments/experiment_log.csv`
+## 7. Record `EXP030` in `experiments/experiment_log.csv`
 
 Append one reviewed row with exact metrics.
 
@@ -130,6 +187,7 @@ Use:
 
 ```text
 exp_id: EXP030
+config: EXP030_varnet_c4_ch12_s8_e20
 checkpoint_path: ../result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt
 notes: include skipped.json status and whether this beats EXP012
 ```
@@ -142,7 +200,7 @@ git diff -- experiments/experiment_log.csv docs/current_state.md docs/vessl_afte
 git diff --cached --name-only | grep -E '(^|/)Data/|(^|/)data/|\.h5$|(^|/)result/|(^|/)results/|(^|/)runs/|(^|/)checkpoints/|(^|/)checkpoints_phase2/|\.pt$|\.pth$|\.ckpt$|(^|/)\.env$|(^|/)\.env\.local$' && echo 'FORBIDDEN STAGED FILE' && exit 1 || true
 ```
 
-## 7. Commit and push `EXP030` metrics
+## 8. Commit and push validation metrics
 
 Only after reviewing exact diffs:
 
@@ -156,9 +214,9 @@ git push
 
 Do not stage or commit checkpoints, `.h5`, mounted data, `result/`, `runs/`, `checkpoints/`, `checkpoints_phase2/`, `.env`, or secrets.
 
-## 8. Then merge `phase2/eval-wrapper`
+## 9. Only then merge `phase2/eval-wrapper`
 
-Only after EXP030 metrics are safely committed/pushed:
+Only after EXP030 metrics are safely committed/pushed and the VESSL workspace is clean:
 
 ```bash
 git status -sb
@@ -170,7 +228,18 @@ git status -sb
 
 Do not merge while `EXP030` training is active.
 
-## 9. Set candidate `EXP012`
+## 10. Only then run official `recon_eval`
+
+Run official Phase 2 evaluation only after:
+
+- `EXP030` training has finished.
+- Validation metrics are recorded.
+- The candidate checkpoint exists.
+- `scripts/phase2_preflight.sh` passes.
+- Mounted leaderboard `Data` exists.
+- The user approves running official evaluation.
+
+### Candidate `EXP012`
 
 ```bash
 bash scripts/set_phase2_candidate.sh \
@@ -180,20 +249,11 @@ bash scripts/set_phase2_candidate.sh \
   'EXP012 completed reference: quality_score=0.9090841340270383'
 
 bash scripts/phase2_preflight.sh
-```
-
-## 10. Run official `recon_eval` for `EXP012`
-
-Only after user approval and successful preflight:
-
-```bash
 bash scripts/run_recon_eval_once.sh EXP012_phase2_once
 bash scripts/repeat_recon_eval.sh EXP012_phase2 30
 ```
 
-## 11. Set candidate `EXP030`
-
-Only after `EXP030` completed and checkpoint exists:
+### Candidate `EXP030`
 
 ```bash
 bash scripts/set_phase2_candidate.sh \
@@ -203,13 +263,6 @@ bash scripts/set_phase2_candidate.sh \
   'EXP030 candidate after completed VESSL training'
 
 bash scripts/phase2_preflight.sh
-```
-
-## 12. Run official `recon_eval` for `EXP030`
-
-Only after user approval and successful preflight:
-
-```bash
 bash scripts/run_recon_eval_once.sh EXP030_phase2_once
 bash scripts/repeat_recon_eval.sh EXP030_phase2 30
 ```

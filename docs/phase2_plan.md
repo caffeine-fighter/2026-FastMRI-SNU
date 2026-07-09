@@ -10,7 +10,7 @@ bash recon_eval.sh
 
 `recon_eval.sh` is therefore the official leaderboard submission path. Keep it minimal, reproducible, and candidate-driven.
 
-## Final Score formula
+## Official formula
 
 ```text
 Final Score = 0.5 * SSIM_full + 0.5 * SSIM_bbox + Tiebreaker
@@ -22,7 +22,7 @@ For validation-only comparisons before leaderboard timing:
 quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
 ```
 
-## Tiebreaker formula and ms/slice rule
+## Time tiebreaker formula
 
 Tiebreaker is based on `ms/slice` reconstruction speed:
 
@@ -70,9 +70,9 @@ total_score   = quality_score + time_score
 - `scripts/repeat_recon_eval.sh`: repeats official evaluation N times and summarizes best timing/score.
 - `scripts/phase2_score.py`: parses logs and computes quality/time/total scores.
 
-## 30-run minimum-time rule for final submission
+## 30-run min-time final timing rule
 
-For final submission timing/tiebreaker selection, run at least 30 repetitions of the official wrapper for the chosen candidate and use the minimum valid `ms/slice` result when checking the timing tiebreaker.
+For final submission timing/tiebreaker selection, run at least 30 repetitions of the official wrapper for the chosen candidate and use the **minimum valid `ms/slice`** result when checking the timing tiebreaker.
 
 Template after candidate selection, preflight, and user approval:
 
@@ -110,6 +110,6 @@ On VESSL, Phase 2 requires the mounted leaderboard k-space layout before `recon_
 3. Compare `EXP030` vs `EXP012` by validation quality and expected runtime.
 4. Set the better candidate with `scripts/set_phase2_candidate.sh`.
 5. Run `scripts/phase2_preflight.sh`.
-6. Run one official wrapper evaluation if approved.
-7. Run the 30-repeat timing suite if the wrapper is correct.
+6. Run one official wrapper evaluation only after user approval.
+7. Run the 30-repeat timing suite if the wrapper is correct and approved.
 8. Review `reports/phase2/repeat_*` before final submission.
