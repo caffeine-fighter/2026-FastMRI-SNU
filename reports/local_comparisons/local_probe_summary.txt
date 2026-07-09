@@ -1,0 +1,40 @@
+=== LOCAL probe summary ===
+
+LOCAL_EXP012_varnet_c4_ch12_s4_e1
+skipped: None
+metrics missing
+
+LOCAL_EXP013_varnet_c4_ch12_s8_e1
+skipped: []
+overall full=0.8807929440 bbox=0.8890808084 quality=0.8849368762
+acc4    full=0.9004403180 bbox=0.9020667204 quality=0.9012535192
+acc8    full=0.8599687742 bbox=0.8633494642 quality=0.8616591192
+
+LOCAL_EXP014_varnet_c6_ch12_s8_e1
+skipped: []
+overall full=0.8811104767 bbox=0.8903269135 quality=0.8857186951
+acc4    full=0.9008859668 bbox=0.9025283829 quality=0.9017071749
+acc8    full=0.8601505171 bbox=0.8661499277 quality=0.8631502224
+
+LOCAL_EXP015_varnet_c6_ch12_s4_e1
+skipped: []
+overall full=0.8747640465 bbox=0.8805270891 quality=0.8776455678
+acc4    full=0.8946700951 bbox=0.8914174243 quality=0.8930437597
+acc8    full=0.8536657084 bbox=0.8589480917 quality=0.8563069000
+
+LOCAL_EXP016_varnet_c3_ch12_s8_e1
+skipped: []
+overall full=0.8775208604 bbox=0.8807431730 quality=0.8791320167
+acc4    full=0.8968126291 bbox=0.8919531514 quality=0.8943828902
+acc8    full=0.8570735951 bbox=0.8585308084 quality=0.8578022018
+
+=== ranking by local 1-epoch quality ===
+0.8857186951  LOCAL_EXP014_varnet_c6_ch12_s8_e1  full=0.8811104767 bbox=0.8903269135
+0.8849368762  LOCAL_EXP013_varnet_c4_ch12_s8_e1  full=0.8807929440 bbox=0.8890808084
+0.8791320167  LOCAL_EXP016_varnet_c3_ch12_s8_e1  full=0.8775208604 bbox=0.8807431730
+0.8776455678  LOCAL_EXP015_varnet_c6_ch12_s4_e1  full=0.8747640465 bbox=0.8805270891
+
+Interpretation:
+- LOCAL_ results are desktop probes only, not official VESSL scores.
+- If quality differences are <0.001, Phase 2 timing may matter.
+- Favor candidates that improve bbox without excessive cascade cost.
