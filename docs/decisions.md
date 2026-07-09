@@ -163,3 +163,27 @@ Metrics:
 
 Decision:
 Compare EXP012 against EXP010 before launching the next VESSL run.
+## 2026-07-08 EXP013 result
+
+EXP013 completed on VESSL.
+
+Configuration:
+- cascade: 4
+- chans: 12
+- sens_chans: 8
+- seed: 430
+
+Metrics:
+- overall SSIM_full: 0.8998157547035651
+- overall SSIM_bbox: 0.9205543854221794
+- acc4 SSIM_full: 0.9156682505947366
+- acc4 SSIM_bbox: 0.931258392668216
+- acc8 SSIM_full: 0.8830137603605787
+- acc8 SSIM_bbox: 0.8993445932865143
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+- skipped: []
+
+Decision:
+Compare EXP013 against EXP012. If EXP013 improves overall SSIM_bbox, prioritize c4/ch12/s8 longer training. Otherwise keep EXP012 as the current best and prioritize c4/ch12/s4 longer training.
