@@ -1,0 +1,10 @@
+/root/2026-FastMRI-SNU/utils/model/varnet.py:286: UserWarning: where received a uint8 condition tensor. This behavior is deprecated and will be removed in a future version of PyTorch. Use a boolean condition instead. (Triggered internally at ../aten/src/ATen/native/TensorCompare.cpp:530.)
+  soft_dc = torch.where(mask, current_kspace - ref_kspace, zero) * self.dc_weight
+Leaderboard SSIM_full : 0.9178
+Leaderboard SSIM_bbox : 0.9108
+Leaderboard Recon Time : 384.26s (173.6 ms/slice)
+========== Details ==========
+SSIM_full (acc4): 0.9408   SSIM_full (acc8): 0.8949
+SSIM_bbox (acc4): 0.9373   SSIM_bbox (acc8): 0.8844
+Recon Time (acc4): 199.35s (174.9 ms/slice)   (acc8): 184.91s (172.3 ms/slice)
+Recon Time (total): 384.26s

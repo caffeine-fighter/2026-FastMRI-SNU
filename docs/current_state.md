@@ -1,6 +1,6 @@
 # Current State — Phase 2 Handoff
 
-_Last updated: 2026-07-10 KST from VESSL workspace after EXP030 validation._
+_Last updated: 2026-07-10 KST from VESSL workspace after the official EXP030 30-repeat evaluation._
 
 ## Machine roles
 
@@ -70,25 +70,37 @@ Interpretation:
 
 See `reports/local_comparisons/local_probe_summary.md` for the generated local-probe summary.
 
-## Next Phase 2 action
+## Official Phase 2 result
 
-Run official Phase 2 `bash recon_eval.sh` only through the wrapper scripts after preflight passes and the candidate checkpoint is selected.
+The approved official 30-repeat evaluation completed successfully for
+`EXP030_official`. All 30 runs reported the same quality metrics, and run 01
+provided both the minimum valid timing and maximum total score.
 
-Recommended candidate:
+| Metric | Final value |
+|---|---:|
+| completed runs | 30 |
+| best run | `EXP030_official_run01` |
+| SSIM_full | 0.9178 |
+| SSIM_bbox | 0.9108 |
+| quality_score | 0.9143 |
+| minimum time_ms_per_slice | 173.4 |
+| time_score | 0.0009513541666666666 |
+| total_score | 0.9152513541666667 |
 
-- `EXP030_varnet_c4_ch12_s8_e20`
-- checkpoint: `../result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt`
-- cascade: 4
-- chans: 12
-- sens_chans: 8
+EXP030 remains the final candidate. Its official one-shot total-score advantage
+over EXP012 was `0.0062859895833333`, despite EXP030's slower reconstruction.
 
-Use:
+## Next action
 
-```bash
-bash scripts/set_phase2_candidate.sh EXP030 ../result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt 4 12 8
-bash scripts/phase2_preflight.sh
-bash scripts/run_recon_eval_once.sh EXP030_official
-```
+Finalize the GitHub repository and submit the required items separately:
+
+1. GitHub repository with the `bash recon_eval.sh` reproduction instructions.
+2. `reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png`.
+3. `/root/result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt` as a separate model-weight artifact; never commit it to Git.
+4. `reports/phase2/EXP030_model_description.pptx`.
+
+See `docs/final_submission_checklist.md` and
+`reports/phase2/final_score_summary.md` for the final handoff.
 
 ## Safety rules
 

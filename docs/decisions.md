@@ -224,3 +224,25 @@ Comparison against EXP012:
 
 Decision:
 EXP030 beats EXP012 on validation quality and is the current best validation candidate. Next step is Phase 2 official recon_eval.
+
+## 2026-07-10 EXP030 official Phase 2 decision
+
+The official one-shot comparison selected `EXP030_official` over
+`EXP012_official`, and the approved 30-repeat timing evaluation then completed
+successfully for EXP030.
+
+Final official result:
+- completed runs: 30
+- best run: `EXP030_official_run01`
+- SSIM_full: 0.9178
+- SSIM_bbox: 0.9108
+- quality_score: 0.9143
+- minimum time: 173.4 ms/slice
+- time_score: 0.0009513541666666666
+- total_score: 0.9152513541666667
+
+Decision:
+Use `EXP030_varnet_c4_ch12_s8_e20` as the final Phase 2 candidate. Do not run
+additional official repeats unless the recorded result is invalidated. Package
+the GitHub repository, loss plot, checkpoint, and model-description deck for
+submission, keeping the checkpoint and all leaderboard data out of Git.
