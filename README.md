@@ -1,182 +1,155 @@
-# 2026 baby varnet (annotation)
-2026 SNU FastMRI challenge — knee annotation track
+# 2026-FastMRI-SNU
 
-* 본 baseline은 **E2E-VarNet** 구조입니다. (baby unet 대비 kspace + sensitivity map을 직접 다룹니다.)
-* 본 대회는 **knee 데이터만** 사용합니다.
-* 복원 품질은 두 가지 SSIM으로 평가합니다.
-  * **SSIM_full**: foreground mask 내부 영역에 대해 평균한 SSIM
-  * **SSIM_bbox**: fastMRI+ 병변 bounding-box 영역 안에서만 계산한 SSIM
+This repository tracks work for the **2026 SNU FastMRI Challenge**, focused on knee MRI reconstruction. VESSL is the official environment for `EXP###` training, validation, and official leaderboard evaluation, while the desktop WSL machine with RTX 4070 Ti SUPER is used only for local probes, automation, documentation, and command preparation.
 
-## 1. 폴더 계층
+## Current status dashboard
 
-### 폴더의 전체 구조
-![image](docs/fastmri_folder_structure.png)
-* `FastMRI_challenge`, `Data`, `result` 폴더가 위의 구조대로 설정되어 있어야 default argument를 활용할 수 있습니다.
-* 본 github repository는 `FastMRI_challenge` 폴더입니다.
-* `Data` 폴더는 MRI data 파일을 담고 있으며 아래에 상세 구조를 첨부하겠습니다.
-* `result` 폴더는 학습한 모델의 weights을 기록하고 validation dataset의 reconstruction image를 저장하는데 활용되며, 아래에 상세 구조를 첨부하겠습니다.
+| Item | Status |
+|---|---|
+| Current VESSL job | `EXP030_varnet_c4_ch12_s8_e20` training |
+| Current best validation candidate | `EXP012_varnet_c4_ch12_s4_e10` |
+| EXP012 SSIM_full | `0.8994141339351495` |
+| EXP012 SSIM_bbox | `0.9187541341189271` |
+| EXP012 quality_score | `0.9090841340270383` |
+| Next decision point | `EXP030` validation + official `recon_eval` comparison |
+| Phase 2 status | `recon_eval` wrapper prepared / pending VESSL official run |
 
-### Data 폴더의 구조
-![image](docs/fastmri_data_structure.png)
-* train, val:
-    * train, val 폴더는 각각 모델을 학습(train), 검증(validation)하는데 사용하며 각각 image, kspace 폴더로 나뉩니다.
-    * 참가자들은 generalization과 representation의 trade-off를 고려하여 train, validation의 set을 자유로이 나눌 수 있습니다.
-    * image와 kspace 폴더에 들어있는 파일의 형식은 다음과 같습니다: knee\_{mask 형식}\_{순번}.h5
-    * ex) knee_acc4_10.h5, knee_acc8_3.h5
-    * {mask 형식}은 "acc4", "acc8" 중 하나입니다.
-    * train은 "acc4", "acc8" 각각 {순번} 1 ~ 85, val은 각각 1 ~ 15 입니다.
-
-> phase1에서는 train, val 데이터만 제공됩니다. 성능 평가용 leaderboard 데이터셋은 추후 별도로 배포될 예정입니다.
-
-### Annotation
-* fastMRI+ knee 병변 bounding box는 각 image h5의 `attrs['annotations']`에 JSON으로 저장되어 있습니다.
-* 형식: `{ "<slice>": [ {"x", "y", "width", "height", "label"}, ... ] }` (384 x 384 image 공간 기준, width·height가 16 초과인 박스만 포함)
-
-### result 폴더의 구조
-* result 폴더는 모델의 이름에 따라서 여러 폴더로 나뉠 수 있습니다.
-* test_Unet (혹은 test_Varnet) 폴더는 아래 항목들로 구성되어 있습니다.
-  * checkpoints - `model.pt`, `best_model.pt`의 정보가 있습니다. 모델의 weights 정보를 담고 있습니다.
-  * reconstructions_val - validation dataset의 reconstruction을 저장합니다. knee\_{mask 형식}\_{순번}.h5 형식입니다. (```train.py``` 참고)
-  * val_loss_log.npy - epoch별로 validation loss를 기록합니다. (```train.py``` 참고)
-
-## 2. 폴더 정보
-
-```bash
-├── .gitignore
-├── README.md
-├── reconstruct.py
-├── reconstruct.sh
-├── requirements.txt
-├── train.py
-├── train.sh
-├── tutorial.ipynb
-└── utils
-│   ├── common
-│   │   ├── loss_function.py
-│   │   ├── metrics.py
-│   │   └── utils.py
-│   ├── data
-│   │   ├── load_data.py
-│   │   └── transforms.py
-│   ├── learning
-│   │   ├── test_part.py
-│   │   └── train_part.py
-│   └── model
-│       ├── fastmri/     # vendored fastMRI 연산 (fft, complex 연산, coil combine 등)
-│       ├── unet.py      # VarNet 내부 regularizer로 쓰이는 U-Net
-│       └── varnet.py    # E2E-VarNet 모델 (SensitivityModel + cascade)
-└── result
-```
-
-## 3. Before you start
-* 본 baseline은 **E2E-VarNet**입니다. undersampled kspace와 mask를 입력으로 받아 sensitivity map을 추정하고, cascade를 거쳐 복원 image를 출력합니다.
-* phase1에서는 ```train.py```로 학습/검증을 진행합니다.
-* ```train.py```
-   * train/validation을 진행하고 학습한 model의 결과를 result 폴더에 저장합니다.
-   * 가장 성능이 좋은 모델의 weights을 ```best_model.pt```으로 저장합니다.
-   * 주요 hyperparameter (```train.sh```에서 조절):
-      * ```--cascade``` : cascade 개수 (기본 1, 원논문 12). 클수록 성능↑·메모리/시간↑
-      * ```--chans``` : cascade U-Net 채널 수 (기본 9, 원논문 18)
-      * ```--sens_chans``` : sensitivity map U-Net 채널 수 (기본 4, 원논문 8)
-   * VarNet은 메모리 사용량이 크므로 batch size는 1을 기본으로 합니다.
-* val 자가채점
-   * ```utils/common/metrics.py```의 ```ssim_full```, ```ssim_bbox```로 본인 validation reconstruction의 SSIM을 직접 계산할 수 있습니다. (annotation은 각 image h5의 ```attrs['annotations']```에 포함)
-* ```reconstruct.py``` (leaderboard 데이터 배포 후 사용)
-   * ```train.py```으로 학습한 ```best_model.pt```을 활용해 leaderboard dataset을 reconstruction하는 스크립트입니다.
-   * phase1에서는 leaderboard 데이터가 제공되지 않으므로 아직 실행할 수 없습니다. 추후 leaderboard 데이터가 배포되면 그때 의미 있게 사용하시면 됩니다. (미리 코드 구조를 살펴보는 것은 자유입니다.)
-
-## 4. How to set?
-(python 3.12.9)
-```bash
-pip3 install -r requirements.txt
-```
-
-## 5. How to train?
-```bash
-python train.py // sh train.sh
-```
-- validation할 때, reconstruction data를 ```result/reconstructions_val/```에 저장합니다.
-- epoch 별로 validation dataset에 대한 loss를 기록합니다.
-- sh train.sh를 사용하여도 같은 결과를 얻으실 수 있습니다. Hyperparameter를 쉽게 조작할 수 있습니다.
-- **seed 고정**을 하여 이후에 Re-training하였을 때 **같은 결과가 나와야 합니다**.
-
-## 6. How to reconstruct? (leaderboard 데이터 배포 후)
-> phase1에서는 leaderboard 데이터가 제공되지 않으므로 이 단계는 아직 실행할 수 없습니다. leaderboard 데이터가 배포된 이후 아래 절차로 진행하시면 됩니다.
-
-```bash
-python reconstruct.py // sh reconstruct.sh
-```
-- leaderboard 평가를 위한 reconstruction data를 ```result/reconstructions_leaderboard```에 저장합니다.
-- acc4 / acc8 각각의 reconstruction 시간과 총합을 함께 출력합니다.
-
-## 7. What to submit!
-- github repository(코드 실행 방법 readme에 상세 기록)
-- loss 그래프 혹은 기록
-- 모델 weight file
-- 모델 설명 ppt
-
-## VESSL smoke workflow
-
-This repository can be prepared locally, but final candidate training runs must be executed on the VESSL server.
-
-### Expected VESSL data layout
+## Scoring
 
 ```text
-/root/Data/train/image
-/root/Data/train/kspace
-/root/Data/val/image
-/root/Data/val/kspace
+Final Score = 0.5 * SSIM_full + 0.5 * SSIM_bbox + Tiebreaker
 ```
 
-### EXP000 smoke training
+The tiebreaker is based on reconstruction speed in `ms/slice`:
+
+```text
+<= 80 ms/slice    -> +0.001
+>= 2000 ms/slice  -> +0
+80..2000          -> linear interpolation
+```
+
+Small quality gaps can be timing-sensitive: `ΔSSIM < 0.001` may be overturned by the speed tiebreaker. Official Phase 2 values must come from the official entrypoint:
 
 ```bash
-python train.py \
-  -b 1 \
-  -e 1 \
-  -l 0.001 \
-  -r 10 \
-  -n EXP000_smoke_varnet_c1_ch9_s4_e1 \
-  -t /root/Data/train/ \
-  -v /root/Data/val/ \
-  --cascade 1 \
-  --chans 9 \
-  --sens_chans 4 \
-  --seed 430
+bash recon_eval.sh
 ```
 
-### Validation metric command
+## Machine roles
+
+| Machine | Role |
+|---|---|
+| VESSL | Official `EXP###` training, validation, and official `recon_eval` |
+| Desktop WSL / RTX 4070 Ti SUPER | `LOCAL_` probes only; automation, documentation, and command generation |
+| Laptop | Control plane / VS Code SSH / Hermes interface |
+
+`LOCAL_` results are exploratory only. They are not official scores and must not be submitted as final candidates.
+
+## Best validation results so far
+
+| exp_id | config | epochs | SSIM_full | SSIM_bbox | quality_score | val_loss | status |
+|---|---|---:|---:|---:|---:|---:|---|
+| `EXP010` | `EXP010_varnet_c2_ch9_s4_e10` | 10 | 0.8946281794350307 | 0.9089210673889018 | 0.9017746234119662 | 3.3869223552422363 | done |
+| `EXP012` | `EXP012_varnet_c4_ch12_s4_e10` | 10 | 0.8994141339351495 | 0.9187541341189271 | 0.9090841340270383 | 3.2876096990602717 | current best completed validation candidate |
+| `EXP030` | `EXP030_varnet_c4_ch12_s8_e20` | 20 | pending | pending | pending | pending | training on VESSL |
+
+## Local probe summary
+
+Desktop 1-epoch `LOCAL_` probes completed so far:
+
+| Rank | Probe | Config | Local quality |
+|---:|---|---|---:|
+| 1 | `LOCAL_EXP014_varnet_c6_ch12_s8_e1` | c6/ch12/s8/e1 | 0.8857186951 |
+| 2 | `LOCAL_EXP013_varnet_c4_ch12_s8_e1` | c4/ch12/s8/e1 | 0.8849368762 |
+| 3 | `LOCAL_EXP012_varnet_c4_ch12_s4_e1` | c4/ch12/s4/e1 | 0.8841971361 |
+| 4 | `LOCAL_EXP016_varnet_c3_ch12_s8_e1` | c3/ch12/s8/e1 | 0.8791320167 |
+| 5 | `LOCAL_EXP015_varnet_c6_ch12_s4_e1` | c6/ch12/s4/e1 | 0.8776455678 |
+
+`LOCAL_` probes are exploratory only and are not official VESSL results. See:
+
+- [`reports/local_comparisons/local_probe_summary.md`](reports/local_comparisons/local_probe_summary.md)
+- [`reports/local_comparisons/local_probe_summary.txt`](reports/local_comparisons/local_probe_summary.txt)
+
+## Phase 2 workflow
+
+Hard rules:
+
+- Do **not** modify `recon_eval.py`.
+- Use `utils/learning/test_part.py` for custom model I/O support.
+- Official leaderboard submission path: `bash recon_eval.sh`.
+- Run official `recon_eval` only when the GPU is idle and the user has approved evaluation.
+- Repeat the final candidate 30 times for timing; final timing uses the minimum valid `ms/slice` result.
+- Do **not** use image fields, bbox annotations, or given GRAPPA during inference.
+- Do **not** modify mounted `Data` directories.
+
+Wrapper helpers:
+
+- `scripts/set_phase2_candidate.sh`
+- `scripts/phase2_preflight.sh`
+- `scripts/run_recon_eval_once.sh`
+- `scripts/repeat_recon_eval.sh`
+- `scripts/phase2_score.py`
+
+## Reproduction commands
+
+Full copy-paste blocks live in [`docs/vessl_after_exp030_runbook.md`](docs/vessl_after_exp030_runbook.md). Keep these snippets gated by the stated conditions.
+
+### Monitor VESSL `EXP030` while it is running
+
+Read-only monitoring only:
 
 ```bash
-python scripts/evaluate_val.py \
-  --exp-name EXP000_smoke_varnet_c1_ch9_s4_e1 \
-  --target-dir /root/Data/val/image \
-  --recon-dir ../result/EXP000_smoke_varnet_c1_ch9_s4_e1/reconstructions_val \
-  --out-dir ../result/EXP000_smoke_varnet_c1_ch9_s4_e1/metrics
+cd /root/2026-FastMRI-SNU
+pgrep -af "train.py|run_EXP030|EXP030" || true
+nvidia-smi
+tail -n 80 ../result/EXP030_varnet_c4_ch12_s8_e20/logs/train_stdout.log
+grep -Ein "Traceback|ERROR|Exception|CUDA out|out of memory|Killed|RuntimeError|nan|NaN|OSError"   ../result/EXP030_varnet_c4_ch12_s8_e20/logs/train_stdout.log || true
 ```
 
-### Loss plot command
+### Validate `EXP030` after training finishes
+
+Only after `pgrep` confirms no `EXP030` training process is running. Use mounted `Data` as read-only input and write metrics under the result/report paths.
 
 ```bash
-python scripts/plot_loss.py \
-  --exp-name EXP000_smoke_varnet_c1_ch9_s4_e1
+cd /root/2026-FastMRI-SNU
+python scripts/evaluate_val.py --help
+python scripts/plot_loss.py --help
+# Then run the exact commands from docs/vessl_after_exp030_runbook.md.
 ```
 
-### Safety rules
+### Run official Phase 2 wrapper after Phase 2 merge
+
+Only after `EXP030` is recorded, the GPU is idle, mounted leaderboard `Data` exists, preflight passes, and the user approves official evaluation.
+
+```bash
+cd /root/2026-FastMRI-SNU
+bash scripts/phase2_preflight.sh
+bash scripts/run_recon_eval_once.sh EXP012_phase2_once
+bash scripts/run_recon_eval_once.sh EXP030_phase2_once
+# Run repeat-30 timing only after one-shot wrapper runs succeed.
+```
+
+## Safety rules
 
 Never commit:
 
-```text
-Data/
-data/
-*.h5
-result/
-results/
-runs/
-checkpoints/
-*.pt
-*.pth
-*.ckpt
-.env
-.env.local
-```
+- `Data/`
+- `data/`
+- `*.h5`
+- `*.pt`
+- `*.pth`
+- `*.ckpt`
+- `result/`
+- `results/`
+- `checkpoints_phase2/`
+- `.env`
+- `.env.local`
+- secrets or credentials
+
+## Links
+
+- [`docs/current_state.md`](docs/current_state.md)
+- [`docs/phase2_plan.md`](docs/phase2_plan.md)
+- [`docs/vessl_after_exp030_runbook.md`](docs/vessl_after_exp030_runbook.md)
+- [`experiments/experiment_log.csv`](experiments/experiment_log.csv)
+- [`reports/local_comparisons/local_probe_summary.md`](reports/local_comparisons/local_probe_summary.md)
+- [`reports/local_comparisons/local_probe_summary.txt`](reports/local_comparisons/local_probe_summary.txt)

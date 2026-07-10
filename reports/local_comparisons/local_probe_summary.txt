@@ -1,0 +1,59 @@
+=== Desktop LOCAL probe summary ===
+
+Generated from ../result/LOCAL_*/metrics/metrics.csv and skipped.json.
+LOCAL_ desktop probes are exploratory only and not official VESSL scores.
+
+Formula: quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
+
+LOCAL_EXP012_varnet_c4_ch12_s4_e1
+config: cascade=4 chans=12 sens_chans=4 epochs=1
+skipped: []
+overall full=0.8794828387 bbox=0.8889114335 quality=0.8841971361
+acc4    quality=0.8985789049
+acc8    quality=0.8644184298
+
+LOCAL_EXP013_varnet_c4_ch12_s8_e1
+config: cascade=4 chans=12 sens_chans=8 epochs=1
+skipped: []
+overall full=0.8807929440 bbox=0.8890808084 quality=0.8849368762
+acc4    quality=0.9012535192
+acc8    quality=0.8616591192
+
+LOCAL_EXP014_varnet_c6_ch12_s8_e1
+config: cascade=6 chans=12 sens_chans=8 epochs=1
+skipped: []
+overall full=0.8811104767 bbox=0.8903269135 quality=0.8857186951
+acc4    quality=0.9017071749
+acc8    quality=0.8631502224
+
+LOCAL_EXP015_varnet_c6_ch12_s4_e1
+config: cascade=6 chans=12 sens_chans=4 epochs=1
+skipped: []
+overall full=0.8747640465 bbox=0.8805270891 quality=0.8776455678
+acc4    quality=0.8930437597
+acc8    quality=0.8563069000
+
+LOCAL_EXP016_varnet_c3_ch12_s8_e1
+config: cascade=3 chans=12 sens_chans=8 epochs=1
+skipped: []
+overall full=0.8775208604 bbox=0.8807431730 quality=0.8791320167
+acc4    quality=0.8943828902
+acc8    quality=0.8578022018
+
+=== ranking by local 1-epoch quality ===
+0.8857186951  LOCAL_EXP014_varnet_c6_ch12_s8_e1  full=0.8811104767 bbox=0.8903269135
+0.8849368762  LOCAL_EXP013_varnet_c4_ch12_s8_e1  full=0.8807929440 bbox=0.8890808084
+0.8841971361  LOCAL_EXP012_varnet_c4_ch12_s4_e1  full=0.8794828387 bbox=0.8889114335
+0.8791320167  LOCAL_EXP016_varnet_c3_ch12_s8_e1  full=0.8775208604 bbox=0.8807431730
+0.8776455678  LOCAL_EXP015_varnet_c6_ch12_s4_e1  full=0.8747640465 bbox=0.8805270891
+
+Interpretation:
+- LOCAL_EXP014_varnet_c6_ch12_s8_e1 (c6/ch12/s8) is the local 1-epoch quality leader.
+- LOCAL_EXP014 beats LOCAL_EXP013 by only about 0.00078 quality, so Phase 2 timing may matter.
+- LOCAL_EXP016_varnet_c3_ch12_s8_e1 is quality-lower and unlikely to recover with timing alone.
+- LOCAL_EXP015_varnet_c6_ch12_s4_e1 is clearly weaker than c6/ch12/s8.
+- LOCAL_ results are exploratory only and not official VESSL scores.
+
+Recommendation:
+- Do not prioritize c6 on VESSL until EXP030 official/validation results are known.
+- Use EXP030/EXP012 official recon_eval after VESSL training finishes.
