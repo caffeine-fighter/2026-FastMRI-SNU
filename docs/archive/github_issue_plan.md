@@ -1,6 +1,8 @@
-# GitHub Issue Plan — Phase 2
+# Archived Phase 2 issue plan
 
-This document is a structured plan for GitHub labels, milestones, issue templates, and initial issues to create later. It is documentation only: no GitHub issues have been created from this plan.
+> Historical draft. Phase 2 evaluation and GitHub delivery are complete. Do not use these issue bodies as current instructions.
+
+No GitHub issues were created from this plan.
 
 ## Labels
 
@@ -84,7 +86,7 @@ Do not create these issues until explicitly approved. Bodies below are copy-past
   - `recon_eval.py` remains unmodified.
   - `scripts/phase2_preflight.sh` passes after merge.
 - **Blocking dependencies:** EXP030 training completion; EXP030 validation issue; clean VESSL workspace.
-- **Commands:** See `docs/vessl_after_exp030_runbook.md`; do not run merge commands while EXP030 is active.
+- **Commands:** See `vessl_after_exp030_runbook.md`; do not run merge commands while EXP030 is active.
 - **Safety constraints:** no merge while training is active; do not stage checkpoints, `Data`, `.h5`, `.pt`, `.pth`, `.ckpt`, `.env`, or secrets.
 
 #### 3. `[P0] Run official recon_eval for EXP012`
@@ -171,7 +173,7 @@ Do not create these issues until explicitly approved. Bodies below are copy-past
   - `SSIM_full`, `SSIM_bbox`, `quality_score`, and `val_loss` are recorded.
   - Delta vs EXP012 is documented.
 - **Blocking dependencies:** EXP030 training completion.
-- **Commands:** See validation section in `docs/vessl_after_exp030_runbook.md`.
+- **Commands:** See validation section in `vessl_after_exp030_runbook.md`.
 - **Safety constraints:** no `recon_eval.sh`; no training restart; no `Data` modification.
 
 #### 8. `[P1] Decide EXP012 vs EXP030 official candidate`

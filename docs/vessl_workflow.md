@@ -1,48 +1,85 @@
 # VESSL workflow
 
-## Core rule
+## Paths
 
-Final candidate models must be trained end-to-end on VESSL.
+| Item | Path |
+|---|---|
+| Repository | `/root/2026-FastMRI-SNU` |
+| Data | `/root/Data` |
+| Training data | `/root/Data/train` |
+| Validation data | `/root/Data/val` |
+| Results | `/root/result/<EXP_NAME>` |
 
-## Default paths
+Mounted data is read-only. Results and checkpoints stay outside Git.
 
-- Repo: /root/2026-FastMRI-SNU
-- Data: /root/Data
-- Train data: /root/Data/train
-- Validation data: /root/Data/val
-- Results: ../result/<exp_name>
-
-## EXP000 smoke command
+## Before a run
 
 ```bash
-python train.py \
+cd /root/2026-FastMRI-SNU
+git status -sb
+nvidia-smi
+python scripts/check_submission.py
+```
+
+Confirm that no other training or evaluation process is using the GPU.
+
+## Training
+
+```bash
+python -u train.py \
   -b 1 \
-  -e 1 \
+  -e <EPOCHS> \
   -l 0.001 \
   -r 10 \
-  -n EXP000_smoke_varnet_c1_ch9_s4_e1 \
+  -n <EXP_NAME> \
   -t /root/Data/train/ \
   -v /root/Data/val/ \
-  --cascade 1 \
-  --chans 9 \
-  --sens_chans 4 \
+  --cascade <CASCADES> \
+  --chans <CHANNELS> \
+  --sens_chans <SENS_CHANNELS> \
   --seed 430
 ```
 
-## Evaluation command
+Use an `EXP###_...` name on VESSL. Record the command and result in `experiments/experiment_log.csv` after review.
+
+## Validation
+
+Training writes the best validation reconstructions to `../result/<EXP_NAME>/reconstructions_val`.
 
 ```bash
 python scripts/evaluate_val.py \
-  --exp-name EXP000_smoke_varnet_c1_ch9_s4_e1 \
+  --exp-name <EXP_NAME> \
   --target-dir /root/Data/val/image \
-  --recon-dir ../result/EXP000_smoke_varnet_c1_ch9_s4_e1/reconstructions_val \
-  --out-dir ../result/EXP000_smoke_varnet_c1_ch9_s4_e1/metrics
+  --recon-dir ../result/<EXP_NAME>/reconstructions_val \
+  --out-dir ../result/<EXP_NAME>/metrics
+
+python scripts/plot_loss.py \
+  --loss-log ../result/<EXP_NAME>/val_loss_log.npy \
+  --out ../result/<EXP_NAME>/metrics/val_loss.png
 ```
 
-## If VESSL start fails with resource quota exceeded
+Review `metrics.json`, `metrics.csv`, and `skipped.json`. Compare candidates with:
 
-- Do not create repeated duplicate workspaces.
-- Do not delete the Data volume.
-- Keep the local GitHub branch ready.
-- Report the issue with workspace name, server/node, team, and screenshots.
-- Continue local code preparation until VESSL is available.
+```text
+quality = 0.5 * SSIM_full + 0.5 * SSIM_bbox
+```
+
+## Official evaluation
+
+Run only when training is finished and the candidate is approved:
+
+```bash
+bash scripts/set_phase2_candidate.sh \
+  <TAG> <CHECKPOINT> <CASCADES> <CHANNELS> <SENS_CHANNELS> '<NOTE>'
+
+bash scripts/phase2_preflight.sh
+bash scripts/run_recon_eval_once.sh <RUN_TAG>
+```
+
+The official entrypoint remains:
+
+```bash
+bash recon_eval.sh
+```
+
+Do not modify `recon_eval.py`, mounted data, or official metric code.

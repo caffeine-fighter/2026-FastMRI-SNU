@@ -1,58 +1,46 @@
 # Experiment plan
 
-## Phase 0: VESSL recovery
+## Completed path
 
-- Wait for the workspace quota issue to be resolved.
-- Do not create duplicate workspaces.
-- Do not delete volumes.
-- Keep the local branch ready for immediate pull.
+| Stage | Experiments | Outcome |
+|---|---|---|
+| Pipeline checks | EXP000, EXP001 | VESSL training and validation pipeline verified |
+| Capacity sweep | EXP010, EXP011, EXP012, EXP013 | c4/ch12/s8 selected for longer training |
+| Long training | EXP030 | Best validated and official candidate at 20 epochs |
+| Official evaluation | EXP012 vs EXP030 | EXP030 selected; 30-run timing complete |
 
-## Phase 1: execution sanity
+Full commands and metrics are in [`../experiments/experiment_log.csv`](../experiments/experiment_log.csv).
 
-### EXP000
+## Active experiment
 
-Smoke training, 1 epoch.
+`EXP031_varnet_c4_ch12_s8_e30` continues the EXP030 model from epoch 20 through epoch 29.
 
-Goal:
+It changes training duration only:
 
-- verify /root/Data mount
-- verify train.py runs
-- verify result/checkpoints
-- verify reconstructions_val
-- verify val_loss_log.npy
+- cascades: 4
+- channels: 12
+- sensitivity channels: 8
+- learning rate: 0.001
+- seed: 430
+- target total epochs: 30
 
-### EXP001
+The root [`README.md`](../README.md) shows live progress.
 
-Official-like baseline, 5 epochs.
+## Decision after EXP031
 
-Goal:
+1. Confirm a clean epoch-29 completion.
+2. Evaluate the final best validation reconstructions.
+3. Compare final `SSIM_full`, `SSIM_bbox`, and quality with EXP030.
+4. Keep EXP030 unless the gain remains clear.
+5. Run official evaluation only after approval.
 
-- establish reference validation loss
-- run evaluate_val.py
-- produce loss plot
+## Later ideas
 
-## Phase 2: capacity sweep
+Do not launch these while EXP031 is active:
 
-- EXP010: cascade 2, chans 9, sens_chans 4
-- EXP011: cascade 4, chans 9, sens_chans 4
-- EXP012: cascade 4, chans 12, sens_chans 4
-- EXP013: cascade 4, chans 12, sens_chans 8
+- bbox-aware or foreground-weighted loss
+- SSIM plus L1/Charbonnier loss
+- limited seed search
+- c6 timing/quality test
 
-## Phase 3: bbox-aware improvements
-
-- foreground-weighted image loss
-- bbox-weighted loss
-- SSIM + L1 or Charbonnier hybrid
-- acc4/acc8 separate analysis
-
-## Metrics to record
-
-- val_loss
-- SSIM_full
-- SSIM_bbox
-- acc4 SSIM_full / SSIM_bbox
-- acc8 SSIM_full / SSIM_bbox
-- seed
-- branch
-- commit
-- command
+Each new experiment should change one variable and record its command, seed, metrics, checkpoint path, and decision in the experiment log.

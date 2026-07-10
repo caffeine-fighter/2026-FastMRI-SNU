@@ -1,115 +1,63 @@
-# Phase 2 Plan
+# Phase 2 rules
 
-## Official leaderboard path
+## Score
 
-The Phase 2 leaderboard submission must be runnable through one bash entrypoint:
+```text
+quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
+final_score   = quality_score + time_score
+```
+
+Time score:
+
+```text
+<= 80 ms/slice    -> 0.001
+>= 2000 ms/slice  -> 0
+80..2000          -> linear interpolation
+```
+
+`scripts/phase2_score.py` implements the formula. Final timing uses the minimum valid `ms/slice` from at least 30 official runs.
+
+## Official path
 
 ```bash
 bash recon_eval.sh
 ```
 
-`recon_eval.sh` is therefore the official leaderboard submission path. Keep it minimal, reproducible, and candidate-driven.
+Before any official run:
 
-## Official formula
-
-```text
-Final Score = 0.5 * SSIM_full + 0.5 * SSIM_bbox + Tiebreaker
-```
-
-For validation-only comparisons before leaderboard timing:
-
-```text
-quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
-```
-
-## Time tiebreaker formula
-
-Tiebreaker is based on `ms/slice` reconstruction speed:
-
-```text
-if ms_per_slice <= 80:
-    time_score = 0.001
-elif ms_per_slice >= 2000:
-    time_score = 0.0
-else:
-    time_score = 0.001 * (2000 - ms_per_slice) / (2000 - 80)
-```
-
-So:
-
-- `<= 80 ms/slice` receives the full `0.001` tiebreaker.
-- `>= 2000 ms/slice` receives `0`.
-- Values between 80 and 2000 ms/slice are linearly interpolated.
-
-The helper `scripts/phase2_score.py` implements this formula and reports:
-
-```text
-quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
-time_score    = tiebreaker(ms_per_slice)
-total_score   = quality_score + time_score
-```
-
-## Hard rules
-
-- Do **not** modify `recon_eval.py`.
-- If custom model support is needed, use `utils/learning/test_part.py`.
-- `recon_eval.sh` is the official leaderboard submission path.
-- Do **not** use image fields, bbox annotations, or given GRAPPA during inference.
-- Do **not** modify mounted `Data` directories.
-- Do **not** use `LOCAL_` weights as final candidates.
-- Do **not** run `recon_eval.sh` while VESSL training is active.
-
-## Wrapper/helper files
-
-- `recon_eval.py`: official evaluator/wrapper code; must remain unmodified.
-- `recon_eval.sh`: official single-entry submission script.
-- `utils/learning/test_part.py`: place for custom model loading/inference support if needed.
-- `scripts/set_phase2_candidate.sh`: sets the selected candidate checkpoint/config using a symlink; does not copy weights.
-- `scripts/phase2_preflight.sh`: validates wrapper prerequisites before evaluation.
-- `scripts/run_recon_eval_once.sh`: runs the official `bash recon_eval.sh` once and saves logs/score files.
-- `scripts/repeat_recon_eval.sh`: repeats official evaluation N times and summarizes best timing/score.
-- `scripts/phase2_score.py`: parses logs and computes quality/time/total scores.
-
-## 30-run min-time final timing rule
-
-For final submission timing/tiebreaker selection, run at least 30 repetitions of the official wrapper for the chosen candidate and use the **minimum valid `ms/slice`** result when checking the timing tiebreaker.
-
-Template after candidate selection, preflight, and user approval:
-
-```bash
-bash scripts/repeat_recon_eval.sh EXP030_phase2 30
-```
-
-Do not run this until:
-
-1. VESSL training is complete.
-2. Candidate checkpoint is selected.
-3. Mounted leaderboard `Data` exists.
+1. Training is finished and the GPU is idle.
+2. The candidate checkpoint and architecture are fixed.
+3. Mounted leaderboard data is present and read-only.
 4. `scripts/phase2_preflight.sh` passes.
-5. The user approves official Phase 2 evaluation.
+5. The user has approved the run.
 
-## Mounted Data policy
+## Candidate flow
 
-Mounted `Data` directories are read-only inputs. Do not create, delete, rename, normalize, cache into, or otherwise modify anything under mounted `Data`.
+1. Train on VESSL.
+2. Evaluate validation reconstructions with `scripts/evaluate_val.py`.
+3. Compare `SSIM_full`, `SSIM_bbox`, quality, and expected runtime.
+4. Set the candidate with `scripts/set_phase2_candidate.sh`.
+5. Run one approved official evaluation.
+6. Repeat 30 times only for the selected candidate and only when approved.
+7. Record the selected score in `reports/phase2/`.
 
-Expected leaderboard data root is detected by preflight from one of:
+## Fixed rules
 
-```text
-$FASTMRI_DATA_ROOT
-/root/Data
-/home/ubuntu/Data
-$HOME/fastmri_data/Data
-```
+- Do not modify `recon_eval.py`.
+- Put custom model loading in `utils/learning/test_part.py`.
+- Do not use image fields, bounding-box annotations, or provided GRAPPA during inference.
+- Do not modify mounted `Data`.
+- Do not use `LOCAL_` checkpoints as official candidates.
+- Do not run official evaluation during training.
 
-On VESSL, Phase 2 requires the mounted leaderboard k-space layout before `recon_eval.sh` is run.
+## Helper scripts
 
-## Candidate decision flow
+| Script | Purpose |
+|---|---|
+| `scripts/set_phase2_candidate.sh` | Select checkpoint and architecture |
+| `scripts/phase2_preflight.sh` | Validate paths, data, config, and wrapper state |
+| `scripts/run_recon_eval_once.sh` | Run and record one official evaluation |
+| `scripts/repeat_recon_eval.sh` | Run the approved timing cohort |
+| `scripts/phase2_score.py` | Parse output and calculate scores |
 
-1. Wait for `EXP030` to finish.
-2. Evaluate and log `EXP030` validation metrics.
-3. Compare `EXP030` vs `EXP012` by validation quality and expected runtime.
-4. Set the better candidate with `scripts/set_phase2_candidate.sh`.
-5. Run `scripts/phase2_preflight.sh`.
-6. Run one official wrapper evaluation only after user approval.
-7. Run the 30-repeat timing suite if the wrapper is correct and approved.
-8. Review `reports/phase2/repeat_*` before final submission.
+EXP030 has already completed its 30-run official evaluation. Do not repeat it unless the result is invalidated.

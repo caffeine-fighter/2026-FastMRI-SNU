@@ -1,6 +1,8 @@
-# VESSL Runbook After `EXP030` Finishes
+# Archived EXP030 VESSL runbook
 
-Use this only after `EXP030_varnet_c4_ch12_s8_e20` has finished training on VESSL.
+> Historical execution record. EXP030 training, validation, official evaluation, and GitHub delivery are complete. Use [`../vessl_workflow.md`](../vessl_workflow.md) for current commands.
+
+This runbook was used after `EXP030_varnet_c4_ch12_s8_e20` finished training on VESSL.
 
 Do **not** run these VESSL commands while `EXP030` is still training. If any `EXP030` training process is still present, stop and wait.
 
@@ -196,7 +198,7 @@ Before staging, check forbidden paths:
 
 ```bash
 git status -sb
-git diff -- experiments/experiment_log.csv docs/current_state.md docs/vessl_after_exp030_runbook.md | sed -n '1,240p'
+git diff -- experiments/experiment_log.csv docs/current_state.md docs/archive/vessl_after_exp030_runbook.md | sed -n '1,240p'
 git diff --cached --name-only | grep -E '(^|/)Data/|(^|/)data/|\.h5$|(^|/)result/|(^|/)results/|(^|/)runs/|(^|/)checkpoints/|(^|/)checkpoints_phase2/|\.pt$|\.pth$|\.ckpt$|(^|/)\.env$|(^|/)\.env\.local$' && echo 'FORBIDDEN STAGED FILE' && exit 1 || true
 ```
 
@@ -205,7 +207,7 @@ git diff --cached --name-only | grep -E '(^|/)Data/|(^|/)data/|\.h5$|(^|/)result
 Only after reviewing exact diffs:
 
 ```bash
-git add experiments/experiment_log.csv docs/current_state.md docs/vessl_after_exp030_runbook.md reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png
+git add experiments/experiment_log.csv docs/current_state.md docs/archive/vessl_after_exp030_runbook.md reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png
 python scripts/check_submission.py
 git status -sb
 git commit -m "record EXP030 validation metrics"

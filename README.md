@@ -1,114 +1,50 @@
-# 2026-FastMRI-SNU
+# 2026 FastMRI SNU
 
-This repository tracks work for the **2026 SNU FastMRI Challenge**, focused on knee MRI reconstruction. VESSL is the official environment for `EXP###` training, validation, and official leaderboard evaluation, while the desktop WSL machine with RTX 4070 Ti SUPER is used only for local probes, automation, documentation, and command preparation.
+VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Challenge. VESSL is the source of truth for all `EXP###` runs and official evaluation.
 
 <!-- EXP031_STATUS_START -->
-## Current status dashboard
+## Live VESSL status
 
-_Last refreshed from VESSL: **2026-07-11 04:10 KST** (2026-07-10 19:10 UTC)._
+_Last update: 2026-07-11 04:26 KST (2026-07-10 19:26 UTC)_
 
-| Item | Status |
+| Check | Value |
 |---|---|
-| VESSL training | `EXP031_varnet_c4_ch12_s8_e30` **running**; epoch `25/30`, iteration `2830/4651` |
-| EXP031 continuation progress | `56.1%` |
-| Estimated remaining / finish | `4.71 hours` / `2026-07-11 08:53 KST (2026-07-10 23:53 UTC)` |
-| Current sampled loss | `0.07399` |
-| Current best epoch / val loss | `23` / `3.187740346715812` |
-| Training health | `0` error-pattern matches; latest and best checkpoints present |
-| Official candidate | `EXP030_varnet_c4_ch12_s8_e20` remains selected pending final EXP031 validation and approval |
-| Official EXP030 total score | `0.9152513541666667` |
-| Phase 2 submission | GitHub delivery complete; external organizer upload pending |
+| Run | `EXP031_varnet_c4_ch12_s8_e30` (running) |
+| Progress | epoch `25/30`, iteration `4080/4651`, `58.8%` |
+| ETA | `4.45 hours`; finish `2026-07-11 08:53 KST (2026-07-10 23:53 UTC)` |
+| Best validation loss | epoch `23`: `3.187740346715812` |
+| Validation snapshot | `interim epoch-23`: full `0.904252`, bbox `0.928967`, quality `0.916609` (`+0.001930` vs EXP030) |
+| Health | `0` error matches; checkpoints present |
 
-### EXP031 validation snapshot
-
-- Validation metrics source: `interim epoch-23`
-- SSIM_full: `0.904252391699`
-- SSIM_bbox: `0.928966502966`
-- Validation quality: `0.916609447333` (delta vs EXP030: `+0.001930361384`)
-
-The EXP031 metrics above are validation-only, not official `recon_eval` results. The finalizer will rerun validation after epoch 29. Official evaluation is not started automatically.
+`EXP030` remains the official candidate until EXP031 completes validation and receives approval. No official evaluation starts automatically.
 <!-- EXP031_STATUS_END -->
 
-## Scoring
+## Official result
 
-```text
-Final Score = 0.5 * SSIM_full + 0.5 * SSIM_bbox + Tiebreaker
-```
+| Candidate | Config | SSIM_full | SSIM_bbox | Quality | Min time | Total score |
+|---|---|---:|---:|---:|---:|---:|
+| `EXP030_varnet_c4_ch12_s8_e20` | c4 / ch12 / s8 / 20 epochs | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | **0.9152513541666667** |
 
-The tiebreaker is based on reconstruction speed in `ms/slice`:
+The official 30-run timing evaluation is complete. The remaining submission task is the external organizer upload. EXP031 is a follow-up candidate, not an automatic replacement.
 
-```text
-<= 80 ms/slice    -> +0.001
->= 2000 ms/slice  -> +0
-80..2000          -> linear interpolation
-```
-
-Small quality gaps can be timing-sensitive: `ΔSSIM < 0.001` may be overturned by the speed tiebreaker. Official Phase 2 values must come from the official entrypoint:
+## Common commands
 
 ```bash
-bash recon_eval.sh
+# Check repository safety
+python scripts/check_submission.py
+
+# Evaluate one experiment on validation data
+python scripts/evaluate_val.py \
+  --exp-name <EXP_NAME> \
+  --target-dir /root/Data/val/image \
+  --recon-dir ../result/<EXP_NAME>/reconstructions_val \
+  --out-dir ../result/<EXP_NAME>/metrics
+
+# Check the official wrapper before an approved run
+bash scripts/phase2_preflight.sh
 ```
 
-## Machine roles
-
-| Machine | Role |
-|---|---|
-| VESSL | Official `EXP###` training, validation, and official `recon_eval` |
-| Desktop WSL / RTX 4070 Ti SUPER | `LOCAL_` probes only; automation, documentation, and command generation |
-| Laptop | Control plane / VS Code SSH / Hermes interface |
-
-`LOCAL_` results are exploratory only. They are not official scores and must not be submitted as final candidates.
-
-## Best validation results so far
-
-| exp_id | config | epochs | SSIM_full | SSIM_bbox | quality_score | val_loss | status |
-|---|---|---:|---:|---:|---:|---:|---|
-| `EXP010` | `EXP010_varnet_c2_ch9_s4_e10` | 10 | 0.8946281794350307 | 0.9089210673889018 | 0.9017746234119662 | 3.3869223552422363 | done |
-| `EXP012` | `EXP012_varnet_c4_ch12_s4_e10` | 10 | 0.8994141339351495 | 0.9187541341189271 | 0.9090841340270383 | 3.2876096990602717 | completed comparison candidate |
-| `EXP030` | `EXP030_varnet_c4_ch12_s8_e20` | 20 | 0.90337035478141 | 0.9259878171156652 | 0.9146790859485376 | 3.202955630212294 | final candidate |
-
-## Local probe summary
-
-Desktop 1-epoch `LOCAL_` probes completed so far:
-
-| Rank | Probe | Config | Local quality |
-|---:|---|---|---:|
-| 1 | `LOCAL_EXP014_varnet_c6_ch12_s8_e1` | c6/ch12/s8/e1 | 0.8857186951 |
-| 2 | `LOCAL_EXP013_varnet_c4_ch12_s8_e1` | c4/ch12/s8/e1 | 0.8849368762 |
-| 3 | `LOCAL_EXP012_varnet_c4_ch12_s4_e1` | c4/ch12/s4/e1 | 0.8841971361 |
-| 4 | `LOCAL_EXP016_varnet_c3_ch12_s8_e1` | c3/ch12/s8/e1 | 0.8791320167 |
-| 5 | `LOCAL_EXP015_varnet_c6_ch12_s4_e1` | c6/ch12/s4/e1 | 0.8776455678 |
-
-`LOCAL_` probes are exploratory only and are not official VESSL results. See:
-
-- [`reports/local_comparisons/local_probe_summary.md`](reports/local_comparisons/local_probe_summary.md)
-- [`reports/local_comparisons/local_probe_summary.txt`](reports/local_comparisons/local_probe_summary.txt)
-
-## Phase 2 workflow
-
-Hard rules:
-
-- Do **not** modify `recon_eval.py`.
-- Use `utils/learning/test_part.py` for custom model I/O support.
-- Official leaderboard submission path: `bash recon_eval.sh`.
-- Run official `recon_eval` only when the GPU is idle and the user has approved evaluation.
-- Repeat the final candidate 30 times for timing; final timing uses the minimum valid `ms/slice` result.
-- Do **not** use image fields, bbox annotations, or given GRAPPA during inference.
-- Do **not** modify mounted `Data` directories.
-
-Wrapper helpers:
-
-- `scripts/set_phase2_candidate.sh`
-- `scripts/phase2_preflight.sh`
-- `scripts/run_recon_eval_once.sh`
-- `scripts/repeat_recon_eval.sh`
-- `scripts/phase2_score.py`
-
-## Final-candidate reproduction
-
-The submitted model is a four-cascade VarNet with 12 cascade U-Net channels and
-eight sensitivity-map U-Net channels. Place the separately submitted model
-weight at the path expected by the official entrypoint:
+Official leaderboard entrypoint:
 
 ```bash
 mkdir -p ../result/test_Varnet/checkpoints
@@ -116,51 +52,34 @@ cp /path/to/submitted/best_model.pt ../result/test_Varnet/checkpoints/best_model
 bash recon_eval.sh
 ```
 
-`recon_eval.sh` defaults to the final `EXP030` architecture (`cascade=4`,
-`chans=12`, `sens_chans=8`) and invokes the fixed `recon_eval.py` harness. The
-mounted leaderboard data is read from `/root/Data/leaderboard` and must remain
-read-only.
+`recon_eval.sh` defaults to the EXP030 architecture: cascade 4, 12 channels, and 8 sensitivity-map channels.
 
-For an internal VESSL verification using the original experiment path:
+## Repository map
 
-```bash
-bash scripts/set_phase2_candidate.sh \
-  EXP030 \
-  /root/result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt \
-  4 12 8 \
-  'Final candidate selected after official comparison'
-bash scripts/phase2_preflight.sh
-bash scripts/run_recon_eval_once.sh EXP030_official
-```
+| Path | Purpose |
+|---|---|
+| `train.py` | VESSL training entrypoint |
+| `reconstruct.py` | Reconstruction entrypoint |
+| `recon_eval.sh` | Official Phase 2 entrypoint |
+| `scripts/` | Validation, preflight, scoring, and reporting helpers |
+| `experiments/experiment_log.csv` | Experiment registry |
+| `reports/phase2/` | Official score and submission reports |
+| `docs/` | Workflow, status, rules, and decision history |
 
-The official 30-repeat evaluation has already completed. Do not repeat it for
-submission; see [`reports/phase2/final_score_summary.md`](reports/phase2/final_score_summary.md).
+## Non-negotiable rules
 
-## Safety rules
+- Do not modify `recon_eval.py`.
+- Do not run official evaluation while training is active or without approval.
+- Treat mounted `Data` directories as read-only.
+- Never commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
+- Keep `LOCAL_` probes exploratory; only VESSL `EXP###` runs can become official candidates.
 
-Never commit:
+## Documentation
 
-- `Data/`
-- `data/`
-- `*.h5`
-- `*.pt`
-- `*.pth`
-- `*.ckpt`
-- `result/`
-- `results/`
-- `checkpoints_phase2/`
-- `.env`
-- `.env.local`
-- secrets or credentials
+Start with [`docs/README.md`](docs/README.md). The most useful pages are:
 
-## Links
-
-- [`docs/current_state.md`](docs/current_state.md)
-- [`docs/final_submission_checklist.md`](docs/final_submission_checklist.md)
-- [`docs/phase2_plan.md`](docs/phase2_plan.md)
-- [`docs/vessl_after_exp030_runbook.md`](docs/vessl_after_exp030_runbook.md)
-- [`experiments/experiment_log.csv`](experiments/experiment_log.csv)
-- [`reports/phase2/final_score_summary.md`](reports/phase2/final_score_summary.md)
-- [`reports/phase2/EXP030_model_description.pptx`](reports/phase2/EXP030_model_description.pptx)
-- [`reports/local_comparisons/local_probe_summary.md`](reports/local_comparisons/local_probe_summary.md)
-- [`reports/local_comparisons/local_probe_summary.txt`](reports/local_comparisons/local_probe_summary.txt)
+- [`docs/current_state.md`](docs/current_state.md): current candidate, active work, and next actions
+- [`docs/vessl_workflow.md`](docs/vessl_workflow.md): training and validation commands
+- [`docs/phase2_plan.md`](docs/phase2_plan.md): scoring and official-evaluation rules
+- [`docs/final_submission_checklist.md`](docs/final_submission_checklist.md): external upload checklist
+- [`reports/phase2/final_score_summary.md`](reports/phase2/final_score_summary.md): verified EXP030 result
