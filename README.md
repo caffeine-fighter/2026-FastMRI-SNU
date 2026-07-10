@@ -2,19 +2,32 @@
 
 This repository tracks work for the **2026 SNU FastMRI Challenge**, focused on knee MRI reconstruction. VESSL is the official environment for `EXP###` training, validation, and official leaderboard evaluation, while the desktop WSL machine with RTX 4070 Ti SUPER is used only for local probes, automation, documentation, and command preparation.
 
+<!-- EXP031_STATUS_START -->
 ## Current status dashboard
+
+_Last refreshed from VESSL: **2026-07-11 04:10 KST** (2026-07-10 19:10 UTC)._
 
 | Item | Status |
 |---|---|
-| VESSL training | Complete; no active training job |
-| Final candidate | `EXP030_varnet_c4_ch12_s8_e20` |
-| Official SSIM_full | `0.9178` |
-| Official SSIM_bbox | `0.9108` |
-| Official quality_score | `0.9143` |
-| Selected 30-repeat timing | `173.4 ms/slice` (minimum of the required 30-run cohort) |
-| Final total_score | `0.9152513541666667` |
-| GitHub status | Submission commit `fbbddf6` merged into `baseline/2026-baby-varnet`; fresh clone verified |
-| Phase 2 status | Evaluation and GitHub delivery complete; external organizer upload pending |
+| VESSL training | `EXP031_varnet_c4_ch12_s8_e30` **running**; epoch `25/30`, iteration `2830/4651` |
+| EXP031 continuation progress | `56.1%` |
+| Estimated remaining / finish | `4.71 hours` / `2026-07-11 08:53 KST (2026-07-10 23:53 UTC)` |
+| Current sampled loss | `0.07399` |
+| Current best epoch / val loss | `23` / `3.187740346715812` |
+| Training health | `0` error-pattern matches; latest and best checkpoints present |
+| Official candidate | `EXP030_varnet_c4_ch12_s8_e20` remains selected pending final EXP031 validation and approval |
+| Official EXP030 total score | `0.9152513541666667` |
+| Phase 2 submission | GitHub delivery complete; external organizer upload pending |
+
+### EXP031 validation snapshot
+
+- Validation metrics source: `interim epoch-23`
+- SSIM_full: `0.904252391699`
+- SSIM_bbox: `0.928966502966`
+- Validation quality: `0.916609447333` (delta vs EXP030: `+0.001930361384`)
+
+The EXP031 metrics above are validation-only, not official `recon_eval` results. The finalizer will rerun validation after epoch 29. Official evaluation is not started automatically.
+<!-- EXP031_STATUS_END -->
 
 ## Scoring
 
