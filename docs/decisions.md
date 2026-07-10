@@ -187,3 +187,40 @@ Metrics:
 
 Decision:
 Compare EXP013 against EXP012. If EXP013 improves overall SSIM_bbox, prioritize c4/ch12/s8 longer training. Otherwise keep EXP012 as the current best and prioritize c4/ch12/s4 longer training.
+
+## 2026-07-10 EXP030 validation result
+
+EXP030_varnet_c4_ch12_s8_e20 completed validation evaluation.
+
+Configuration:
+- cascade: 4
+- chans: 12
+- sens_chans: 8
+- epochs: 20
+- seed: 430
+
+Metrics:
+- val_loss: 3.202955630212294
+- best_epoch: 19
+- overall SSIM_full: 0.90337035478141
+- overall SSIM_bbox: 0.9259878171156652
+- validation quality: 0.9146790859485376
+- acc4 SSIM_full: 0.918414056886912
+- acc4 SSIM_bbox: 0.9352672735107279
+- acc8 SSIM_full: 0.8874255976018807
+- acc8 SSIM_bbox: 0.9076007461106336
+- volumes: 30
+- slices: 791
+- bbox annotations: 161
+- skipped: []
+
+Comparison against EXP012:
+- EXP012 SSIM_full: 0.8994141339351495
+- EXP012 SSIM_bbox: 0.9187541341189271
+- EXP012 validation quality: 0.9090841340270383
+- EXP030 SSIM_full delta: +0.0039562208462605
+- EXP030 SSIM_bbox delta: +0.0072336829967381
+- EXP030 validation quality delta: +0.0055949519214994
+
+Decision:
+EXP030 beats EXP012 on validation quality and is the current best validation candidate. Next step is Phase 2 official recon_eval.
