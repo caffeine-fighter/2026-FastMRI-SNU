@@ -8,6 +8,14 @@
 - Official minimum timing: `173.4 ms/slice` over 30 runs
 - Checkpoint SHA-256: `ef74bec4243e7aa39d5aa8dae031e1bb83e771c26be00c4e5330e17b60a66085`
 
+## Current delivery status
+
+- GitHub repository delivery: complete
+- Default branch: `baseline/2026-baby-varnet`
+- Submission implementation commit: `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`
+- Fresh-clone verification: passed
+- External organizer upload: pending
+
 ## Organizer-required items
 
 - [x] GitHub repository with detailed execution instructions in `README.md`
@@ -46,9 +54,13 @@ Confirm that none of the following are tracked or staged:
 
 ## Final handoff
 
-- [ ] Merge the final verified commit into the GitHub default branch
+- [x] Merge the verified submission implementation into the GitHub default branch
+- [x] Verify the GitHub default and feature branches contain commit `fbbddf6`
+- [x] Verify a fresh clone passes the submission-safety and required-artifact checks
+- [x] Prepare `/root/submissions/EXP030_final_fbbddf6.zip`
+- [x] Verify the local package checkpoint hash against the selected model
 - [ ] Copy the four organizer-required items into the organizer's submission channel
-- [ ] Verify the submitted repository commit ID and uploaded checkpoint hash
+- [ ] Verify the organizer-received repository commit and uploaded checkpoint hash
 - [ ] Record the organizer receipt or submission identifier outside the repository
 
 No organizer upload URL or authenticated submission CLI is contained in this

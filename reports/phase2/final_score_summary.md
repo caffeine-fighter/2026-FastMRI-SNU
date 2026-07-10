@@ -56,4 +56,4 @@ EXP030 remains the final candidate because the official one-shot comparison show
 - Mounted `/root/Data` remained a read-only input mount.
 - No training process ran concurrently with the official repeat evaluation.
 - No checkpoint or mounted Data file is included in this report.
-- Final packaging is complete; Git commit, push, and merge remain separately approval-gated.
+- Submission implementation commit `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82` was pushed to `phase2/eval-wrapper-vessl` and fast-forwarded into the GitHub default branch `baseline/2026-baby-varnet`; a fresh clone was verified.

@@ -13,7 +13,8 @@ This repository tracks work for the **2026 SNU FastMRI Challenge**, focused on k
 | Official quality_score | `0.9143` |
 | Selected 30-repeat timing | `173.4 ms/slice` (minimum of the required 30-run cohort) |
 | Final total_score | `0.9152513541666667` |
-| Phase 2 status | Official 30-repeat evaluation complete; final package ready |
+| GitHub status | Submission commit `fbbddf6` merged into `baseline/2026-baby-varnet`; fresh clone verified |
+| Phase 2 status | Evaluation and GitHub delivery complete; external organizer upload pending |
 
 ## Scoring
 

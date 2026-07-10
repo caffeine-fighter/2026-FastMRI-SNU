@@ -246,3 +246,15 @@ Use `EXP030_varnet_c4_ch12_s8_e20` as the final Phase 2 candidate. Do not run
 additional official repeats unless the recorded result is invalidated. Package
 the GitHub repository, loss plot, checkpoint, and model-description deck for
 submission, keeping the checkpoint and all leaderboard data out of Git.
+
+## 2026-07-10 GitHub delivery
+
+The verified EXP030 submission implementation was committed as
+`fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`, pushed to
+`phase2/eval-wrapper-vessl`, and fast-forwarded without force into the GitHub
+default branch `baseline/2026-baby-varnet`.
+
+The remote branches contain the verified submission implementation, and a fresh
+default-branch clone passed `scripts/check_submission.py` plus required-artifact checks. GitHub
+delivery is complete. The remaining action is the external organizer upload;
+the repository contains no upload URL or authenticated submission CLI.

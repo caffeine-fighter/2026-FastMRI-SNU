@@ -1,12 +1,26 @@
 # Current State — Phase 2 Handoff
 
-_Last updated: 2026-07-10 KST from VESSL workspace after the official EXP030 30-repeat evaluation._
+_Last updated: 2026-07-10 KST after the official EXP030 evaluation and GitHub delivery._
 
 ## Machine roles
 
 - **VESSL**: official `EXP###` training and official `recon_eval` / leaderboard evaluation.
 - **Desktop WSL**: local probes, automation, documentation, and Phase 2 wrapper preparation.
 - **Laptop**: control plane / VS Code SSH client / assistant interface.
+
+## GitHub delivery status
+
+- Repository: `https://github.com/caffeine-fighter/2026-FastMRI-SNU`
+- Default branch: `baseline/2026-baby-varnet`
+- Submission implementation commit: `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`
+- Feature branch: `phase2/eval-wrapper-vessl`
+- Merge status: complete via non-force fast-forward to the GitHub default branch
+- Remote verification: default and feature branches contain the submission implementation commit
+- Fresh-clone verification: submission safety check and required-artifact checks passed
+
+GitHub delivery is complete. The remaining external action is uploading the
+organizer-required repository reference, model weight, loss graph, and model
+description through the organizer's official channel.
 
 ## VESSL training status
 
@@ -66,7 +80,7 @@ Interpretation:
 - `LOCAL_EXP014` beats `LOCAL_EXP013` by only about `0.00078` quality, so Phase 2 timing may matter.
 - `LOCAL_EXP016` (`c3/ch12/s8`) is quality-lower and unlikely to recover with timing alone.
 - `LOCAL_EXP015` (`c6/ch12/s4`) is clearly weaker than `LOCAL_EXP014` (`c6/ch12/s8`).
-- EXP030 is the official VESSL validation leader and should be evaluated before considering new VESSL training.
+- EXP030 was evaluated officially and selected as the final Phase 2 candidate.
 
 See `reports/local_comparisons/local_probe_summary.md` for the generated local-probe summary.
 
@@ -92,14 +106,21 @@ over EXP012 was `0.0062859895833333`, despite EXP030's slower reconstruction.
 
 ## Next action
 
-Finalize the GitHub repository and submit the required items separately:
+Upload the four organizer-required items through the official external
+submission channel:
 
-1. GitHub repository with the `bash recon_eval.sh` reproduction instructions.
-2. `reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png`.
-3. `/root/result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt` as a separate model-weight artifact; never commit it to Git.
-4. `reports/phase2/EXP030_model_description.pptx`.
+1. GitHub repository: `https://github.com/caffeine-fighter/2026-FastMRI-SNU`
+2. Loss graph: `reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png`
+3. Model weight: `/root/result/EXP030_varnet_c4_ch12_s8_e20/checkpoints/best_model.pt` (submit separately; never commit it)
+4. Model description: `reports/phase2/EXP030_model_description.pptx`
 
-See `docs/final_submission_checklist.md` and
+Prepared upload bundle:
+
+- `/root/submissions/EXP030_final_fbbddf6.zip`
+- SHA-256: `65b150fb749b772db99e4fde77a636ed58eb19f215e859dbc77cf60ea3aeb18f`
+
+No organizer upload URL or authenticated submission CLI is stored in this
+repository. See `docs/final_submission_checklist.md` and
 `reports/phase2/final_score_summary.md` for the final handoff.
 
 ## Safety rules
