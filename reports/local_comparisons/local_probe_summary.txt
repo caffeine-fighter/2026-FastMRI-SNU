@@ -100,11 +100,54 @@ acc4 quality=0.8999979823
 acc8 quality=0.8617481715
 val_loss=3.7699207988 local_forward_time_s=0.3505
 
+LOCAL_EXP024_varnet_c4_ch14_s8_e1
+config: cascade=4 chans=14 sens_chans=8 epochs=1 seed=430
+skipped: []
+overall full=0.8795853271 bbox=0.8853956554 quality=0.8824904913
+acc4 quality=0.8982502596
+acc8 quality=0.8604053287
+val_loss=3.7197679815 local_forward_time_s=0.3116
+
+LOCAL_EXP025_varnet_c4_ch12_s10_e1
+config: cascade=4 chans=12 sens_chans=10 epochs=1 seed=430
+skipped: []
+overall full=0.8834250094 bbox=0.8925935345 quality=0.8880092719
+acc4 quality=0.9033175714
+acc8 quality=0.8662361600
+val_loss=3.6461109876 local_forward_time_s=0.3324
+
+LOCAL_EXP026_varnet_c4_ch16_s10_e1
+config: cascade=4 chans=16 sens_chans=10 epochs=1 seed=430
+skipped: []
+overall full=0.8794680239 bbox=0.8835868291 quality=0.8815274265
+acc4 quality=0.8970262402
+acc8 quality=0.8595336448
+val_loss=3.7231682369 local_forward_time_s=0.3566
+
+LOCAL_EXP027_varnet_c6_ch14_s8_e1
+config: cascade=6 chans=14 sens_chans=8 epochs=1 seed=430
+skipped: []
+overall full=0.8841284133 bbox=0.8931268794 quality=0.8886276464
+acc4 quality=0.9037073026
+acc8 quality=0.8672733414
+val_loss=3.6680497184 local_forward_time_s=0.3301
+
+LOCAL_EXP028_varnet_c7_ch12_s8_e1
+config: cascade=7 chans=12 sens_chans=8 epochs=1 seed=430
+skipped: []
+overall full=0.8843235364 bbox=0.8948626322 quality=0.8895930843
+acc4 quality=0.9036611248
+acc8 quality=0.8696873903
+val_loss=3.6353778787 local_forward_time_s=0.3419
+
 === ranking by local 1-epoch quality ===
 
 0.8929586423  LOCAL_EXP018_varnet_c4_ch16_s8_e1  full=0.8854211528 bbox=0.9004961319
 0.8896498863  LOCAL_EXP019_varnet_c4_ch12_s12_e1  full=0.8844853268 bbox=0.8948144457
+0.8895930843  LOCAL_EXP028_varnet_c7_ch12_s8_e1  full=0.8843235364 bbox=0.8948626322
 0.8892023687  LOCAL_EXP021_varnet_c6_ch12_s12_e1  full=0.8844415618 bbox=0.8939631755
+0.8886276464  LOCAL_EXP027_varnet_c6_ch14_s8_e1  full=0.8841284133 bbox=0.8931268794
+0.8880092719  LOCAL_EXP025_varnet_c4_ch12_s10_e1  full=0.8834250094 bbox=0.8925935345
 0.8871118525  LOCAL_EXP022_varnet_c4_ch16_s12_e1  full=0.8831212078 bbox=0.8911024973
 0.8870729361  LOCAL_EXP020_varnet_c4_ch18_s8_e1  full=0.8817238236 bbox=0.8924220486
 0.8857186951  LOCAL_EXP014_varnet_c6_ch12_s8_e1  full=0.8811104767 bbox=0.8903269135
@@ -112,10 +155,12 @@ val_loss=3.7699207988 local_forward_time_s=0.3505
 0.8841971361  LOCAL_EXP012_varnet_c4_ch12_s4_e1  full=0.8794828387 bbox=0.8889114335
 0.8841476308  LOCAL_EXP023_varnet_c6_ch16_s8_e1  full=0.8792693435 bbox=0.8890259181
 0.8837710750  LOCAL_EXP017_varnet_c5_ch12_s8_e1  full=0.8792087180 bbox=0.8883334321
+0.8824904913  LOCAL_EXP024_varnet_c4_ch14_s8_e1  full=0.8795853271 bbox=0.8853956554
+0.8815274265  LOCAL_EXP026_varnet_c4_ch16_s10_e1  full=0.8794680239 bbox=0.8835868291
 0.8791320167  LOCAL_EXP016_varnet_c3_ch12_s8_e1  full=0.8775208604 bbox=0.8807431730
 0.8776455678  LOCAL_EXP015_varnet_c6_ch12_s4_e1  full=0.8747640465 bbox=0.8805270891
 
 Recommendation:
 - LOCAL_EXP018 c4/ch16/s8 is the new one-epoch desktop leader.
 - Do not treat LOCAL_EXP018 or any LOCAL_ checkpoint as official.
-- Wait for the active VESSL EXP030 epoch-21-30 continuation and validation before proposing any official follow-up.
+- Wait for the operator-reported VESSL EXP031 epoch-21-30 continuation and validation before proposing any official follow-up.

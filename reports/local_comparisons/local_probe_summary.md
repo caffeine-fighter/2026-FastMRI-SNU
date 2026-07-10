@@ -26,21 +26,31 @@ quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
 | `LOCAL_EXP021_varnet_c6_ch12_s12_e1` | 6 | 12 | 12 | 0.8844415618 | 0.8939631755 | 0.8892023687 | 0.9070642763 | 0.8627274112 | 3.7623022610 | 0.3641 | `[]` |
 | `LOCAL_EXP022_varnet_c4_ch16_s12_e1` | 4 | 16 | 12 | 0.8831212078 | 0.8911024973 | 0.8871118525 | 0.9033776048 | 0.8636826972 | 3.6625753789 | 0.3438 | `[]` |
 | `LOCAL_EXP023_varnet_c6_ch16_s8_e1` | 6 | 16 | 8 | 0.8792693435 | 0.8890259181 | 0.8841476308 | 0.8999979823 | 0.8617481715 | 3.7699207988 | 0.3505 | `[]` |
+| `LOCAL_EXP024_varnet_c4_ch14_s8_e1` | 4 | 14 | 8 | 0.8795853271 | 0.8853956554 | 0.8824904913 | 0.8982502596 | 0.8604053287 | 3.7197679815 | 0.3116 | `[]` |
+| `LOCAL_EXP025_varnet_c4_ch12_s10_e1` | 4 | 12 | 10 | 0.8834250094 | 0.8925935345 | 0.8880092719 | 0.9033175714 | 0.8662361600 | 3.6461109876 | 0.3324 | `[]` |
+| `LOCAL_EXP026_varnet_c4_ch16_s10_e1` | 4 | 16 | 10 | 0.8794680239 | 0.8835868291 | 0.8815274265 | 0.8970262402 | 0.8595336448 | 3.7231682369 | 0.3566 | `[]` |
+| `LOCAL_EXP027_varnet_c6_ch14_s8_e1` | 6 | 14 | 8 | 0.8841284133 | 0.8931268794 | 0.8886276464 | 0.9037073026 | 0.8672733414 | 3.6680497184 | 0.3301 | `[]` |
+| `LOCAL_EXP028_varnet_c7_ch12_s8_e1` | 7 | 12 | 8 | 0.8843235364 | 0.8948626322 | 0.8895930843 | 0.9036611248 | 0.8696873903 | 3.6353778787 | 0.3419 | `[]` |
 
 ## Ranking by one-epoch local quality
 
 1. `LOCAL_EXP018_varnet_c4_ch16_s8_e1` — quality=0.8929586423, SSIM_full=0.8854211528, SSIM_bbox=0.9004961319
 2. `LOCAL_EXP019_varnet_c4_ch12_s12_e1` — quality=0.8896498863, SSIM_full=0.8844853268, SSIM_bbox=0.8948144457
-3. `LOCAL_EXP021_varnet_c6_ch12_s12_e1` — quality=0.8892023687, SSIM_full=0.8844415618, SSIM_bbox=0.8939631755
-4. `LOCAL_EXP022_varnet_c4_ch16_s12_e1` — quality=0.8871118525, SSIM_full=0.8831212078, SSIM_bbox=0.8911024973
-5. `LOCAL_EXP020_varnet_c4_ch18_s8_e1` — quality=0.8870729361, SSIM_full=0.8817238236, SSIM_bbox=0.8924220486
-6. `LOCAL_EXP014_varnet_c6_ch12_s8_e1` — quality=0.8857186951, SSIM_full=0.8811104767, SSIM_bbox=0.8903269135
-7. `LOCAL_EXP013_varnet_c4_ch12_s8_e1` — quality=0.8849368762, SSIM_full=0.8807929440, SSIM_bbox=0.8890808084
-8. `LOCAL_EXP012_varnet_c4_ch12_s4_e1` — quality=0.8841971361, SSIM_full=0.8794828387, SSIM_bbox=0.8889114335
-9. `LOCAL_EXP023_varnet_c6_ch16_s8_e1` — quality=0.8841476308, SSIM_full=0.8792693435, SSIM_bbox=0.8890259181
-10. `LOCAL_EXP017_varnet_c5_ch12_s8_e1` — quality=0.8837710750, SSIM_full=0.8792087180, SSIM_bbox=0.8883334321
-11. `LOCAL_EXP016_varnet_c3_ch12_s8_e1` — quality=0.8791320167, SSIM_full=0.8775208604, SSIM_bbox=0.8807431730
-12. `LOCAL_EXP015_varnet_c6_ch12_s4_e1` — quality=0.8776455678, SSIM_full=0.8747640465, SSIM_bbox=0.8805270891
+3. `LOCAL_EXP028_varnet_c7_ch12_s8_e1` — quality=0.8895930843, SSIM_full=0.8843235364, SSIM_bbox=0.8948626322
+4. `LOCAL_EXP021_varnet_c6_ch12_s12_e1` — quality=0.8892023687, SSIM_full=0.8844415618, SSIM_bbox=0.8939631755
+5. `LOCAL_EXP027_varnet_c6_ch14_s8_e1` — quality=0.8886276464, SSIM_full=0.8841284133, SSIM_bbox=0.8931268794
+6. `LOCAL_EXP025_varnet_c4_ch12_s10_e1` — quality=0.8880092719, SSIM_full=0.8834250094, SSIM_bbox=0.8925935345
+7. `LOCAL_EXP022_varnet_c4_ch16_s12_e1` — quality=0.8871118525, SSIM_full=0.8831212078, SSIM_bbox=0.8911024973
+8. `LOCAL_EXP020_varnet_c4_ch18_s8_e1` — quality=0.8870729361, SSIM_full=0.8817238236, SSIM_bbox=0.8924220486
+9. `LOCAL_EXP014_varnet_c6_ch12_s8_e1` — quality=0.8857186951, SSIM_full=0.8811104767, SSIM_bbox=0.8903269135
+10. `LOCAL_EXP013_varnet_c4_ch12_s8_e1` — quality=0.8849368762, SSIM_full=0.8807929440, SSIM_bbox=0.8890808084
+11. `LOCAL_EXP012_varnet_c4_ch12_s4_e1` — quality=0.8841971361, SSIM_full=0.8794828387, SSIM_bbox=0.8889114335
+12. `LOCAL_EXP023_varnet_c6_ch16_s8_e1` — quality=0.8841476308, SSIM_full=0.8792693435, SSIM_bbox=0.8890259181
+13. `LOCAL_EXP017_varnet_c5_ch12_s8_e1` — quality=0.8837710750, SSIM_full=0.8792087180, SSIM_bbox=0.8883334321
+14. `LOCAL_EXP024_varnet_c4_ch14_s8_e1` — quality=0.8824904913, SSIM_full=0.8795853271, SSIM_bbox=0.8853956554
+15. `LOCAL_EXP026_varnet_c4_ch16_s10_e1` — quality=0.8815274265, SSIM_full=0.8794680239, SSIM_bbox=0.8835868291
+16. `LOCAL_EXP016_varnet_c3_ch12_s8_e1` — quality=0.8791320167, SSIM_full=0.8775208604, SSIM_bbox=0.8807431730
+17. `LOCAL_EXP015_varnet_c6_ch12_s4_e1` — quality=0.8776455678, SSIM_full=0.8747640465, SSIM_bbox=0.8805270891
 
 ## Interpretation
 
@@ -55,6 +65,6 @@ quality_score = 0.5 * SSIM_full + 0.5 * SSIM_bbox
 
 ## Recommendation
 
-- Let the active VESSL EXP030 epoch-21–30 continuation finish without any Git or GPU interference from this branch.
+- Let the operator-reported VESSL EXP031 epoch-21–30 continuation finish without any Git or GPU interference from this branch.
 - After the official continuation is validated, `c4/ch16/s8` is the strongest architecture suggested by this LOCAL sweep if another VESSL experiment is explicitly approved.
 - Do not merge this local-probe branch into the VESSL/default branch while VESSL is training; review it after the VESSL handoff.
