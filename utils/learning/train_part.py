@@ -411,6 +411,13 @@ def _tree_digest(directory_fd):
         digest.update(len(value).to_bytes(8, "big"))
         digest.update(value)
 
+    root_stat = os.fstat(directory_fd)
+    if not stat.S_ISDIR(root_stat.st_mode):
+        raise ValueError("Staged root is not a directory")
+    add_field(b".")
+    add_field(stat.S_IMODE(root_stat.st_mode).to_bytes(4, "big"))
+    add_field(b"directory")
+
     def visit(current_fd, relative_parts):
         with os.scandir(current_fd) as entries:
             names_before = sorted(entry.name for entry in entries)

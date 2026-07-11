@@ -181,6 +181,23 @@ class TrainCliTests(unittest.TestCase):
             self.assertFalse(final_dir.exists())
             self.assertTrue(staged.path.is_dir())
 
+    def test_retention_rejects_root_mode_mutation_after_seal(self):
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            root = Path(tmp)
+            staged, final_dir = train_part_module._stage_retained_reconstructions(
+                {"sample.h5": np.zeros((1, 2, 2), dtype=np.float32)},
+                root / "retained",
+                1,
+            )
+            os.fchmod(staged.directory_fd, 0o755)
+
+            with self.assertRaisesRegex(ValueError, "tree changed after sealing"):
+                train_part_module._publish_retained_epoch(staged, final_dir)
+            train_part_module._cleanup_staged_directory(staged)
+
+            self.assertFalse(final_dir.exists())
+            self.assertTrue(staged.path.is_dir())
+
     def test_opt_in_retention_rejects_non_h5_basename(self):
         with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
             root = Path(tmp)
