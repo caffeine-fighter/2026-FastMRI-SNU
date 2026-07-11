@@ -1,85 +1,77 @@
 # Current state
 
-The root [`README.md`](../README.md) is the live VESSL dashboard. This page records the stable official state, consolidated LOCAL evidence, and remaining decision gates.
-
-_Last consolidated: 2026-07-11 KST after EXP031 training and the desktop LOCAL campaign completed._
+The root [`README.md`](../README.md) is the compact status dashboard. This page records candidate state and remaining decisions.
 
 ## Candidate status
 
 | Role | Experiment | Status |
 |---|---|---|
-| Official candidate | `EXP030_varnet_c4_ch12_s8_e20` | selected and officially evaluated |
-| Follow-up | `EXP031_varnet_c4_ch12_s8_e30` | training complete; final file-backed handoff pending |
-| LOCAL architecture candidate | c4/ch16/s8 | rejected by predefined seed-robustness gate |
+| Finalized 30-run fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and timing cohort complete |
+| One-shot official leader | `EXP031_varnet_c4_ch12_s8_e30` | Training, validation, and first approved official run complete |
+| Active quality experiment | `EXP032_varnet_c6_ch12_s8_e30` | VESSL training; cascades 4 -> 6, all other main variables fixed |
 
-## Official EXP030 result
+## Official results
 
-| SSIM_full | SSIM_bbox | Quality | Min time | Total score |
-|---:|---:|---:|---:|---:|
-| 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | **0.9152513541666667** |
-
-The official 30-repeat evaluation is complete. Thirty repeats are timing repetitions of the same checkpoint, not training epochs. The external organizer upload remains pending.
-
-## EXP031 training-complete telemetry
-
-VESSL status commit `bc13bcce550136cd96781dbecb544a0cb10eaf26` reports:
-
-- completion by 2026-07-11 08:59 KST;
-- best validation loss `3.1818922822357556` at epoch 27;
-- final validation snapshot: full `0.904501`, bbox `0.930380`, quality `0.917441`;
-- no matched training errors and checkpoints reported present.
-
-These values are training/status telemetry only. The repository still lacks the final EXP031 experiment-log row, checkpoint identity, and `reports/phase2/EXP031_validation_handoff.json`. EXP030 therefore remains authoritative, and no official EXP031 evaluation starts automatically.
-
-## Desktop LOCAL campaign
-
-All LOCAL evidence is exploratory desktop evidence only. It is not an official VESSL score or timing result.
-
-Seventeen one-epoch probes and five adaptive runs completed without failed runs or skipped validation files. The adaptive comparison was:
-
-| Probe | Config | Seed | SSIM_full | SSIM_bbox | quality_score | val_loss |
+| Candidate | Evidence | SSIM_full | SSIM_bbox | Quality | Time | Total score |
 |---|---|---:|---:|---:|---:|---:|
-| `LOCAL_EXP029` | c4/ch12/s8/e5 | 430 | 0.8957743251 | 0.9116992114 | 0.9037367682 | 3.3905022666 |
-| `LOCAL_EXP032` | c4/ch16/s8/e5 | 430 | 0.8986326562 | 0.9185488328 | 0.9085907445 | 3.3032180536 |
-| `LOCAL_EXP033` | c4/ch12/s8/e1 | 431 | 0.8823435134 | 0.8932403356 | 0.8877919245 | 3.6904079145 |
-| `LOCAL_EXP034` | c4/ch16/s8/e1 | 431 | 0.8808135834 | 0.8923592767 | 0.8865864301 | 3.6965833257 |
-| `LOCAL_EXP035` | c4/ch16/s8/e10 | 430 | 0.9021009122 | 0.9229051363 | 0.9125030243 | 3.2429721451 |
+| EXP030 | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
+| EXP031 | one official run | **0.9191** | **0.9114** | **0.91525** | **173.1 ms/slice** | **0.9162015104166666** |
 
-Gate outcome:
+EXP031 improved official SSIM_full by `+0.0013`, SSIM_bbox by `+0.0006`, quality by `+0.00095`, and one-shot total score by `+0.0009501041666666` relative to EXP030's one-shot result. It leads EXP030's finalized 30-run score by `+0.00095015625`.
 
-- matched seed-430 e5 quality gain: `+0.0048539763` — pass;
-- candidate e10 minus e5: `+0.0039122798` — pass;
-- seed-431 quality delta: `-0.0012054944` — fail;
-- seed-431 full-image delta: `-0.0015299300`, below the allowed `-0.001` floor — fail.
+Evidence: [`../reports/phase2/EXP031_official_20260711_014023/score.json`](../reports/phase2/EXP031_official_20260711_014023/score.json).
 
-**Decision: do not promote c4/ch16/s8.** See [`../reports/local_comparisons/local_probe_adaptive_followup_20260711_final.md`](../reports/local_comparisons/local_probe_adaptive_followup_20260711_final.md).
+## EXP031 provenance
 
-## Consolidated Git state
+- best training epoch: 27
+- best validation loss: `3.1818922822357556`
+- best checkpoint SHA-256: `3e68d94922f68d9a536e4bdbe7802785f8b43792524ddac252dbbe8d5c11d31f`
+- official run: `EXP031_official_20260711_014023`
+- official evaluator exit code: 0
+- official error-pattern matches: 0
 
-- Default branch: `baseline/2026-baby-varnet`
-- VESSL operational branch: `phase2/eval-wrapper-vessl`
-- EXP030 implementation commit: `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`
-- Phase 2 score-parser hardening: merged through PR #18
-- LOCAL reports: consolidated into the default and VESSL branches; temporary LOCAL branches are retired after remote verification
+## Active optimization gate
 
-## Next actions
+EXP031 remains the protected one-shot official leader while the 40-day optimization program runs. EXP032 is the first architecture-capacity test. Its final validation result must beat EXP031 before any official evaluation is considered.
 
-1. Require the final EXP031 experiment-log row and `EXP031_validation_handoff.json`, including checkpoint SHA-256, training provenance, best epoch, metrics, subgroup counts, and skipped list.
-2. Run `python scripts/build_exp031_decision_report.py --check`; generate the combined report only when the official sources are present and valid.
-3. Keep EXP030 authoritative unless a complete official EXP031 handoff passes validation and replacement is approved.
-4. Keep c4/ch16/s8 rejected unless separately approved evidence resolves the seed-robustness failure.
-5. Complete the external organizer upload using [`final_submission_checklist.md`](final_submission_checklist.md).
+Local promotion uses the fixed evaluator's equal-acceleration semantics, not the historical pooled `overall` row:
+
+| EXP031 local reference | SSIM_full | SSIM_bbox | Quality |
+|---|---:|---:|---:|
+| Leaderboard-faithful equal-acc | 0.904053714106 | 0.926773775177 | **0.915413744641** |
+| Pooled diagnostic only | 0.904500772769 | 0.930380483592 | 0.917440628180 |
+
+The validation set has 407 acc4 versus 384 acc8 slices and 107 versus 54 boxes, so pooled aggregation overweights acc4. `scripts/evaluate_val.py` now has a test-first `leaderboard_equal_acc` row under independent review.
+
+The final 30-run timing cohort is intentionally deferred until the model is frozen near the deadline. Running it now would measure a candidate that may soon be replaced.
+
+Full schedule: [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md).
+
+## Resume/checkpoint infrastructure status
+
+The local resume/LR-override implementation now passes 40 focused unit tests after test-first remediation of race, interruption-consistency, checkpoint-schema, CLI, and CUDA RNG-topology findings. It remains uncommitted: a fresh independent review must clear the revised implementation and its two documented cross-file/concurrent-publication concerns before it can gate EXP033.
+
+## Remaining actions
+
+1. Complete and locally evaluate EXP032 without launching official evaluation automatically.
+2. Run the queued EXP033 five-epoch continuation from EXP031 best at LR 3e-4 after EXP032, avoiding GPU contention.
+3. Test score-aligned foreground/bbox loss, supported scheduler/cascade follow-ups, and no-cost checkpoint averaging through local promotion gates.
+4. Use separately approved one-shot official runs only for meaningful validation winners.
+5. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
+6. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
 
 ## Submission state
 
-- Verified EXP030 package: `/root/submissions/EXP030_final_fbbddf6.zip`
-- Package SHA-256: `65b150fb749b772db99e4fde77a636ed58eb19f215e859dbc77cf60ea3aeb18f`
+- GitHub default branch: `baseline/2026-baby-varnet`
+- Existing EXP030 implementation commit: `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`
+- Existing EXP030 package: `/root/submissions/EXP030_final_fbbddf6.zip`
+- Existing package SHA-256: `65b150fb749b772db99e4fde77a636ed58eb19f215e859dbc77cf60ea3aeb18f`
+- EXP031 package: not built pending timing cohort
 - External organizer upload: pending
 
 ## Guardrails
 
-- Do not modify `recon_eval.py` or official metric implementations.
-- Do not run official evaluation without explicit approval.
-- Treat mounted `Data` directories as read-only.
-- Never commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
-- Keep LOCAL evidence explicitly exploratory and unofficial.
+- Do not modify `recon_eval.py`.
+- Do not run official evaluation without approval.
+- Do not modify mounted `Data`.
+- Do not commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
