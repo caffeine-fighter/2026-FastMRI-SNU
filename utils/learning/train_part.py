@@ -1,10 +1,16 @@
+import ctypes
+import errno
 import fcntl
+import hashlib
 import json
+import stat
 import uuid
+from dataclasses import dataclass
 import numpy as np
 import torch
 import time
 from pathlib import Path
+from typing import Optional
 
 from collections import defaultdict
 from utils.data.load_data import create_data_loaders
@@ -283,6 +289,408 @@ def save_model(
         os.close(directory_fd)
 
         
+def _validate_retained_reconstruction_names(reconstructions):
+    for fname in reconstructions:
+        if (
+            not isinstance(fname, str)
+            or not fname
+            or Path(fname).name != fname
+            or not fname.endswith(".h5")
+        ):
+            raise ValueError(
+                "Retained reconstruction filename must be a regular .h5 "
+                f"basename: {fname!r}"
+            )
+
+
+class PublicationIndeterminateError(OSError):
+    """Publication renamed successfully but its directory durability is unknown."""
+
+
+@dataclass
+class _StagedDirectory:
+    path: Path
+    parent_fd: int
+    directory_fd: int
+    identity: tuple
+    sealed_digest: Optional[str] = None
+    published: bool = False
+    closed: bool = False
+
+
+def _inode_identity(file_stat):
+    return (file_stat.st_dev, file_stat.st_ino)
+
+
+def _directory_open_flags():
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return flags
+
+
+def _regular_open_flags():
+    flags = os.O_RDONLY | os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return flags
+
+
+def _same_open_inode(directory_fd, name, expected_identity, expected_kind):
+    try:
+        current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return False
+    return expected_kind(current.st_mode) and _inode_identity(current) == expected_identity
+
+
+def _fsync_directory_tree(directory_fd):
+    """Fsync a symlink-free regular-file tree from its leaves to its root."""
+    with os.scandir(directory_fd) as entries:
+        names = sorted(entry.name for entry in entries)
+    for name in names:
+        entry_stat = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        entry_identity = _inode_identity(entry_stat)
+        if stat.S_ISREG(entry_stat.st_mode):
+            file_fd = os.open(name, _regular_open_flags(), dir_fd=directory_fd)
+            try:
+                opened = os.fstat(file_fd)
+                if not stat.S_ISREG(opened.st_mode) or _inode_identity(opened) != entry_identity:
+                    raise ValueError(f"Staged regular file changed identity: {name}")
+                os.fsync(file_fd)
+            finally:
+                os.close(file_fd)
+        elif stat.S_ISDIR(entry_stat.st_mode):
+            child_fd = os.open(name, _directory_open_flags(), dir_fd=directory_fd)
+            try:
+                opened = os.fstat(child_fd)
+                if _inode_identity(opened) != entry_identity:
+                    raise ValueError(f"Staged directory changed identity: {name}")
+                _fsync_directory_tree(child_fd)
+            finally:
+                os.close(child_fd)
+        else:
+            raise ValueError(f"Staged output is not a regular file or directory: {name}")
+    os.fsync(directory_fd)
+
+
+def _seal_read_only_tree(directory_fd):
+    """Remove write bits from every regular file and directory in the tree."""
+    with os.scandir(directory_fd) as entries:
+        names = sorted(entry.name for entry in entries)
+    for name in names:
+        entry_stat = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        entry_identity = _inode_identity(entry_stat)
+        if stat.S_ISREG(entry_stat.st_mode):
+            file_fd = os.open(name, _regular_open_flags(), dir_fd=directory_fd)
+            try:
+                if _inode_identity(os.fstat(file_fd)) != entry_identity:
+                    raise ValueError(f"Staged regular file changed identity: {name}")
+                os.fchmod(file_fd, 0o444)
+            finally:
+                os.close(file_fd)
+        elif stat.S_ISDIR(entry_stat.st_mode):
+            child_fd = os.open(name, _directory_open_flags(), dir_fd=directory_fd)
+            try:
+                if _inode_identity(os.fstat(child_fd)) != entry_identity:
+                    raise ValueError(f"Staged directory changed identity: {name}")
+                _seal_read_only_tree(child_fd)
+            finally:
+                os.close(child_fd)
+        else:
+            raise ValueError(f"Staged output is not a regular file or directory: {name}")
+    os.fchmod(directory_fd, 0o555)
+
+
+def _tree_digest(directory_fd):
+    """Return an exact names/types/modes/content digest of a staged tree."""
+    digest = hashlib.sha256()
+
+    def add_field(value):
+        value = bytes(value)
+        digest.update(len(value).to_bytes(8, "big"))
+        digest.update(value)
+
+    def visit(current_fd, relative_parts):
+        with os.scandir(current_fd) as entries:
+            names_before = sorted(entry.name for entry in entries)
+        for name in names_before:
+            entry_stat = os.stat(name, dir_fd=current_fd, follow_symlinks=False)
+            identity = _inode_identity(entry_stat)
+            relative = b"/".join(
+                [*(os.fsencode(part) for part in relative_parts), os.fsencode(name)]
+            )
+            add_field(relative)
+            add_field(stat.S_IMODE(entry_stat.st_mode).to_bytes(4, "big"))
+            if stat.S_ISREG(entry_stat.st_mode):
+                add_field(b"file")
+                file_fd = os.open(name, _regular_open_flags(), dir_fd=current_fd)
+                try:
+                    before = os.fstat(file_fd)
+                    before_snapshot = (
+                        _inode_identity(before), before.st_mode, before.st_size,
+                        before.st_mtime_ns, before.st_ctime_ns,
+                    )
+                    if not stat.S_ISREG(before.st_mode) or before_snapshot[0] != identity:
+                        raise ValueError(f"Staged regular file changed identity: {name}")
+                    while True:
+                        chunk = os.read(file_fd, 1024 * 1024)
+                        if not chunk:
+                            break
+                        digest.update(chunk)
+                    after = os.fstat(file_fd)
+                    after_snapshot = (
+                        _inode_identity(after), after.st_mode, after.st_size,
+                        after.st_mtime_ns, after.st_ctime_ns,
+                    )
+                    if after_snapshot != before_snapshot:
+                        raise ValueError(f"Staged regular file mutated while validating: {name}")
+                finally:
+                    os.close(file_fd)
+            elif stat.S_ISDIR(entry_stat.st_mode):
+                add_field(b"directory")
+                child_fd = os.open(name, _directory_open_flags(), dir_fd=current_fd)
+                try:
+                    if _inode_identity(os.fstat(child_fd)) != identity:
+                        raise ValueError(f"Staged directory changed identity: {name}")
+                    visit(child_fd, (*relative_parts, name))
+                finally:
+                    os.close(child_fd)
+            else:
+                raise ValueError(
+                    f"Staged output is not a regular file or directory: {name}"
+                )
+        with os.scandir(current_fd) as entries:
+            names_after = sorted(entry.name for entry in entries)
+        if names_after != names_before:
+            raise ValueError("Staged directory entries mutated while validating")
+
+    visit(directory_fd, ())
+    return digest.hexdigest()
+
+
+def _seal_staged_directory(staged):
+    """Seal, durably flush, and record the exact pre-publication tree."""
+    if staged.closed or staged.published:
+        raise ValueError("Staging handle is no longer sealable")
+    _seal_read_only_tree(staged.directory_fd)
+    _fsync_directory_tree(staged.directory_fd)
+    staged.sealed_digest = _tree_digest(staged.directory_fd)
+
+
+def _close_staged_directory(staged):
+    if staged.closed:
+        return
+    staged.closed = True
+    os.close(staged.directory_fd)
+    os.close(staged.parent_fd)
+
+
+def _cleanup_staged_directory(staged):
+    """Close staging handles without deleting any potentially replaced pathname.
+
+    A failed operation leaves at most its one clearly named ``*-orphan-*`` tree.
+    Deliberately preserving that bounded orphan is safer than a check-then-delete
+    sequence, which could unlink a cooperating writer's pathname replacement.
+    """
+    if staged.closed:
+        return
+    _close_staged_directory(staged)
+
+
+def _open_durably_created_directory(path, description):
+    """Open an absolute directory, durably creating every missing component."""
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    current_fd = os.open(absolute.anchor, _directory_open_flags())
+    current_path = Path(absolute.anchor)
+    try:
+        for component in absolute.parts[1:]:
+            try:
+                component_stat = os.stat(
+                    component, dir_fd=current_fd, follow_symlinks=False
+                )
+            except FileNotFoundError:
+                os.mkdir(component, mode=0o755, dir_fd=current_fd)
+                try:
+                    os.fsync(current_fd)
+                except BaseException as exc:
+                    raise OSError(
+                        f"{description} parent creation is not durably confirmed: "
+                        f"{current_path / component}"
+                    ) from exc
+                component_stat = os.stat(
+                    component, dir_fd=current_fd, follow_symlinks=False
+                )
+            if not stat.S_ISDIR(component_stat.st_mode):
+                raise NotADirectoryError(
+                    errno.ENOTDIR,
+                    f"{description} parent component is not a real directory: "
+                    f"{current_path / component}",
+                    current_path / component,
+                )
+            next_fd = os.open(component, _directory_open_flags(), dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = next_fd
+            current_path /= component
+        return absolute, current_fd
+    except BaseException:
+        os.close(current_fd)
+        raise
+
+
+def _create_staged_directory(final_dir, description):
+    """Create and retain descriptor ownership of a same-parent staging inode."""
+    final_dir = Path(os.path.abspath(os.fspath(final_dir)))
+    parent = final_dir.parent
+    parent, parent_fd = _open_durably_created_directory(parent, description)
+    fcntl.flock(parent_fd, fcntl.LOCK_EX)
+    try:
+        try:
+            os.stat(final_dir.name, dir_fd=parent_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise FileExistsError(
+                errno.EEXIST,
+                f"{description} output already exists: {final_dir}",
+                final_dir,
+            )
+        staging_name = f".{final_dir.name}-unpublished-orphan-{uuid.uuid4().hex}"
+        os.mkdir(staging_name, mode=0o700, dir_fd=parent_fd)
+        try:
+            os.fsync(parent_fd)
+        except BaseException as exc:
+            raise OSError(
+                f"{description} staging creation is not durably confirmed: "
+                f"{parent / staging_name}"
+            ) from exc
+        directory_fd = os.open(
+            staging_name, _directory_open_flags(), dir_fd=parent_fd
+        )
+    except BaseException:
+        os.close(parent_fd)
+        raise
+    return _StagedDirectory(
+        path=parent / staging_name,
+        parent_fd=parent_fd,
+        directory_fd=directory_fd,
+        identity=_inode_identity(os.fstat(directory_fd)),
+    )
+
+
+def _staged_directory_descriptor_path(staged):
+    if staged.closed:
+        raise ValueError("Staging handle is closed")
+    return Path(f"/proc/self/fd/{staged.directory_fd}")
+
+
+def _stage_retained_reconstructions(reconstructions, retained_root, epoch):
+    _validate_retained_reconstruction_names(reconstructions)
+    final_dir = Path(retained_root) / f"epoch_{epoch:04d}"
+    staged = _create_staged_directory(final_dir, "Retained epoch")
+    try:
+        save_reconstructions(
+            reconstructions, _staged_directory_descriptor_path(staged)
+        )
+        with os.scandir(staged.directory_fd) as entries:
+            actual_names = {entry.name for entry in entries}
+        expected_names = set(reconstructions)
+        if actual_names != expected_names:
+            raise ValueError(
+                "Retained reconstruction staging coverage mismatch: "
+                f"missing={sorted(expected_names - actual_names)}; "
+                f"unexpected={sorted(actual_names - expected_names)}"
+            )
+        _seal_staged_directory(staged)
+        return staged, final_dir
+    except BaseException:
+        _cleanup_staged_directory(staged)
+        raise
+
+
+def _publish_staged_directory_no_replace(staged, final_dir, description):
+    """Publish a sealed tree for trusted, cooperating local writers.
+
+    Descriptor identity, read-only sealing, and a final exact digest reject
+    accidental/concurrent mutation. Python cannot exclude an arbitrary same-UID
+    process that deliberately mutates the inode after the final digest and before
+    ``renameat2``; callers must enforce a cooperating-writer boundary.
+    """
+    final_dir = Path(final_dir)
+    if staged.closed or staged.published:
+        raise ValueError(f"{description} staging handle is no longer publishable")
+    if staged.path.parent != final_dir.parent:
+        raise ValueError(f"{description} staging and destination must share a parent")
+    parent_identity = _inode_identity(os.fstat(staged.parent_fd))
+    try:
+        named_parent = os.stat(final_dir.parent, follow_symlinks=False)
+    except FileNotFoundError as exc:
+        raise ValueError(f"{description} parent changed identity") from exc
+    if not stat.S_ISDIR(named_parent.st_mode) or _inode_identity(named_parent) != parent_identity:
+        raise ValueError(f"{description} parent changed identity")
+    if not _same_open_inode(
+        staged.parent_fd, staged.path.name, staged.identity, stat.S_ISDIR
+    ):
+        raise ValueError(f"{description} staging path changed identity")
+    if staged.sealed_digest is None:
+        raise ValueError(f"{description} staging tree was not sealed")
+    if _tree_digest(staged.directory_fd) != staged.sealed_digest:
+        raise ValueError(f"{description} staging tree changed after sealing")
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise OSError(
+            errno.ENOTSUP,
+            f"Atomic no-overwrite {description.lower()} publication unavailable",
+        )
+    renameat2.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    renameat2.restype = ctypes.c_int
+    if renameat2(
+        staged.parent_fd,
+        os.fsencode(staged.path.name),
+        staged.parent_fd,
+        os.fsencode(final_dir.name),
+        1,  # RENAME_NOREPLACE
+    ) != 0:
+        error_number = ctypes.get_errno()
+        if error_number == errno.EEXIST:
+            raise FileExistsError(
+                error_number,
+                f"{description} output already exists: {final_dir}",
+                final_dir,
+            )
+        raise OSError(error_number, os.strerror(error_number), final_dir)
+
+    staged.published = True
+    staged.path = final_dir
+    if not _same_open_inode(
+        staged.parent_fd, final_dir.name, staged.identity, stat.S_ISDIR
+    ):
+        _close_staged_directory(staged)
+        raise PublicationIndeterminateError(
+            f"{description} publication committed with indeterminate identity: {final_dir}"
+        )
+    try:
+        os.fsync(staged.parent_fd)
+    except BaseException as exc:
+        _close_staged_directory(staged)
+        raise PublicationIndeterminateError(
+            f"{description} publication committed but parent fsync failed: {final_dir}"
+        ) from exc
+    _close_staged_directory(staged)
+
+
+def _publish_retained_epoch(staged, final_dir):
+    _publish_staged_directory_no_replace(staged, final_dir, "Retained epoch")
+
+
 def train(args):
     if torch.cuda.is_available():
         device = torch.device(f'cuda:{args.GPU_NUM}')
@@ -334,6 +742,13 @@ def train(args):
         
         train_loss, train_time = train_epoch(args, epoch, model, train_loader, optimizer, loss_type)
         val_loss, num_subjects, reconstructions, targets, inputs, val_time = validate(args, model, val_loader)
+        staged_epoch_dir = retained_epoch_dir = None
+        if getattr(args, "retain_val_epochs", False):
+            staged_epoch_dir, retained_epoch_dir = (
+                _stage_retained_reconstructions(
+                    reconstructions, args.val_epochs_dir, epoch + 1
+                )
+            )
         
         val_loss_log = np.append(val_loss_log, np.array([[epoch, val_loss]]), axis=0)
         file_path = Path(args.val_loss_dir) / "val_loss_log.npy"
@@ -347,16 +762,23 @@ def train(args):
         is_new_best = val_loss < best_val_loss
         best_val_loss = min(best_val_loss, val_loss)
 
-        save_model(
-            args.exp_dir,
-            epoch + 1,
-            model,
-            optimizer,
-            best_val_loss,
-            is_new_best,
-            val_loss_history=val_loss_log,
-            history_path=file_path,
-        )
+        try:
+            if staged_epoch_dir is not None:
+                _publish_retained_epoch(staged_epoch_dir, retained_epoch_dir)
+                staged_epoch_dir = None
+            save_model(
+                args.exp_dir,
+                epoch + 1,
+                model,
+                optimizer,
+                best_val_loss,
+                is_new_best,
+                val_loss_history=val_loss_log,
+                history_path=file_path,
+            )
+        finally:
+            if staged_epoch_dir is not None:
+                _cleanup_staged_directory(staged_epoch_dir)
         print(f"loss file saved! {file_path}")
         print(
             f'Epoch = [{epoch:4d}/{args.num_epochs:4d}] TrainLoss = {train_loss:.4g} '

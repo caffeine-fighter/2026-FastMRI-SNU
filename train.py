@@ -39,6 +39,11 @@ def parse():
     parser.add_argument('--max-key', type=str, default='max', help='Name of max key in attributes')
     parser.add_argument('--seed', type=int, default=430, help='Fix random seed')
     parser.add_argument(
+        '--retain-val-epochs',
+        action='store_true',
+        help='Retain reconstruction-only validation H5 outputs for every epoch',
+    )
+    parser.add_argument(
         '--resume-checkpoint',
         type=Path,
         default=None,
@@ -73,6 +78,7 @@ if __name__ == '__main__':
     result_root = Path("../result")
     args.exp_dir = result_root / args.net_name / "checkpoints"
     args.val_dir = result_root / args.net_name / "reconstructions_val"
+    args.val_epochs_dir = result_root / args.net_name / "reconstructions_val_epochs"
     args.main_dir = result_root / args.net_name / Path(__file__).name
     args.val_loss_dir = result_root / args.net_name
 
