@@ -1,0 +1,293 @@
+{
+  "comparisons": {
+    "candidate_e10_minus_e5": {
+      "acc4_quality": 0.0037505193005371,
+      "acc8_quality": 0.0037869592800875,
+      "quality_score": 0.0039122797504132,
+      "ssim_bbox": 0.0043563035704334,
+      "ssim_full": 0.0034682559303929
+    },
+    "matched_e5_candidate_minus_baseline": {
+      "acc4_quality": 0.0043416016937935,
+      "acc8_quality": 0.005623180212246,
+      "quality_score": 0.0048539762819856,
+      "ssim_bbox": 0.0068496213936658,
+      "ssim_full": 0.0028583311703053
+    },
+    "seed430_e1_candidate_minus_baseline": {
+      "quality_score": 0.00802176614817545,
+      "ssim_bbox": 0.0114153234854989,
+      "ssim_full": 0.004628208810852
+    },
+    "seed431_candidate_minus_baseline": {
+      "acc4_quality": 0.0002833194338651,
+      "acc8_quality": -0.0040415010449513,
+      "quality_score": -0.0012054944083604,
+      "ssim_bbox": -0.0008810588291713,
+      "ssim_full": -0.0015299299875493
+    }
+  },
+  "decision_thresholds": {
+    "max_component_regression": 0.001,
+    "max_e10_vs_e5_quality_drop": 0.001,
+    "min_e5_quality_gain": 0.0,
+    "min_seed431_quality_gain": 0.0
+  },
+  "gates": {
+    "candidate_e10_stability": {
+      "passed": true,
+      "threshold": -0.001,
+      "value": 0.0039122797504132
+    },
+    "matched_e5_component_health": {
+      "minimum_component_delta": 0.0028583311703053,
+      "passed": true,
+      "threshold": -0.001
+    },
+    "matched_e5_quality_gain": {
+      "passed": true,
+      "threshold": 0.0,
+      "value": 0.0048539762819856
+    },
+    "official_vessl_resource_and_timing": {
+      "passed": null,
+      "status": "pending VESSL-only evidence"
+    },
+    "seed431_component_health": {
+      "minimum_component_delta": -0.0015299299875493,
+      "passed": false,
+      "threshold": -0.001
+    },
+    "seed431_quality_confirmation": {
+      "passed": false,
+      "threshold": 0.0,
+      "value": -0.0012054944083604
+    }
+  },
+  "generated_at": "2026-07-11T08:48:31+09:00",
+  "local_gate_passed": false,
+  "official_status": "EXP030 remains authoritative until EXP031 file-backed handoff and VESSL-only decision evidence are validated.",
+  "rationale": "The candidate wins the matched five-epoch test and improves through ten epochs, but loses the seed-431 replication and exceeds the allowed full-image component regression. Seed confirmation fails.",
+  "recommendation": "DO_NOT_PROMOTE_c4_ch16_s8",
+  "scope": "LOCAL desktop exploratory evidence only; not official Phase 2 evaluation or timing",
+  "sources": [
+    "repo://reports/local_comparisons/local_probe_adaptive_followup_20260711.json",
+    "repo://reports/local_comparisons/local_probe_adaptive_followup_plan_20260711.json"
+  ],
+  "status": "local_complete_official_pending",
+  "validated_runs": {
+    "LOCAL_EXP029_varnet_c4_ch12_s8_e5": {
+      "acc4_quality": 0.9175853404877734,
+      "acc8_quality": 0.8841012359027647,
+      "best_epoch_zero_based": 4,
+      "config": {
+        "cascade": 4,
+        "chans": 12,
+        "epochs": 5,
+        "seed": 430,
+        "sens_chans": 8
+      },
+      "counts": {
+        "bbox_annotations": 161,
+        "skipped": 0,
+        "slices": 791,
+        "volumes": 30
+      },
+      "loss_trajectory": [
+        {
+          "epoch_zero_based": 0,
+          "val_loss": 3.706074238761711
+        },
+        {
+          "epoch_zero_based": 1,
+          "val_loss": 3.5419381493747153
+        },
+        {
+          "epoch_zero_based": 2,
+          "val_loss": 3.454428472203947
+        },
+        {
+          "epoch_zero_based": 3,
+          "val_loss": 3.398569109450193
+        },
+        {
+          "epoch_zero_based": 4,
+          "val_loss": 3.3905022666181948
+        }
+      ],
+      "metrics_path": "result://LOCAL_EXP029_varnet_c4_ch12_s8_e5/metrics/metrics.json",
+      "quality_score": 0.9037367682184255,
+      "ssim_bbox": 0.9116992113753135,
+      "ssim_full": 0.8957743250615376,
+      "val_loss": 3.3905022666181948
+    },
+    "LOCAL_EXP032_varnet_c4_ch16_s8_e5": {
+      "acc4_quality": 0.9219269421815669,
+      "acc8_quality": 0.8897244161150107,
+      "best_epoch_zero_based": 4,
+      "config": {
+        "cascade": 4,
+        "chans": 16,
+        "epochs": 5,
+        "seed": 430,
+        "sens_chans": 8
+      },
+      "counts": {
+        "bbox_annotations": 161,
+        "skipped": 0,
+        "slices": 791,
+        "volumes": 30
+      },
+      "loss_trajectory": [
+        {
+          "epoch_zero_based": 0,
+          "val_loss": 3.6148317265258223
+        },
+        {
+          "epoch_zero_based": 1,
+          "val_loss": 3.4321246973817665
+        },
+        {
+          "epoch_zero_based": 2,
+          "val_loss": 3.4342348612744114
+        },
+        {
+          "epoch_zero_based": 3,
+          "val_loss": 3.3690139501334033
+        },
+        {
+          "epoch_zero_based": 4,
+          "val_loss": 3.303218053597421
+        }
+      ],
+      "metrics_path": "result://LOCAL_EXP032_varnet_c4_ch16_s8_e5/metrics/metrics.json",
+      "quality_score": 0.9085907445004111,
+      "ssim_bbox": 0.9185488327689793,
+      "ssim_full": 0.8986326562318429,
+      "val_loss": 3.303218053597421
+    },
+    "LOCAL_EXP033_varnet_c4_ch12_s8_e1_seed431": {
+      "acc4_quality": 0.9029875613906254,
+      "acc8_quality": 0.8662982413769459,
+      "best_epoch_zero_based": 0,
+      "config": {
+        "cascade": 4,
+        "chans": 12,
+        "epochs": 1,
+        "seed": 431,
+        "sens_chans": 8
+      },
+      "counts": {
+        "bbox_annotations": 161,
+        "skipped": 0,
+        "slices": 791,
+        "volumes": 30
+      },
+      "loss_trajectory": [
+        {
+          "epoch_zero_based": 0,
+          "val_loss": 3.69040791450174
+        }
+      ],
+      "metrics_path": "result://LOCAL_EXP033_varnet_c4_ch12_s8_e1_seed431/metrics/metrics.json",
+      "quality_score": 0.8877919244820621,
+      "ssim_bbox": 0.8932403355651761,
+      "ssim_full": 0.8823435133989481,
+      "val_loss": 3.69040791450174
+    },
+    "LOCAL_EXP034_varnet_c4_ch16_s8_e1_seed431": {
+      "acc4_quality": 0.9032708808244905,
+      "acc8_quality": 0.8622567403319946,
+      "best_epoch_zero_based": 0,
+      "config": {
+        "cascade": 4,
+        "chans": 16,
+        "epochs": 1,
+        "seed": 431,
+        "sens_chans": 8
+      },
+      "counts": {
+        "bbox_annotations": 161,
+        "skipped": 0,
+        "slices": 791,
+        "volumes": 30
+      },
+      "loss_trajectory": [
+        {
+          "epoch_zero_based": 0,
+          "val_loss": 3.696583325746992
+        }
+      ],
+      "metrics_path": "result://LOCAL_EXP034_varnet_c4_ch16_s8_e1_seed431/metrics/metrics.json",
+      "quality_score": 0.8865864300737017,
+      "ssim_bbox": 0.8923592767360048,
+      "ssim_full": 0.8808135834113988,
+      "val_loss": 3.696583325746992
+    },
+    "LOCAL_EXP035_varnet_c4_ch16_s8_e10": {
+      "acc4_quality": 0.925677461482104,
+      "acc8_quality": 0.8935113753950982,
+      "best_epoch_zero_based": 9,
+      "config": {
+        "cascade": 4,
+        "chans": 16,
+        "epochs": 10,
+        "seed": 430,
+        "sens_chans": 8
+      },
+      "counts": {
+        "bbox_annotations": 161,
+        "skipped": 0,
+        "slices": 791,
+        "volumes": 30
+      },
+      "loss_trajectory": [
+        {
+          "epoch_zero_based": 0,
+          "val_loss": 3.6148317265258223
+        },
+        {
+          "epoch_zero_based": 1,
+          "val_loss": 3.4321246973817665
+        },
+        {
+          "epoch_zero_based": 2,
+          "val_loss": 3.4342348612744114
+        },
+        {
+          "epoch_zero_based": 3,
+          "val_loss": 3.3690139501334033
+        },
+        {
+          "epoch_zero_based": 4,
+          "val_loss": 3.303218053597421
+        },
+        {
+          "epoch_zero_based": 5,
+          "val_loss": 3.280273771097035
+        },
+        {
+          "epoch_zero_based": 6,
+          "val_loss": 3.264081503241325
+        },
+        {
+          "epoch_zero_based": 7,
+          "val_loss": 3.257323586653171
+        },
+        {
+          "epoch_zero_based": 8,
+          "val_loss": 3.245791593560014
+        },
+        {
+          "epoch_zero_based": 9,
+          "val_loss": 3.242972145084181
+        }
+      ],
+      "metrics_path": "result://LOCAL_EXP035_varnet_c4_ch16_s8_e10/metrics/metrics.json",
+      "quality_score": 0.9125030242508243,
+      "ssim_bbox": 0.9229051363394127,
+      "ssim_full": 0.9021009121622358,
+      "val_loss": 3.242972145084181
+    }
+  }
+}

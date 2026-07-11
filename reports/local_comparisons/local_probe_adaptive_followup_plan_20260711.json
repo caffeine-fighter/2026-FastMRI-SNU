@@ -1,0 +1,141 @@
+{
+  "decision_thresholds": {
+    "max_component_regression": 0.001,
+    "max_e10_vs_e5_quality_drop": 0.001,
+    "min_e5_quality_gain": 0.0,
+    "min_seed431_quality_gain": 0.0
+  },
+  "generated_at": "2026-07-11T02:58:37+09:00",
+  "one_epoch_c4_sens8plus_ranking": [
+    {
+      "cascade": 4,
+      "chans": 16,
+      "exp_id": "LOCAL_EXP018_varnet_c4_ch16_s8_e1",
+      "quality_score": 0.8929586423496374,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "exp_id": "LOCAL_EXP019_varnet_c4_ch12_s12_e1",
+      "quality_score": 0.8896498862732396,
+      "sens_chans": 12
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "exp_id": "LOCAL_EXP025_varnet_c4_ch12_s10_e1",
+      "quality_score": 0.8880092719264601,
+      "sens_chans": 10
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "exp_id": "LOCAL_EXP022_varnet_c4_ch16_s12_e1",
+      "quality_score": 0.8871118525019684,
+      "sens_chans": 12
+    },
+    {
+      "cascade": 4,
+      "chans": 18,
+      "exp_id": "LOCAL_EXP020_varnet_c4_ch18_s8_e1",
+      "quality_score": 0.8870729360730889,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "exp_id": "LOCAL_EXP013_varnet_c4_ch12_s8_e1",
+      "quality_score": 0.8849368762014619,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 14,
+      "exp_id": "LOCAL_EXP024_varnet_c4_ch14_s8_e1",
+      "quality_score": 0.8824904912501492,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "exp_id": "LOCAL_EXP026_varnet_c4_ch16_s10_e1",
+      "quality_score": 0.8815274264878257,
+      "sens_chans": 10
+    }
+  ],
+  "planned_specs": [
+    {
+      "cascade": 4,
+      "chans": 12,
+      "epochs": 5,
+      "exp_id": "LOCAL_EXP029_varnet_c4_ch12_s8_e5",
+      "reason": "Five-epoch local baseline for a matched longer-run architecture comparison.",
+      "seed": 430,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "epochs": 5,
+      "exp_id": "LOCAL_EXP032_varnet_c4_ch16_s8_e5",
+      "reason": "Five-epoch test of the selected one-epoch c4 candidate.",
+      "seed": 430,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "epochs": 1,
+      "exp_id": "LOCAL_EXP033_varnet_c4_ch12_s8_e1_seed431",
+      "reason": "Second-seed baseline to estimate one-epoch ranking stability.",
+      "seed": 431,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "epochs": 1,
+      "exp_id": "LOCAL_EXP034_varnet_c4_ch16_s8_e1_seed431",
+      "reason": "Second-seed replication of the selected one-epoch c4 candidate.",
+      "seed": 431,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "epochs": 10,
+      "exp_id": "LOCAL_EXP035_varnet_c4_ch16_s8_e10",
+      "reason": "Ten-epoch local trajectory for the selected candidate; exploratory only.",
+      "seed": 430,
+      "sens_chans": 8
+    }
+  ],
+  "required_evidence": [
+    "matched five-epoch baseline and candidate metrics",
+    "seed-431 baseline and candidate metrics",
+    "candidate ten-epoch metrics and loss history",
+    "30 volumes, 791 slices, 161 bbox annotations, and skipped=[] for every required LOCAL run",
+    "file-backed EXP031 validation handoff with checkpoint hash and provenance"
+  ],
+  "scope": "LOCAL desktop exploratory follow-up only; never official candidates",
+  "selected_candidate": {
+    "cascade": 4,
+    "chans": 16,
+    "exp_id": "LOCAL_EXP018_varnet_c4_ch16_s8_e1",
+    "quality_score": 0.8929586423496374,
+    "sens_chans": 8
+  },
+  "selection_population": {
+    "description": "One-epoch cascade=4 probes with sens_chans >= 8; sens_chans=4 probes are excluded from this capacity search.",
+    "excluded": [
+      "LOCAL_EXP012_varnet_c4_ch12_s4_e1"
+    ],
+    "filter": {
+      "cascade": 4,
+      "epochs": 1,
+      "minimum_sens_chans": 8,
+      "seed": 430
+    }
+  }
+}
