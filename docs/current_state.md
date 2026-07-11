@@ -41,7 +41,7 @@ Local promotion uses the fixed evaluator's equal-acceleration semantics, not the
 | Leaderboard-faithful equal-acc | 0.904053714106 | 0.926773775177 | **0.915413744641** |
 | Pooled diagnostic only | 0.904500772769 | 0.930380483592 | 0.917440628180 |
 
-The validation set has 407 acc4 versus 384 acc8 slices and 107 versus 54 boxes, so pooled aggregation overweights acc4. `scripts/evaluate_val.py` now has a test-first `leaderboard_equal_acc` row under independent review.
+The validation set has 407 acc4 versus 384 acc8 slices and 107 versus 54 boxes, so pooled aggregation overweights acc4. Leaderboard-faithful strict evaluation, retained validation epochs, epoch sweep, averaging, and candidate materialization are published in commit `24bf00677c64e7a0bd84f95d68ded8beb7925b12`.
 
 The final 30-run timing cohort is intentionally deferred until the model is frozen near the deadline. Running it now would measure a candidate that may soon be replaced.
 
@@ -49,7 +49,7 @@ Full schedule: [`score_optimization_40_day_roadmap.md`](score_optimization_40_da
 
 ## Resume/checkpoint infrastructure status
 
-The local resume/LR-override implementation now passes 40 focused unit tests after test-first remediation of race, interruption-consistency, checkpoint-schema, CLI, and CUDA RNG-topology findings. It remains uncommitted: a fresh independent review must clear the revised implementation and its two documented cross-file/concurrent-publication concerns before it can gate EXP033.
+Resume/LR-override and history-prefix support is published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`. A CPU-only preflight against the safe EXP031 artifact verified checkpoint schema, optimizer restoration, epoch-28 history, the `3e-4` LR override, retained epoch generations, and the required inexact-resume opt-in. EXP033 remains launch-gated on the handoff worker proving EXP032 and its authorized evaluation have exited.
 
 ## Remaining actions
 
