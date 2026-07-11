@@ -5,19 +5,19 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-11 10:52 KST (2026-07-11 01:52 UTC)_
+_Last update: 2026-07-11 11:21 KST (2026-07-11 02:21 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `EXP031_varnet_c4_ch12_s8_e30` (complete) |
-| Progress | epoch `29/30`, iteration `4650/4651`, `100.0%` |
-| ETA | `complete`; finish `completed by 2026-07-11 09:00 KST` |
-| Best validation loss | epoch `27`: `3.1818922822357556` |
-| Validation snapshot | `final`: full `0.904501`, bbox `0.930380`, quality `0.917441` (`+0.002762` vs EXP030) |
-| Health | `0` error matches; checkpoints present |
-| Official evaluation | complete: quality `0.91525`, `173.1 ms/slice`, total `0.9162015104166666` |
+| Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
+| Change | `cascades 4 to 6; all else fixed` |
+| Progress | epoch `0/30`, iteration `170/4651`, `0.1%` |
+| ETA | `pending`; finish `pending` |
+| Best validation loss | epoch `pending`: `pending` |
+| Validation snapshot | pending final validation |
+| Health | `0` error matches; checkpoints `pending` |
 
-`EXP031` is the one-shot official leader. A separately approved 30-run timing cohort is still required before final replacement and packaging.
+`EXP031` remains the one-shot official leader while this one-variable experiment trains. No official evaluation starts automatically.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
