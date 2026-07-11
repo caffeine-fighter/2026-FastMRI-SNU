@@ -19,6 +19,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 | Experiment metrics and commands | [`../experiments/experiment_log.csv`](../experiments/experiment_log.csv) |
 | Candidate decisions | [`decisions.md`](decisions.md) |
 | Verified official score | [`../reports/phase2/final_score_summary.md`](../reports/phase2/final_score_summary.md) |
+| EXP031 final validation | [`../reports/phase2/EXP031_validation_summary.md`](../reports/phase2/EXP031_validation_summary.md) |
 | Official candidate comparison | [`../reports/phase2/official_candidate_comparison.md`](../reports/phase2/official_candidate_comparison.md) |
 | Local probe results | [`../reports/local_comparisons/local_probe_summary.md`](../reports/local_comparisons/local_probe_summary.md) |
 

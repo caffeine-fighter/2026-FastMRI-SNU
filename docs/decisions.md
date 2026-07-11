@@ -13,10 +13,12 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-10 | Deliver EXP030 to the GitHub default branch. | Submission checks and fresh-clone verification passed. |
 | 2026-07-10 | Continue EXP030 from epoch 20 to create EXP031. | It tests training duration without repeating the first 20 epochs. |
 | 2026-07-10 | Keep EXP030 official while EXP031 trains. | EXP031 must finish final validation and receive approval before official evaluation. |
+| 2026-07-11 | Recommend EXP031 for one approved official evaluation. | EXP031 completed cleanly and improved validation SSIM_full, SSIM_bbox, and quality; best epoch 27. |
+| 2026-07-11 | Treat EXP031 as the one-shot official leader. | Its approved official run scored 0.9162015104166666, ahead of EXP030's finalized score by 0.00095015625. |
 
 ## Current gate
 
-Promote EXP031 only if final validation still improves both relevant quality measures enough to justify another official run. Otherwise keep EXP030.
+Run a 30-repeat EXP031 timing cohort only with separate approval. Replace and package EXP030 only if EXP031 remains ahead after the required timing selection.
 
 ## Permanent constraints
 

@@ -5,27 +5,29 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-11 08:59 KST (2026-07-10 23:59 UTC)_
+_Last update: 2026-07-11 10:52 KST (2026-07-11 01:52 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP031_varnet_c4_ch12_s8_e30` (complete) |
 | Progress | epoch `29/30`, iteration `4650/4651`, `100.0%` |
-| ETA | `complete`; finish `completed by 2026-07-11 08:59 KST` |
+| ETA | `complete`; finish `completed by 2026-07-11 09:00 KST` |
 | Best validation loss | epoch `27`: `3.1818922822357556` |
 | Validation snapshot | `final`: full `0.904501`, bbox `0.930380`, quality `0.917441` (`+0.002762` vs EXP030) |
 | Health | `0` error matches; checkpoints present |
+| Official evaluation | complete: quality `0.91525`, `173.1 ms/slice`, total `0.9162015104166666` |
 
-`EXP030` remains the official candidate until EXP031 completes validation and receives approval. No official evaluation starts automatically.
+`EXP031` is the one-shot official leader. A separately approved 30-run timing cohort is still required before final replacement and packaging.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
 
-| Candidate | Config | SSIM_full | SSIM_bbox | Quality | Min time | Total score |
+| Candidate | Evidence | SSIM_full | SSIM_bbox | Quality | Time | Total score |
 |---|---|---:|---:|---:|---:|---:|
-| `EXP030_varnet_c4_ch12_s8_e20` | c4 / ch12 / s8 / 20 epochs | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | **0.9152513541666667** |
+| `EXP030_varnet_c4_ch12_s8_e20` | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
+| `EXP031_varnet_c4_ch12_s8_e30` | one official run | **0.9191** | **0.9114** | **0.91525** | **173.1 ms/slice** | **0.9162015104166666** |
 
-The official 30-run timing evaluation is complete. The remaining submission task is the external organizer upload. EXP031 is a follow-up candidate, not an automatic replacement.
+EXP031 leads the completed official runs by `+0.00095015625` versus EXP030's finalized 30-run score. Final replacement remains gated on a separately approved EXP031 timing cohort and package verification.
 
 ## Common commands
 
@@ -82,4 +84,5 @@ Start with [`docs/README.md`](docs/README.md). The most useful pages are:
 - [`docs/vessl_workflow.md`](docs/vessl_workflow.md): training and validation commands
 - [`docs/phase2_plan.md`](docs/phase2_plan.md): scoring and official-evaluation rules
 - [`docs/final_submission_checklist.md`](docs/final_submission_checklist.md): external upload checklist
-- [`reports/phase2/final_score_summary.md`](reports/phase2/final_score_summary.md): verified EXP030 result
+- [`reports/phase2/final_score_summary.md`](reports/phase2/final_score_summary.md): verified EXP030 official result
+- [`reports/phase2/EXP031_validation_summary.md`](reports/phase2/EXP031_validation_summary.md): final EXP031 validation result

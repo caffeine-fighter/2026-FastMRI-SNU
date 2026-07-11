@@ -6,37 +6,35 @@
 |---|---|---|
 | Pipeline checks | EXP000, EXP001 | VESSL training and validation pipeline verified |
 | Capacity sweep | EXP010, EXP011, EXP012, EXP013 | c4/ch12/s8 selected for longer training |
-| Long training | EXP030 | Best validated and official candidate at 20 epochs |
-| Official evaluation | EXP012 vs EXP030 | EXP030 selected; 30-run timing complete |
+| Long training | EXP030 | Official candidate at 20 epochs |
+| Duration follow-up | EXP031 | 30 epochs improved final validation quality |
+| Official evaluation | EXP012, EXP030, EXP031 | EXP031 is the one-shot official leader; EXP030 has completed 30-run timing |
 
 Full commands and metrics are in [`../experiments/experiment_log.csv`](../experiments/experiment_log.csv).
 
-## Active experiment
+## EXP031 result
 
-`EXP031_varnet_c4_ch12_s8_e30` continues the EXP030 model from epoch 20 through epoch 29.
-
-It changes training duration only:
+`EXP031_varnet_c4_ch12_s8_e30` continued EXP030 from epoch 20 through epoch 29 while keeping architecture, learning rate, and seed fixed.
 
 - cascades: 4
 - channels: 12
 - sensitivity channels: 8
 - learning rate: 0.001
 - seed: 430
-- target total epochs: 30
+- best epoch: 27
+- validation quality: `0.917440628180`
+- improvement over EXP030 validation: `+0.002761542231`
 
-The root [`README.md`](../README.md) shows live progress.
+EXP031 is the validation and one-shot official leader. Its official total score is `0.9162015104166666`, ahead of EXP030's finalized score by `+0.00095015625`.
 
-## Decision after EXP031
+## Next decision
 
-1. Confirm a clean epoch-29 completion.
-2. Evaluate the final best validation reconstructions.
-3. Compare final `SSIM_full`, `SSIM_bbox`, and quality with EXP030.
-4. Keep EXP030 unless the gain remains clear.
-5. Run official evaluation only after approval.
+1. Obtain separate approval for a 30-run EXP031 timing cohort.
+2. Verify 30/30 runs and select the minimum valid timing.
+3. Recompute the final EXP031 total score.
+4. Replace and package EXP030 only if EXP031 remains ahead.
 
 ## Later ideas
-
-Do not launch these while EXP031 is active:
 
 - bbox-aware or foreground-weighted loss
 - SSIM plus L1/Charbonnier loss
