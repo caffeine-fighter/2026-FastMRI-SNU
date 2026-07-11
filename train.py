@@ -1,6 +1,5 @@
-import torch
 import argparse
-import shutil
+import math
 import os, sys
 from pathlib import Path
 
@@ -11,6 +10,13 @@ from utils.learning.train_part import train
 if os.getcwd() + '/utils/common/' not in sys.path:
     sys.path.insert(1, os.getcwd() + '/utils/common/')
 from utils.common.utils import seed_fix
+
+
+def positive_finite_float(value):
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError('must be a positive finite number')
+    return parsed
 
 
 def parse():
@@ -32,8 +38,29 @@ def parse():
     parser.add_argument('--target-key', type=str, default='image_label', help='Name of target key')
     parser.add_argument('--max-key', type=str, default='max', help='Name of max key in attributes')
     parser.add_argument('--seed', type=int, default=430, help='Fix random seed')
+    parser.add_argument(
+        '--resume-checkpoint',
+        type=Path,
+        default=None,
+        help='Safe training checkpoint whose complete state should be resumed',
+    )
+    parser.add_argument(
+        '--resume-lr',
+        type=positive_finite_float,
+        default=None,
+        help='Optional learning-rate override applied after optimizer resume',
+    )
+    parser.add_argument(
+        '--allow-inexact-resume',
+        action='store_true',
+        help='Allow a sanitized legacy checkpoint without saved RNG state',
+    )
 
     args = parser.parse_args()
+    if args.resume_lr is not None and args.resume_checkpoint is None:
+        parser.error('--resume-lr requires --resume-checkpoint')
+    if args.allow_inexact_resume and args.resume_checkpoint is None:
+        parser.error('--allow-inexact-resume requires --resume-checkpoint')
     return args
 
 if __name__ == '__main__':
