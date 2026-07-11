@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import math
 import re
 from pathlib import Path
 
@@ -39,8 +40,8 @@ def main():
 
     ssim_full = find_float(
         [
-            r"Leaderboard\s+SSIM[_ ]full\s*:\s*([0-9.]+)",
-            r"SSIM[_ ]full\s*:\s*([0-9.]+)",
+            r"Leaderboard\s+SSIM[_ ]full\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])",
+            r"SSIM[_ ]full\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])",
         ],
         text,
         "Leaderboard SSIM_full",
@@ -48,17 +49,23 @@ def main():
 
     ssim_bbox = find_float(
         [
-            r"Leaderboard\s+SSIM[_ ]bbox\s*:\s*([0-9.]+)",
-            r"SSIM[_ ]bbox\s*:\s*([0-9.]+)",
+            r"Leaderboard\s+SSIM[_ ]bbox\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])",
+            r"SSIM[_ ]bbox\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])",
         ],
         text,
         "Leaderboard SSIM_bbox",
     )
 
+    if ssim_full is None or ssim_bbox is None:
+        raise SystemExit("ERROR: required SSIM metric missing")
+    for name, value in (("SSIM_full", ssim_full), ("SSIM_bbox", ssim_bbox)):
+        if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+            raise SystemExit(f"ERROR: {name} outside [0, 1]: {value}")
+
     total_time_s = find_float(
         [
-            r"Leaderboard\s+Recon\s+Time\s*:\s*([0-9.]+)\s*s",
-            r"Recon\s+Time\s*\(total\)\s*:\s*([0-9.]+)\s*s",
+            r"Leaderboard\s+Recon\s+Time\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*s",
+            r"Recon\s+Time\s*\(total\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*s",
         ],
         text,
         "Leaderboard Recon Time seconds",
@@ -67,23 +74,31 @@ def main():
 
     ms_per_slice = find_float(
         [
-            r"Leaderboard\s+Recon\s+Time\s*:\s*[0-9.]+\s*s\s*\(\s*([0-9.]+)\s*ms\s*/\s*slice\s*\)",
-            r"\(\s*([0-9.]+)\s*ms\s*/\s*slice\s*\)",
-            r"ms\s*/\s*slice\s*[:=]\s*([0-9.]+)",
-            r"time_ms_per_slice\s*[:=]\s*([0-9.]+)",
+            r"Leaderboard\s+Recon\s+Time\s*[:=]\s*[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?\s*s\s*\(\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*ms\s*/\s*slice\s*\)",
+            r"\(\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*ms\s*/\s*slice\s*\)",
+            r"ms\s*/\s*slice\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])",
+            r"time_ms_per_slice\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])",
         ],
         text,
         "ms/slice",
     )
+    if ms_per_slice is None or not math.isfinite(ms_per_slice) or ms_per_slice <= 0.0:
+        raise SystemExit(f"ERROR: ms/slice must be finite and positive: {ms_per_slice}")
+    if total_time_s is not None and (not math.isfinite(total_time_s) or total_time_s <= 0.0):
+        raise SystemExit(f"ERROR: total reconstruction time must be finite and positive: {total_time_s}")
 
     details = {
-        "ssim_full_acc4": find_float([r"SSIM[_ ]full\s*\(acc4\)\s*:\s*([0-9.]+)"], text, "SSIM_full acc4", required=False),
-        "ssim_full_acc8": find_float([r"SSIM[_ ]full\s*\(acc8\)\s*:\s*([0-9.]+)"], text, "SSIM_full acc8", required=False),
-        "ssim_bbox_acc4": find_float([r"SSIM[_ ]bbox\s*\(acc4\)\s*:\s*([0-9.]+)"], text, "SSIM_bbox acc4", required=False),
-        "ssim_bbox_acc8": find_float([r"SSIM[_ ]bbox\s*\(acc8\)\s*:\s*([0-9.]+)"], text, "SSIM_bbox acc8", required=False),
-        "recon_time_acc4_s": find_float([r"Recon\s+Time\s*\(acc4\)\s*:\s*([0-9.]+)\s*s"], text, "Recon Time acc4", required=False),
-        "recon_time_acc8_s": find_float([r"Recon\s+Time.*\(acc8\)\s*:\s*([0-9.]+)\s*s"], text, "Recon Time acc8", required=False),
+        "ssim_full_acc4": find_float([r"SSIM[_ ]full\s*\(acc4\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])"], text, "SSIM_full acc4", required=False),
+        "ssim_full_acc8": find_float([r"SSIM[_ ]full\s*\(acc8\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])"], text, "SSIM_full acc8", required=False),
+        "ssim_bbox_acc4": find_float([r"SSIM[_ ]bbox\s*\(acc4\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])"], text, "SSIM_bbox acc4", required=False),
+        "ssim_bbox_acc8": find_float([r"SSIM[_ ]bbox\s*\(acc8\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?![0-9A-Za-z_.+-])"], text, "SSIM_bbox acc8", required=False),
+        "recon_time_acc4_s": find_float([r"Recon\s+Time\s*\(acc4\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*s"], text, "Recon Time acc4", required=False),
+        "recon_time_acc8_s": find_float([r"Recon\s+Time.*\(acc8\)\s*[:=]\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*s"], text, "Recon Time acc8", required=False),
     }
+    for name in ("ssim_full_acc4", "ssim_full_acc8", "ssim_bbox_acc4", "ssim_bbox_acc8"):
+        value = details[name]
+        if value is not None and (not math.isfinite(value) or not 0.0 <= value <= 1.0):
+            raise SystemExit(f"ERROR: {name} outside [0, 1]: {value}")
 
     quality_score = 0.5 * ssim_full + 0.5 * ssim_bbox
     time_score = tiebreaker(ms_per_slice)
