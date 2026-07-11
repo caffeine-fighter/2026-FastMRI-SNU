@@ -5,13 +5,13 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-11 11:21 KST (2026-07-11 02:21 UTC)_
+_Last update: 2026-07-11 11:57 KST (2026-07-11 02:57 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
 | Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `0/30`, iteration `170/4651`, `0.1%` |
+| Progress | epoch `0/30`, iteration `2380/4651`, `1.7%` |
 | ETA | `pending`; finish `pending` |
 | Best validation loss | epoch `pending`: `pending` |
 | Validation snapshot | pending final validation |
@@ -27,7 +27,7 @@ _Last update: 2026-07-11 11:21 KST (2026-07-11 02:21 UTC)_
 | `EXP030_varnet_c4_ch12_s8_e20` | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
 | `EXP031_varnet_c4_ch12_s8_e30` | one official run | **0.9191** | **0.9114** | **0.91525** | **173.1 ms/slice** | **0.9162015104166666** |
 
-EXP031 leads the completed official runs by `+0.00095015625` versus EXP030's finalized 30-run score. Final replacement remains gated on a separately approved EXP031 timing cohort and package verification.
+EXP031 leads the completed official runs by `+0.00095015625` versus EXP030's finalized 30-run score. It stays protected while the 40-day optimization program searches for a stronger final candidate; the final timing cohort is deferred until model freeze.
 
 ## Common commands
 
@@ -81,6 +81,7 @@ bash recon_eval.sh
 Start with [`docs/README.md`](docs/README.md). The most useful pages are:
 
 - [`docs/current_state.md`](docs/current_state.md): current candidate, active work, and next actions
+- [`docs/score_optimization_40_day_roadmap.md`](docs/score_optimization_40_day_roadmap.md): experiment portfolio through final freeze
 - [`docs/vessl_workflow.md`](docs/vessl_workflow.md): training and validation commands
 - [`docs/phase2_plan.md`](docs/phase2_plan.md): scoring and official-evaluation rules
 - [`docs/final_submission_checklist.md`](docs/final_submission_checklist.md): external upload checklist

@@ -7,6 +7,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 | Need | Document |
 |---|---|
 | Current candidate, active run, next actions | [`current_state.md`](current_state.md) |
+| Forty-day score-optimization program | [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md) |
 | Train or validate on VESSL | [`vessl_workflow.md`](vessl_workflow.md) |
 | Scoring and official-evaluation rules | [`phase2_plan.md`](phase2_plan.md) |
 | External submission handoff | [`final_submission_checklist.md`](final_submission_checklist.md) |

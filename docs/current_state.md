@@ -6,8 +6,9 @@ The root [`README.md`](../README.md) is the compact status dashboard. This page 
 
 | Role | Experiment | Status |
 |---|---|---|
-| Finalized 30-run candidate | `EXP030_varnet_c4_ch12_s8_e20` | Official score and timing cohort complete |
+| Finalized 30-run fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and timing cohort complete |
 | One-shot official leader | `EXP031_varnet_c4_ch12_s8_e30` | Training, validation, and first approved official run complete |
+| Active quality experiment | `EXP032_varnet_c6_ch12_s8_e30` | VESSL training; cascades 4 -> 6, all other main variables fixed |
 
 ## Official results
 
@@ -29,19 +30,26 @@ Evidence: [`../reports/phase2/EXP031_official_20260711_014023/score.json`](../re
 - official evaluator exit code: 0
 - official error-pattern matches: 0
 
-## Decision gate
+## Active optimization gate
 
-EXP031 is the one-shot official leader and the recommended replacement candidate. Final replacement and packaging remain gated on a separately approved 30-run EXP031 timing cohort because the final timing rule uses the minimum valid time from at least 30 runs.
+EXP031 remains the protected one-shot official leader while the 40-day optimization program runs. EXP032 is the first architecture-capacity test. Its final validation result must beat EXP031 before any official evaluation is considered.
 
-Do not start that repeat cohort automatically.
+The final 30-run timing cohort is intentionally deferred until the model is frozen near the deadline. Running it now would measure a candidate that may soon be replaced.
+
+Full schedule: [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md).
+
+## Resume/checkpoint infrastructure status
+
+The local resume/LR-override implementation passed 29 focused unit tests plus submission and whitespace checks, but two independent reviews found blocking race, interruption-consistency, checkpoint-schema, and CUDA RNG-topology issues. The implementation remains uncommitted and cannot gate EXP033 until those findings are fixed, retested, and independently approved.
 
 ## Remaining actions
 
-1. Approve or reject the 30-run EXP031 timing cohort.
-2. If approved, verify 30/30 successful runs and select the minimum valid timing.
-3. Recompute the final EXP031 total score.
-4. Replace and package EXP030 only if EXP031 remains ahead.
-5. Complete the external organizer upload using [`final_submission_checklist.md`](final_submission_checklist.md).
+1. Complete and locally evaluate EXP032 without launching official evaluation automatically.
+2. Run the queued EXP033 five-epoch continuation from EXP031 best at LR 3e-4 after EXP032, avoiding GPU contention.
+3. Test score-aligned foreground/bbox loss, supported scheduler/cascade follow-ups, and no-cost checkpoint averaging through local promotion gates.
+4. Use separately approved one-shot official runs only for meaningful validation winners.
+5. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
+6. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
 
 ## Submission state
 
