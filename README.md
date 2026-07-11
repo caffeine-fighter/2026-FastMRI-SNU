@@ -5,13 +5,13 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-11 11:57 KST (2026-07-11 02:57 UTC)_
+_Last update: 2026-07-11 12:20 KST (2026-07-11 03:20 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
 | Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `0/30`, iteration `2380/4651`, `1.7%` |
+| Progress | epoch `0/30`, iteration `3760/4651`, `2.7%` |
 | ETA | `pending`; finish `pending` |
 | Best validation loss | epoch `pending`: `pending` |
 | Validation snapshot | pending final validation |
@@ -28,6 +28,8 @@ _Last update: 2026-07-11 11:57 KST (2026-07-11 02:57 UTC)_
 | `EXP031_varnet_c4_ch12_s8_e30` | one official run | **0.9191** | **0.9114** | **0.91525** | **173.1 ms/slice** | **0.9162015104166666** |
 
 EXP031 leads the completed official runs by `+0.00095015625` versus EXP030's finalized 30-run score. It stays protected while the 40-day optimization program searches for a stronger final candidate; the final timing cohort is deferred until model freeze.
+
+Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; its historical pooled diagnostic `0.9174406281804748` is not the promotion threshold.
 
 ## Common commands
 

@@ -34,13 +34,22 @@ Evidence: [`../reports/phase2/EXP031_official_20260711_014023/score.json`](../re
 
 EXP031 remains the protected one-shot official leader while the 40-day optimization program runs. EXP032 is the first architecture-capacity test. Its final validation result must beat EXP031 before any official evaluation is considered.
 
+Local promotion uses the fixed evaluator's equal-acceleration semantics, not the historical pooled `overall` row:
+
+| EXP031 local reference | SSIM_full | SSIM_bbox | Quality |
+|---|---:|---:|---:|
+| Leaderboard-faithful equal-acc | 0.904053714106 | 0.926773775177 | **0.915413744641** |
+| Pooled diagnostic only | 0.904500772769 | 0.930380483592 | 0.917440628180 |
+
+The validation set has 407 acc4 versus 384 acc8 slices and 107 versus 54 boxes, so pooled aggregation overweights acc4. `scripts/evaluate_val.py` now has a test-first `leaderboard_equal_acc` row under independent review.
+
 The final 30-run timing cohort is intentionally deferred until the model is frozen near the deadline. Running it now would measure a candidate that may soon be replaced.
 
 Full schedule: [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md).
 
 ## Resume/checkpoint infrastructure status
 
-The local resume/LR-override implementation passed 29 focused unit tests plus submission and whitespace checks, but two independent reviews found blocking race, interruption-consistency, checkpoint-schema, and CUDA RNG-topology issues. The implementation remains uncommitted and cannot gate EXP033 until those findings are fixed, retested, and independently approved.
+The local resume/LR-override implementation now passes 40 focused unit tests after test-first remediation of race, interruption-consistency, checkpoint-schema, CLI, and CUDA RNG-topology findings. It remains uncommitted: a fresh independent review must clear the revised implementation and its two documented cross-file/concurrent-publication concerns before it can gate EXP033.
 
 ## Remaining actions
 

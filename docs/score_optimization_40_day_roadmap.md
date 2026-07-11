@@ -6,7 +6,7 @@ Window: 2026-07-11 through 2026-08-20.
 
 1. Keep EXP031 and the verified EXP030 package immutable as fallbacks.
 2. Change one major variable at a time until a direction is validated.
-3. Use local validation as the promotion gate. Official `recon_eval` remains explicit-approval only.
+3. Use leaderboard-faithful local validation as the promotion gate: average acc4 and acc8 within each metric before averaging foreground and bbox. Keep pooled `overall` only as a diagnostic. Official `recon_eval` remains explicit-approval only.
 4. Do not run the final 30-repeat timing cohort until the model is frozen.
 5. Stop weak directions early after enough evidence; spend GPU time on confirmed improvements.
 6. Preserve checkpoint hashes, exact commands, code commit, validation metrics, and error scans for every promoted run.
@@ -23,7 +23,7 @@ Window: 2026-07-11 through 2026-08-20.
 
 A candidate advances when all of these hold:
 
-- validation quality exceeds the current leader;
+- leaderboard-faithful validation quality exceeds the current leader (EXP031: 0.9154137446412757); the pooled EXP031 diagnostic is 0.9174406281804748 and must not be used as the promotion threshold;
 - neither SSIM_full nor SSIM_bbox regresses materially without a compensating total-quality gain;
 - 30 validation volumes, 791 slices, and 161 bounding boxes are evaluated with zero skips;
 - checkpoint provenance and clean training completion are verified;
@@ -51,23 +51,25 @@ Suggested thresholds:
 - Resume EXP031's best epoch-27 checkpoint from the safe converted artifact.
 - Run five additional epochs, checkpoint epoch 28 through total epoch 33, with optimizer LR overridden to 3e-4.
 - Preserve model weights and Adam moments. EXP031's legacy checkpoint lacks RNG/data-order state, so this continuation is valid but not bit-exact.
-- Promotion gate: validation quality must exceed EXP031's 0.9174406281804748.
+- Promotion gate: leaderboard-faithful validation quality must exceed EXP031's 0.9154137446412757; retain 0.9174406281804748 only as the historical pooled diagnostic.
 - If promoted, continue the new best for three additional epochs at LR 1e-4.
 - Estimated initial cost: 5.4 GPU-hours. CPU-only resume preflight passed.
 
 ### EXP034 — score-aligned loss screen
 
 - Use the same EXP031 source checkpoint, architecture, LR 3e-4, and five-epoch budget as EXP033.
-- Change only the objective: annotated slices use 0.5 foreground SSIM loss + 0.5 mean bbox SSIM loss; unannotated slices use foreground SSIM loss.
-- Training has 2,593 boxes across 1,824 of 4,651 slices. Annotations remain training-only and are never inference inputs.
-- Require unit tests for empty boxes, multiple boxes, crop boundaries, and the seven-pixel SSIM window.
+- Change only the objective, using an unbiased per-slice estimator of the fixed evaluator: equal 25% weight for foreground acc4, foreground acc8, bbox acc4, and bbox acc8; every box is a separate observation.
+- Do not use the naive per-annotated-slice 0.5 foreground + 0.5 mean-box loss: with only 1,824 of 4,651 slices annotated, it would yield about 80.39% foreground / 19.61% bbox globally and would weight annotated slices rather than boxes.
+- Compute acceleration-specific slice and box counts from the selected training set at loader initialization; do not hard-code dataset counts into the loss.
+- Training has 2,593 boxes across 1,824 of 4,651 slices. Annotations remain training-only and are structurally forbidden from inference.
+- Require parity tests against `utils/common/metrics.py`, including empty boxes, multiple boxes, crop boundaries, the seven-pixel SSIM window, volume-level `max`, equal-acc aggregation, and finite gradients.
 - Stop if bbox improvement is paid for by a larger full-image regression.
 
 ### Required infrastructure and audits
 
 1. Finish reviewed resume-LR/history-prefix support before EXP033.
-2. Add challenge-quality checkpoint selection and save each declared gate checkpoint for future runs.
-3. Audit mask/ACS detection, normalization, target range, crop, dtype, and metric aggregation against the official pipeline.
+2. Use leaderboard-faithful equal-acc validation quality for promotion, and add challenge-quality checkpoint selection; current training still selects `best_model.pt` using whole-image skimage SSIM with `target.max()` and can mis-rank epochs.
+3. Audit mask/ACS detection, normalization, target range, crop, dtype, and metric aggregation against the official pipeline. Initial audit found masking/crop/normalization aligned, uint8 masks as compatibility debt, and inferred ACS one central line narrower than the contiguous run as an A/B hypothesis.
 4. Keep c4/ch18 as a lower-priority fallback; historical ch9 -> ch12 gained only 0.000206 quality, so width ranks below LR, loss alignment, and cascades.
 
 ### Selection

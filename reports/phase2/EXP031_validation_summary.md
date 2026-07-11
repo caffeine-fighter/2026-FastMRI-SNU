@@ -15,7 +15,15 @@
 
 ## Validation comparison
 
-| Metric | EXP030 validation | EXP031 validation | Delta |
+The historical `overall` row pools all observations and is retained as a diagnostic, but it is not leaderboard-faithful because acc4 and acc8 have unequal slice and box counts. Promotion decisions use the equal-acceleration row matching `recon_eval.py`.
+
+| Leaderboard-faithful metric | EXP030 validation | EXP031 validation | Delta |
+|---|---:|---:|---:|
+| SSIM_full | 0.902919827244 | **0.904053714106** | +0.001133886861 |
+| SSIM_bbox | 0.921434009811 | **0.926773775177** | +0.005339765366 |
+| Quality | 0.912176918528 | **0.915413744641** | +0.003236826114 |
+
+| Pooled diagnostic | EXP030 validation | EXP031 validation | Delta |
 |---|---:|---:|---:|
 | SSIM_full | 0.903370354781 | **0.904500772769** | +0.001130417988 |
 | SSIM_bbox | 0.925987817116 | **0.930380483592** | +0.004392666476 |
