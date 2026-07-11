@@ -6,16 +6,16 @@ This repository tracks work for the **2026 SNU FastMRI Challenge**, focused on k
 
 | Item | Status |
 |---|---|
-| VESSL training | `EXP031` c4/ch12/s8 epoch-21–30 continuation is active (operator-reported); file-backed handoff pending |
+| VESSL training | `EXP031` c4/ch12/s8 training is complete on status commit `bc13bcc`; final experiment-log row and file-backed handoff pending |
 | Current official candidate | `EXP030_varnet_c4_ch12_s8_e20` remains authoritative until EXP031 validation completes |
 | Official SSIM_full | `0.9178` |
 | Official SSIM_bbox | `0.9108` |
 | Official quality_score | `0.9143` |
 | Selected 30-repeat timing | `173.4 ms/slice` (minimum of the required 30-run cohort) |
 | Final total_score | `0.9152513541666667` |
-| Desktop LOCAL status | 17 one-epoch probes complete through `LOCAL_EXP028`; adaptive e5/seed/e10 campaign active |
-| GitHub status | Default and VESSL branches remain at `1a38022`; LOCAL work is isolated on `local/probe-sweep-20260710-desktop4070ti` |
-| Phase 2 status | EXP030 official evaluation complete; EXP031 continuation and LOCAL decision study in progress; organizer upload pending |
+| Desktop LOCAL status | 17 one-epoch probes plus the five-run adaptive e5/seed/e10 campaign are complete; 22/22 LOCAL runs succeeded |
+| GitHub status | Default and VESSL branches were verified at `bc13bcc`; LOCAL work remains isolated on `local/probe-sweep-20260710-desktop4070ti` |
+| Phase 2 status | EXP031 training-complete telemetry is available; LOCAL c4/ch16 promotion gate failed seed robustness; EXP031 handoff and organizer upload pending |
 
 The existing official 30-repeat report used the **20-epoch EXP030 checkpoint**. It is not a 30-epoch result. No EXP031 metric is treated as official until the VESSL validation artifacts and checkpoint identity are verified.
 
@@ -56,7 +56,7 @@ bash recon_eval.sh
 | `EXP010` | `EXP010_varnet_c2_ch9_s4_e10` | 10 | 0.8946281794350307 | 0.9089210673889018 | 0.9017746234119662 | 3.3869223552422363 | done |
 | `EXP012` | `EXP012_varnet_c4_ch12_s4_e10` | 10 | 0.8994141339351495 | 0.9187541341189271 | 0.9090841340270383 | 3.2876096990602717 | completed comparison candidate |
 | `EXP030` | `EXP030_varnet_c4_ch12_s8_e20` | 20 | 0.90337035478141 | 0.9259878171156652 | 0.9146790859485376 | 3.202955630212294 | current official candidate |
-| `EXP031` | c4/ch12/s8 continuation | 30 | pending | pending | pending | pending | VESSL training active; file-backed validation pending |
+| `EXP031` | c4/ch12/s8 continuation | 30 | pending | pending | pending | 3.1818922822 (telemetry) | training-complete telemetry; final file-backed validation pending |
 
 ## Local probe summary
 
@@ -77,19 +77,24 @@ Desktop one-epoch `LOCAL_` probes completed so far: **17** (`LOCAL_EXP012` throu
 
 Round 2 (`LOCAL_EXP024`–`LOCAL_EXP028`) completed 5/5 with no failed runs or skipped validation files. `LOCAL_EXP028 c7/ch12/s8/e1` led that round, but `LOCAL_EXP018 c4/ch16/s8/e1` remains the overall one-epoch LOCAL leader.
 
-An adaptive matched-comparison campaign is active:
+The adaptive matched-comparison campaign completed 5/5 without failures or skipped validation files:
 
-- `LOCAL_EXP029 c4/ch12/s8/e5` — active baseline
-- `LOCAL_EXP032 c4/ch16/s8/e5` — queued matched candidate
-- `LOCAL_EXP033` / `LOCAL_EXP034` — seed-431 robustness pair
-- `LOCAL_EXP035 c4/ch16/s8/e10` — queued longer trajectory
+| Probe | Config | Seed | SSIM_full | SSIM_bbox | Local quality |
+|---|---|---:|---:|---:|---:|
+| `LOCAL_EXP029` | c4/ch12/s8/e5 | 430 | 0.8957743251 | 0.9116992114 | 0.9037367682 |
+| `LOCAL_EXP032` | c4/ch16/s8/e5 | 430 | 0.8986326562 | 0.9185488328 | 0.9085907445 |
+| `LOCAL_EXP033` | c4/ch12/s8/e1 | 431 | 0.8823435134 | 0.8932403356 | 0.8877919245 |
+| `LOCAL_EXP034` | c4/ch16/s8/e1 | 431 | 0.8808135834 | 0.8923592767 | 0.8865864301 |
+| `LOCAL_EXP035` | c4/ch16/s8/e10 | 430 | 0.9021009122 | 0.9229051363 | 0.9125030243 |
 
-The LOCAL decision gate requires matched five-epoch improvement, seed robustness, healthy full/bbox components, and a stable ten-epoch trajectory before c4/ch16/s8 can be proposed for a separately approved VESSL run.
+The c4/ch16/s8 candidate won the matched seed-430 five-epoch comparison by `+0.0048539763` quality and improved from e5 to e10 by `+0.0039122798`. However, it lost the seed-431 replication by `-0.0012054944`; its full-image component regressed by `-0.0015299300`, beyond the allowed `-0.001` floor. The predefined LOCAL promotion gate therefore **fails**. Do not promote c4/ch16/s8 from this desktop evidence.
 
 `LOCAL_` checkpoints and timing are never official. See:
 
 - [`reports/local_comparisons/local_probe_summary.md`](reports/local_comparisons/local_probe_summary.md)
 - [`reports/local_comparisons/local_probe_sweep_20260711_round2.md`](reports/local_comparisons/local_probe_sweep_20260711_round2.md)
+- [`reports/local_comparisons/local_probe_adaptive_followup_20260711_final.md`](reports/local_comparisons/local_probe_adaptive_followup_20260711_final.md)
+- [`reports/local_comparisons/local_probe_adaptive_followup_20260711.json`](reports/local_comparisons/local_probe_adaptive_followup_20260711.json)
 - [`reports/local_comparisons/local_probe_adaptive_followup_plan_20260711.json`](reports/local_comparisons/local_probe_adaptive_followup_plan_20260711.json)
 - [`docs/exp031_post_training_handoff.md`](docs/exp031_post_training_handoff.md)
 

@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-07-11T08:46:34+09:00",
+  "machine": "Cafe-Pastelica / RTX 4070 Ti SUPER",
+  "one_epoch_c4_sens8plus_ranking": [
+    {
+      "cascade": 4,
+      "chans": 16,
+      "exp_id": "LOCAL_EXP018_varnet_c4_ch16_s8_e1",
+      "quality_score": 0.8929586423496374,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "exp_id": "LOCAL_EXP019_varnet_c4_ch12_s12_e1",
+      "quality_score": 0.8896498862732396,
+      "sens_chans": 12
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "exp_id": "LOCAL_EXP025_varnet_c4_ch12_s10_e1",
+      "quality_score": 0.8880092719264601,
+      "sens_chans": 10
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "exp_id": "LOCAL_EXP022_varnet_c4_ch16_s12_e1",
+      "quality_score": 0.8871118525019684,
+      "sens_chans": 12
+    },
+    {
+      "cascade": 4,
+      "chans": 18,
+      "exp_id": "LOCAL_EXP020_varnet_c4_ch18_s8_e1",
+      "quality_score": 0.8870729360730889,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 12,
+      "exp_id": "LOCAL_EXP013_varnet_c4_ch12_s8_e1",
+      "quality_score": 0.8849368762014619,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 14,
+      "exp_id": "LOCAL_EXP024_varnet_c4_ch14_s8_e1",
+      "quality_score": 0.8824904912501492,
+      "sens_chans": 8
+    },
+    {
+      "cascade": 4,
+      "chans": 16,
+      "exp_id": "LOCAL_EXP026_varnet_c4_ch16_s10_e1",
+      "quality_score": 0.8815274264878257,
+      "sens_chans": 10
+    }
+  ],
+  "records": [
+    {
+      "acc4_quality": 0.9175853404877734,
+      "acc8_quality": 0.8841012359027647,
+      "cascade": 4,
+      "chans": 12,
+      "elapsed_s": 4649.153,
+      "epoch0_forward_time_s": 0.3952,
+      "epoch0_train_time_s": 890.9173,
+      "epoch0_val_time_s": 60.0391,
+      "epochs": 5,
+      "exp_id": "LOCAL_EXP029_varnet_c4_ch12_s8_e5",
+      "failure_kind": "",
+      "quality_score": 0.9037367682184256,
+      "reason": "Five-epoch local baseline for a matched longer-run architecture comparison.",
+      "seed": 430,
+      "sens_chans": 8,
+      "skipped_count": 0,
+      "ssim_bbox": 0.9116992113753135,
+      "ssim_full": 0.8957743250615376,
+      "status": "local_probe_done",
+      "val_loss": 3.3905022666181948
+    },
+    {
+      "acc4_quality": 0.921926942181567,
+      "acc8_quality": 0.8897244161150107,
+      "cascade": 4,
+      "chans": 16,
+      "elapsed_s": 5110.399,
+      "epoch0_forward_time_s": 0.4093,
+      "epoch0_train_time_s": 1002.5798,
+      "epoch0_val_time_s": 69.4259,
+      "epochs": 5,
+      "exp_id": "LOCAL_EXP032_varnet_c4_ch16_s8_e5",
+      "failure_kind": "",
+      "quality_score": 0.9085907445004111,
+      "reason": "Five-epoch test of the selected one-epoch c4 candidate.",
+      "seed": 430,
+      "sens_chans": 8,
+      "skipped_count": 0,
+      "ssim_bbox": 0.9185488327689793,
+      "ssim_full": 0.8986326562318429,
+      "status": "local_probe_done",
+      "val_loss": 3.303218053597421
+    },
+    {
+      "acc4_quality": 0.9029875613906255,
+      "acc8_quality": 0.8662982413769458,
+      "cascade": 4,
+      "chans": 12,
+      "elapsed_s": 1022.981,
+      "epoch0_forward_time_s": 0.5145,
+      "epoch0_train_time_s": 944.1622,
+      "epoch0_val_time_s": 64.7533,
+      "epochs": 1,
+      "exp_id": "LOCAL_EXP033_varnet_c4_ch12_s8_e1_seed431",
+      "failure_kind": "",
+      "quality_score": 0.8877919244820621,
+      "reason": "Second-seed baseline to estimate one-epoch ranking stability.",
+      "seed": 431,
+      "sens_chans": 8,
+      "skipped_count": 0,
+      "ssim_bbox": 0.8932403355651761,
+      "ssim_full": 0.8823435133989481,
+      "status": "local_probe_done",
+      "val_loss": 3.69040791450174
+    },
+    {
+      "acc4_quality": 0.9032708808244905,
+      "acc8_quality": 0.8622567403319947,
+      "cascade": 4,
+      "chans": 16,
+      "elapsed_s": 1033.84,
+      "epoch0_forward_time_s": 0.356,
+      "epoch0_train_time_s": 956.0137,
+      "epoch0_val_time_s": 64.6747,
+      "epochs": 1,
+      "exp_id": "LOCAL_EXP034_varnet_c4_ch16_s8_e1_seed431",
+      "failure_kind": "",
+      "quality_score": 0.8865864300737019,
+      "reason": "Second-seed replication of the selected one-epoch c4 candidate.",
+      "seed": 431,
+      "sens_chans": 8,
+      "skipped_count": 0,
+      "ssim_bbox": 0.8923592767360048,
+      "ssim_full": 0.8808135834113988,
+      "status": "local_probe_done",
+      "val_loss": 3.696583325746992
+    },
+    {
+      "acc4_quality": 0.925677461482104,
+      "acc8_quality": 0.8935113753950983,
+      "cascade": 4,
+      "chans": 16,
+      "elapsed_s": 8999.924,
+      "epoch0_forward_time_s": 0.3584,
+      "epoch0_train_time_s": 976.0457,
+      "epoch0_val_time_s": 56.4687,
+      "epochs": 10,
+      "exp_id": "LOCAL_EXP035_varnet_c4_ch16_s8_e10",
+      "failure_kind": "",
+      "quality_score": 0.9125030242508243,
+      "reason": "Ten-epoch local trajectory for the selected candidate; exploratory only.",
+      "seed": 430,
+      "sens_chans": 8,
+      "skipped_count": 0,
+      "ssim_bbox": 0.9229051363394127,
+      "ssim_full": 0.9021009121622358,
+      "status": "local_probe_done",
+      "val_loss": 3.242972145084181
+    }
+  ],
+  "scope": "LOCAL desktop exploratory follow-up only; never official candidates",
+  "selected_from_one_epoch": {
+    "cascade": 4,
+    "chans": 16,
+    "exp_id": "LOCAL_EXP018_varnet_c4_ch16_s8_e1",
+    "quality_score": 0.8929586423496374,
+    "sens_chans": 8
+  },
+  "selection_population": {
+    "description": "One-epoch cascade=4 probes with sens_chans >= 8; sens_chans=4 probes are excluded from this capacity search.",
+    "excluded": [
+      "LOCAL_EXP012_varnet_c4_ch12_s4_e1"
+    ],
+    "filter": {
+      "cascade": 4,
+      "epochs": 1,
+      "minimum_sens_chans": 8,
+      "seed": 430
+    }
+  },
+  "timing_semantics": {
+    "elapsed_s": "Full per-probe wall-clock duration from local probe start through metric and loss-report generation.",
+    "epoch0_forward_time_s": "Diagnostic ForwardTime parsed from the first logged training epoch only; not a full-run total or average.",
+    "epoch0_train_time_s": "Diagnostic TrainTime parsed from the first logged training epoch only; not a full-run total or average.",
+    "epoch0_val_time_s": "Diagnostic ValTime parsed from the first logged validation epoch only; not a full-run total or average."
+  },
+  "worktree_branch": "local/probe-sweep-20260710-desktop4070ti"
+}

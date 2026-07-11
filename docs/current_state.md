@@ -1,6 +1,6 @@
 # Current State — Phase 2 Handoff
 
-_Last updated: 2026-07-11 KST during the VESSL EXP031 continuation and desktop adaptive LOCAL campaign._
+_Last updated: 2026-07-11 KST after the desktop adaptive LOCAL campaign and VESSL EXP031 training completed; final EXP031 handoff remains pending._
 
 ## Machine roles
 
@@ -11,18 +11,18 @@ _Last updated: 2026-07-11 KST during the VESSL EXP031 continuation and desktop a
 ## GitHub delivery status
 
 - Repository: `https://github.com/caffeine-fighter/2026-FastMRI-SNU`
-- Default branch: `baseline/2026-baby-varnet` at `1a38022`
-- VESSL feature branch: `phase2/eval-wrapper-vessl` at `1a38022`
+- Default branch: `baseline/2026-baby-varnet` verified at `bc13bcc`
+- VESSL feature branch: `phase2/eval-wrapper-vessl` verified at `bc13bcc`
 - Submission implementation commit: `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`
 - Desktop LOCAL branch: `local/probe-sweep-20260710-desktop4070ti`
-- Current LOCAL branch scope: first sweep, Round 2, adaptive plan, and status documentation
+- Current LOCAL branch scope: first sweep, Round 2, completed adaptive campaign, decision evidence, and status documentation
 - Collision policy: keep desktop progress isolated; do not merge into default while EXP031 is active
 
 The verified EXP030 submission implementation remains delivered on the default branch. The isolated LOCAL branch is the only path used to prepare and publish new desktop reports and documentation until the VESSL EXP031 handoff is complete. The remaining external action for the existing EXP030 package is the organizer upload.
 
 ## VESSL training status
 
-`EXP031` is continuing the c4/ch12/s8 model from epochs 21 through 30 on VESSL. This is operator-reported active training; no EXP031 metric or checkpoint handoff is present in Git yet. A read-only watcher is monitoring the default and VESSL feature refs for movement.
+`EXP031` c4/ch12/s8 training completed on VESSL. GitHub status commit `bc13bcc` reports completion by 08:59 KST, best validation loss `3.1818922822357556` at epoch 27, and a final validation snapshot of full `0.904501`, bbox `0.930380`, quality `0.917441` (`+0.002762` versus EXP030 validation quality). This is training/status telemetry only: no final EXP031 experiment-log row, validation handoff, or checkpoint identity is present in Git yet. A read-only coordinator is waiting for those required sources.
 
 The existing official 30-repeat result still refers to the `EXP030_varnet_c4_ch12_s8_e20` checkpoint. Thirty repeats are timing repetitions, not 30 training epochs.
 
@@ -78,20 +78,24 @@ Round 2 (`LOCAL_EXP024`–`LOCAL_EXP028`) completed 5/5 with no failed runs and 
 
 ### Adaptive longer-run campaign
 
-The desktop GPU is running a serial matched-comparison campaign:
+The serial desktop campaign completed 5/5 with no failures and `skipped=[]` for every run:
 
-1. `LOCAL_EXP029 c4/ch12/s8/e5` — active baseline.
-2. `LOCAL_EXP032 c4/ch16/s8/e5` — matched candidate.
-3. `LOCAL_EXP033 c4/ch12/s8/e1`, seed 431.
-4. `LOCAL_EXP034 c4/ch16/s8/e1`, seed 431.
-5. `LOCAL_EXP035 c4/ch16/s8/e10` — longer candidate trajectory.
+| Probe | Config | Seed | SSIM_full | SSIM_bbox | quality_score | val_loss |
+|---|---|---:|---:|---:|---:|---:|
+| `LOCAL_EXP029` | c4/ch12/s8/e5 | 430 | 0.8957743251 | 0.9116992114 | 0.9037367682 | 3.3905022666 |
+| `LOCAL_EXP032` | c4/ch16/s8/e5 | 430 | 0.8986326562 | 0.9185488328 | 0.9085907445 | 3.3032180536 |
+| `LOCAL_EXP033` | c4/ch12/s8/e1 | 431 | 0.8823435134 | 0.8932403356 | 0.8877919245 | 3.6904079145 |
+| `LOCAL_EXP034` | c4/ch16/s8/e1 | 431 | 0.8808135834 | 0.8923592767 | 0.8865864301 | 3.6965833257 |
+| `LOCAL_EXP035` | c4/ch16/s8/e10 | 430 | 0.9021009122 | 0.9229051363 | 0.9125030243 | 3.2429721451 |
 
-No adaptive metric is reported until its source evaluation finishes. A fail-closed report builder requires all LOCAL sources plus the official EXP031 row before writing a final decision report.
+The candidate passed the matched e5 gain and e10 stability checks, but failed the seed-431 confirmation: quality changed by `-0.0012054944`, and full-image SSIM changed by `-0.0015299300`, beyond the allowed `-0.001` component floor. The LOCAL gate therefore rejects c4/ch16/s8 promotion. This is exploratory desktop evidence only and is not an official score or timing result.
 
-See:
+The fail-closed report builder now accepts every LOCAL source and reports only the still-missing official EXP031 row and handoff. See:
 
 - `reports/local_comparisons/local_probe_summary.md`
 - `reports/local_comparisons/local_probe_sweep_20260711_round2.md`
+- `reports/local_comparisons/local_probe_adaptive_followup_20260711_final.md`
+- `reports/local_comparisons/local_probe_adaptive_followup_20260711.json`
 - `reports/local_comparisons/local_probe_adaptive_followup_plan_20260711.json`
 - `docs/exp031_post_training_handoff.md`
 
@@ -117,12 +121,11 @@ over EXP012 was `0.0062859895833333`, despite EXP030's slower reconstruction.
 
 ## Next actions
 
-1. Let VESSL EXP031 finish without Git or GPU interference from the desktop branch.
-2. Capture the EXP031 checkpoint identity, best epoch, validation metrics, subgroup counts, and skipped list using `docs/exp031_post_training_handoff.md`.
-3. Let the adaptive LOCAL campaign finish its matched e5, seed-431, and e10 comparisons.
-4. Run `python scripts/build_exp031_decision_report.py --check`; generate the final decision report only when all sources are present and valid.
-5. If c4/ch16/s8 passes the LOCAL gate, propose—but do not automatically launch—a separately approved VESSL experiment.
-6. Keep the verified EXP030 organizer package available until an officially validated replacement is selected.
+1. Keep the desktop idle from official evaluation while waiting for the VESSL EXP031 file-backed handoff.
+2. Require the EXP031 experiment-log row and `EXP031_validation_handoff.json`, including checkpoint identity, best epoch, validation metrics, subgroup counts, and skipped list.
+3. Run `python scripts/build_exp031_decision_report.py --check`; generate the combined decision report only when the official sources are present and valid.
+4. Keep c4/ch16/s8 rejected unless new, separately approved evidence resolves its seed-robustness failure.
+5. Keep the verified EXP030 organizer package available until an officially validated replacement is selected.
 
 Existing EXP030 organizer artifacts:
 
