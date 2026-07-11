@@ -173,6 +173,35 @@ def scope_row(scope, full_values, bbox_values, volumes, slices, bbox_annotations
         "bbox_annotations": bbox_annotations,
     }
 
+def leaderboard_equal_acc_row(rows):
+    """Match recon_eval.py by averaging acc4 and acc8 before metrics."""
+    by_scope = {row["scope"]: row for row in rows}
+    if "acc4" not in by_scope or "acc8" not in by_scope:
+        raise ValueError("Leaderboard aggregation requires acc4 and acc8 rows")
+    selected = [by_scope["acc4"], by_scope["acc8"]]
+    metrics = [
+        row[key]
+        for row in selected
+        for key in ("ssim_full_mean", "ssim_bbox_mean")
+    ]
+    if any(value is None or not math.isfinite(value) for value in metrics):
+        raise ValueError("Leaderboard aggregation requires finite acc4 and acc8 metrics")
+    full = sum(row["ssim_full_mean"] for row in selected) / 2
+    bbox = sum(row["ssim_bbox_mean"] for row in selected) / 2
+    return {
+        "scope": "leaderboard_equal_acc",
+        "ssim_full_mean": full,
+        "ssim_bbox_mean": bbox,
+        "quality_score": (full + bbox) / 2,
+        "aggregation": "equal mean of acc4 and acc8",
+        "ssim_full_count": sum(row["ssim_full_count"] for row in selected),
+        "ssim_bbox_count": sum(row["ssim_bbox_count"] for row in selected),
+        "volumes": sum(row["volumes"] for row in selected),
+        "slices": sum(row["slices"] for row in selected),
+        "bbox_annotations": sum(row["bbox_annotations"] for row in selected),
+    }
+
+
 def infer_acc_name(path):
     name = path.name.lower()
     if "acc4" in name:
@@ -295,6 +324,7 @@ def main():
     for scope in ["overall", "acc4", "acc8", "unknown"]:
         v = values[scope]
         rows.append(scope_row(scope, v["full"], v["bbox"], v["volumes"], v["slices"], v["bbox_annotations"]))
+    rows.insert(3, leaderboard_equal_acc_row(rows))
 
     summary = {
         "target_dir": str(args.target_dir),
@@ -318,6 +348,8 @@ def main():
                 "scope",
                 "ssim_full_mean",
                 "ssim_bbox_mean",
+                "quality_score",
+                "aggregation",
                 "ssim_full_count",
                 "ssim_bbox_count",
                 "volumes",
