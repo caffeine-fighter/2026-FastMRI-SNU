@@ -16,7 +16,7 @@ Verified through: 2026-07-13 01:44 KST (2026-07-12 16:44 UTC)
 | `LOCAL_EXP044` | matched standard-SSIM e15 -> e16, LR 3e-4 | 0.903536191978 | 0.922909928259 | 0.913223060119 | rejected fixed-LR duration |
 | `LOCAL_EXP046` | matched sparse metric-aligned e15 -> e16, LR 3e-4 | 0.901425703285 | 0.921994790306 | 0.911710246795 | rejected objective |
 | `LOCAL_EXP047` | 75/25 EXP041/EXP046 output blend | 0.903536900114 | 0.924410384629 | 0.913973642372 | robust blend diagnostic; candidate rejected |
-| `LOCAL_EXP048` | 75/25 EXP041/EXP046 parameter interpolation | 0.903497902089 | 0.924495930819 | **0.913996916454** | method gate passed; SWA evidence only |
+| `LOCAL_EXP048` | 75/25 EXP041/EXP046 parameter interpolation | 0.903497902089 | 0.924495930819 | 0.913996916454 | post-run exact-byte review rejected; gate void |
 
 ## Decisions
 
@@ -90,11 +90,13 @@ EXP044's matched standard-SSIM epoch-16 continuation lost `0.000448991839` quali
 
 The validation-selected 75/25 output blend gained `0.000301591492` quality versus EXP041. A paired, acceleration-stratified volume-cluster bootstrap used 200,000 accepted replicates (seed 430): 90% BCa quality-delta CI `[+0.000188730881, +0.000397414539]`, leave-one-volume-out minimum `+0.000270080545`. The signal is robust on this cohort, but EXP047 remains `0.001440102540` below EXP031 and requires two model forwards.
 
-### EXP048: one-model interpolation preserves the signal
+### EXP048: execution metrics retained, method gate voided by late review REJECT
 
-The inference-only checkpoint `0.75 * EXP041 epoch 15 + 0.25 * EXP046 epoch 16` scored `0.913996916454`, or `+0.000324864496` versus EXP041 and `+0.000023274082` versus EXP047. Aggregate full improved `+0.000054116994`; bbox improved `+0.000595611998`; F4/B4/F8/B8 deltas were `-0.000052024896 / +0.000093555896 / +0.000160258884 / +0.001097668100`. Exact coverage was 30/791/161 with zero skips, and 38 frozen artifacts independently rehashed.
+The inference-only checkpoint `0.75 * EXP041 epoch 15 + 0.25 * EXP046 epoch 16` executed and scored `0.913996916454`, or `+0.000324864496` versus EXP041 and `+0.000023274082` versus EXP047. Aggregate full changed `+0.000054116994`; bbox changed `+0.000595611998`; F4/B4/F8/B8 deltas were `-0.000052024896 / +0.000093555896 / +0.000160258884 / +0.001097668100`. Exact coverage was 30/791/161 with zero skips, and 38 frozen artifacts independently rehashed.
 
-Decision: `METHOD_DIAGNOSTIC_SUPPORTS_CONSECUTIVE_LATE_EPOCH_INTERPOLATION_FOR_FUTURE_SWA_REVIEW`. EXP048 remains `0.001416828188` below EXP031, `candidate_eligible=false`, and `official_followup_authorized=false`.
+A previously dispatched exact-byte reviewer subsequently surfaced a `REJECT` with six blockers: the frozen test harness was not self-contained; setup preceded failure protection; success-looking evidence could precede terminal publication; post-evaluator provenance was not reclosed; lock/failure races remained; and permanent false authority fields were absent on non-success paths. The frozen test failure was independently reproduced with exit code 1. Under fail-closed policy, the conflicting earlier APPROVE cannot override this REJECT.
+
+Decision: `POST_RUN_REVIEW_REJECTED_LAUNCH_PACKAGE`. The approval is revoked and the method gate is `VOID_DUE_TO_REVIEW_FAILURE`. Metrics remain non-authoritative hypothesis-generating diagnostic data only. `candidate_eligible=false`, `official_followup_authorized=false`, and these exact bytes must not be rerun.
 
 ## Evidence integrity
 
@@ -112,12 +114,15 @@ Authoritative LOCAL evidence remains outside Git under ignored result roots:
 - EXP046 final evaluation: `AUTONOMOUS_SCORE_LOOP_20260711/EXP046_final_evaluation_20260712.json`
 - EXP047 bootstrap report: `AUTONOMOUS_SCORE_LOOP_20260711/LOCAL_EXP047_PAIRED_CLUSTER_BOOTSTRAP_V1_20260713/report.json`
 - EXP048 independent terminal verification: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_independent_terminal_verification_20260713.json`
+- EXP048 late exact-byte REJECT: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_late_delegated_exact_review_052d67a0.reject.json`
+- EXP048 approval revocation: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_launch_approval.revoked_20260713.json`
+- EXP048 post-run reclassification: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_postrun_reclassification_20260713.json`
 
 Raw checkpoints and H5 reconstructions remain ignored and are not committed.
 
 ## Guardrails
 
-- Keep EXP041 as the same-basin training leader; treat EXP048 only as interpolation/SWA method evidence.
+- Keep EXP041 as the same-basin training leader; EXP048 is post-run-review-rejected and cannot authorize interpolation/SWA work.
 - Do not treat EXP043's orphan diagnostic as a successful candidate or checkpoint.
 - Do not repeat the rejected LR 1e-4 direction.
 - Do not overlap desktop CUDA work with an active controlled workload.

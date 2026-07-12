@@ -81,8 +81,8 @@ Compare EXP031, EXP032, EXP033, and EXP034 using full, bbox, combined quality, a
 - EXP044 closed ordinary fixed-LR `3e-4` late continuation: `-0.000448991839` quality versus EXP041.
 - EXP046 rejected the first sparse metric-aligned objective: `-0.001512813323` versus matched EXP044 and every protected component regressed.
 - EXP047's 75/25 output blend gained `+0.000301591492` versus EXP041; a paired 200,000-replicate volume-cluster bootstrap supported the signal, but it remained `-0.001440102540` below EXP031 and requires two forwards.
-- EXP048's one-model parameter interpolation gained `+0.000324864496` versus EXP041, protected aggregate full and all cell floors, and slightly exceeded EXP047. It passed only a method-diagnostic gate and remains `-0.001416828188` below EXP031; no candidate or official authority was granted.
-- Consequence: preserve interpolation/SWA as a low-cost finishing tool for a future eligible winner, but move the main campaign to score-faithful EXP032 epoch selection, pre-plateau scheduling, capacity replication, and acceleration-focused interventions.
+- EXP048 execution produced a one-model interpolation quality of `0.913996916454`, but a previously dispatched exact-byte reviewer later surfaced six blocking runner/evidence defects. The launch approval is revoked, the method gate is void, and the immutable metrics are retained only as non-authoritative diagnostic data.
+- Consequence: do not use EXP048 to authorize interpolation/SWA work. If averaging is revisited for a future eligible winner, fix every blocker with focused regressions, freeze new bytes, and obtain complete independent approval first. Move the main campaign to score-faithful EXP032 epoch selection, pre-plateau scheduling, capacity replication, and acceleration-focused interventions.
 
 ## Phase 2 — supported follow-ups (July 21–31)
 

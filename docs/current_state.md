@@ -61,9 +61,9 @@ All rows below are RTX 4070 Ti SUPER exploratory evidence evaluated with leaderb
 | `LOCAL_EXP044` matched standard-SSIM e15 -> e16 at LR 3e-4 | quality 0.913223060119; delta -0.000448991839 versus EXP041 | reject further fixed-LR duration escalation |
 | `LOCAL_EXP046` matched sparse metric-aligned e15 -> e16 | quality 0.911710246795; delta -0.001512813323 versus EXP044 | reject this objective; every protected component regressed |
 | `LOCAL_EXP047` 75/25 image-space blend | quality 0.913973642372; delta +0.000301591492 versus EXP041 | robust LOCAL blend signal, but below EXP031 and two-forward only |
-| `LOCAL_EXP048` 75/25 parameter interpolation | quality **0.913996916454**; delta +0.000324864496 versus EXP041 | method gate passed; supports future SWA review only; not candidate eligible |
+| `LOCAL_EXP048` 75/25 parameter interpolation | quality 0.913996916454; delta +0.000324864496 versus EXP041 | post-run exact-byte review rejected; method gate void; diagnostic only |
 
-EXP041 remains the strongest completed same-basin training checkpoint. EXP047 established a statistically supported image-space complementarity signal: 200,000 paired, acceleration-stratified volume-cluster replicates gave a 90% BCa quality-delta interval of `[+0.000188730881, +0.000397414539]`. EXP048 reproduced and slightly exceeded that gain in one interpolated model, with positive aggregate full and bbox deltas and exact 30/791/161 coverage. Both remain below EXP031's `0.915413744641` LOCAL reference; neither is a promotion candidate or official authority.
+EXP041 remains the strongest completed same-basin training checkpoint. EXP047 established a statistically supported image-space complementarity signal: 200,000 paired, acceleration-stratified volume-cluster replicates gave a 90% BCa quality-delta interval of `[+0.000188730881, +0.000397414539]`. EXP048 numerically reproduced that signal, but a previously dispatched exact-byte reviewer found six blocking runner/evidence defects; the frozen test failure was independently reproduced. EXP048's approval is revoked and its method gate is void. Its outputs remain immutable, independently rehashed, non-authoritative diagnostic data only and cannot authorize interpolation/SWA follow-up.
 
 Details: [`../reports/local_comparisons/local_continuation_campaign_20260711.md`](../reports/local_comparisons/local_continuation_campaign_20260711.md).
 
@@ -75,7 +75,7 @@ Resume/LR-override and history-prefix support is published in commit `431c690186
 
 1. Complete EXP032 without launching official evaluation automatically; preserve and hash its immutable per-epoch checkpoint generations before cleanup.
 2. Reconstruct and score-faithfully sweep the available EXP032 late epochs before deciding whether c6 deserves any follow-up.
-3. Keep EXP041 as the same-basin training leader and EXP048 as method evidence only; do not repeat fixed-LR late continuation or the rejected sparse metric-aligned objective.
+3. Keep EXP041 as the same-basin training leader; treat EXP048 as post-run-review-rejected diagnostic data and do not use it to authorize interpolation/SWA follow-up.
 4. Prefer a predeclared scheduler from before the plateau, exact mask/ACS A/B, width replication, and acceleration-specialist screens over more same-basin micro-tuning.
 5. Use separately approved one-shot official runs only for meaningful validation winners.
 6. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.

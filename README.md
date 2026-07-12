@@ -5,14 +5,14 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-13 01:51 KST (2026-07-12 16:51 UTC)_
+_Last update: 2026-07-13 01:56 KST (2026-07-12 16:56 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
 | Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `28/30`, iteration `4620/4651`, `96.6%` |
-| ETA | `1.42 hours`; finish `2026-07-13 03:16 KST (2026-07-12 18:16 UTC)` |
+| Progress | epoch `28/30`, iteration `4650/4651`, `96.7%` |
+| ETA | `1.42 hours`; finish `2026-07-13 03:21 KST (2026-07-12 18:21 UTC)` |
 | Best validation loss | epoch `26`: `3.1754857592465457` |
 | Validation snapshot | pending final validation |
 | Health | `0` error matches; checkpoints `present` |
@@ -45,9 +45,9 @@ _Last verified: 2026-07-13 01:44 KST (2026-07-12 16:44 UTC). These are RTX 4070 
 | `LOCAL_EXP044` | matched standard-SSIM epoch-16 continuation at LR 3e-4 | 0.913223060119 | rejected; -0.000448991839 versus EXP041 |
 | `LOCAL_EXP046` | matched epoch-16 sparse metric-aligned objective | 0.911710246795 | rejected; -0.001512813323 versus EXP044 and every protected component regressed |
 | `LOCAL_EXP047` | 75/25 image-space blend of EXP041 and EXP046 epoch 16 | 0.913973642372 | robust +0.000301591492 versus EXP041, but below EXP031 and requires two forwards |
-| `LOCAL_EXP048` | 75/25 same-basin parameter interpolation, inference only | **0.913996916454** | method gate passed; supports future SWA review only; not candidate eligible |
+| `LOCAL_EXP048` | 75/25 same-basin parameter interpolation, inference only | 0.913996916454 | post-run exact-byte review rejected; method gate void; non-authoritative diagnostic only |
 
-EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. EXP044 then closed ordinary fixed-LR `3e-4` duration escalation, and EXP046 rejected the first sparse metric-aligned objective. EXP047's paired 200,000-replicate volume-cluster bootstrap supported its small blend gain, but it remained `-0.001440102540` below the documented EXP031 LOCAL reference. EXP048 compressed that signal into one model and passed its method-only gate at `+0.000324864496` versus EXP041; it still trails EXP031 by `0.001416828188`, is `candidate_eligible=false`, and authorizes no official follow-up.
+EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. EXP044 then closed ordinary fixed-LR `3e-4` duration escalation, and EXP046 rejected the first sparse metric-aligned objective. EXP047's paired 200,000-replicate volume-cluster bootstrap supported its small blend gain, but it remained `-0.001440102540` below the documented EXP031 LOCAL reference. EXP048 execution produced quality `0.913996916454`, but a previously dispatched exact-byte reviewer returned six blocking runner/evidence findings. The approval is revoked, the method gate is void, and the metrics are retained only as non-authoritative post-run diagnostic data; they cannot authorize SWA, promotion, or official follow-up.
 
 Source-backed report: [`reports/local_comparisons/local_continuation_campaign_20260711.md`](reports/local_comparisons/local_continuation_campaign_20260711.md).
 
