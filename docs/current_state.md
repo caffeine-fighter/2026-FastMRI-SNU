@@ -47,6 +47,22 @@ The final 30-run timing cohort is intentionally deferred until the model is froz
 
 Full schedule: [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md).
 
+## Desktop LOCAL candidate evidence
+
+All rows below are RTX 4070 Ti SUPER exploratory evidence evaluated with leaderboard-equal-acceleration aggregation. They are neither official scores nor VESSL candidate authority.
+
+| Candidate | Result | Decision |
+|---|---:|---|
+| `LOCAL_EXP039` sensitivity-width seed replication | quality 0.882647730465; delta -0.001995170919 | reject c4/ch12/s12 replication |
+| `LOCAL_EXP040` e5/e10 checkpoint average | quality 0.907946926286; delta -0.001647492152 versus e10 | reject this average |
+| `LOCAL_EXP041` e10 -> e15 continuation at LR 3e-4 | quality **0.913672051958**; delta +0.004077633519 versus re-evaluated EXP035 | current completed LOCAL leader |
+| `LOCAL_EXP042` e15 -> e18 attempt at LR 1e-4 | no score or committed epoch-16 checkpoint | technical failure during retained-output publication |
+| `LOCAL_EXP043` plumbing-only retry of EXP042 | orphan e16 diagnostic quality 0.913476635177; delta -0.000195416780 versus EXP041 | diagnostic only; reject LR 1e-4 continuation and do not rerun |
+
+EXP041 remains the strongest completed LOCAL candidate. Its authoritative evaluation covered 30 volumes, 791 slices, and 161 bbox annotations with `unknown=0` and `skipped=[]`. EXP042 and EXP043 both failed before a successful training terminal. EXP043's complete but unpublished epoch-16 reconstruction was sealed and evaluated on CPU; no checkpoint was available, `candidate_or_promotion_evidence=false`, and a delayed adversarial review reclassified the launch package as failed review. No `LOCAL_EXP044` exists.
+
+Details: [`../reports/local_comparisons/local_continuation_campaign_20260711.md`](../reports/local_comparisons/local_continuation_campaign_20260711.md).
+
 ## Resume/checkpoint infrastructure status
 
 Resume/LR-override and history-prefix support is published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`. A CPU-only preflight against the safe EXP031 artifact verified checkpoint schema, optimizer restoration, epoch-28 history, the `3e-4` LR override, retained epoch generations, and the required inexact-resume opt-in. EXP033 remains launch-gated on the handoff worker proving EXP032 and its authorized evaluation have exited.
@@ -54,11 +70,12 @@ Resume/LR-override and history-prefix support is published in commit `431c690186
 ## Remaining actions
 
 1. Complete and locally evaluate EXP032 without launching official evaluation automatically.
-2. Run the queued EXP033 five-epoch continuation from EXP031 best at LR 3e-4 after EXP032, avoiding GPU contention.
-3. Test score-aligned foreground/bbox loss, supported scheduler/cascade follow-ups, and no-cost checkpoint averaging through local promotion gates.
-4. Use separately approved one-shot official runs only for meaningful validation winners.
-5. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
-6. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
+2. Keep EXP041 as the current LOCAL continuation leader; do not spend a third run on the rejected LR 1e-4 direction.
+3. Run the queued EXP033 five-epoch continuation from EXP031 best at LR 3e-4 after EXP032, avoiding GPU contention.
+4. Test score-aligned foreground/bbox loss and supported scheduler/cascade follow-ups through local promotion gates.
+5. Use separately approved one-shot official runs only for meaningful validation winners.
+6. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
+7. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
 
 ## Submission state
 

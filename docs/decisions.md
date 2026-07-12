@@ -21,6 +21,11 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-11 | Rank score-aligned foreground/bbox loss above channel widening. | The official objective weights foreground and bbox equally, training has 2,593 boxes, and historical ch9 -> ch12 improved validation quality by only 0.000206. |
 | 2026-07-11 | Use equal-acceleration local quality for promotion. | The fixed evaluator averages acc4 and acc8 equally; pooled local validation overweights acc4 because slice and box counts differ, biasing EXP031's diagnostic quality upward by 0.002026883539. |
 | 2026-07-11 | Stop broad training by August 11 and cap exploration at 720 GPU-hours. | This preserves nine days for confirmation, approval-gated official evaluation, immutable freeze, repeated timing, package verification, and upload. |
+| 2026-07-11 | Reject LOCAL_EXP039 c4/ch12/s12 seed replication. | Equal-acc quality regressed by 0.001995170919 and bbox/acceleration components failed the predefined gate. |
+| 2026-07-11 | Reject LOCAL_EXP040 checkpoint averaging. | The e5/e10 50/50 average scored 0.001647492152 below the re-evaluated e10 source and regressed every guarded component. |
+| 2026-07-11 | Retain LOCAL_EXP041 as the completed LOCAL continuation leader. | Epoch 15 at LR 3e-4 improved equal-acc quality by 0.004077633519 over re-evaluated EXP035 and passed every component floor. |
+| 2026-07-12 | Classify LOCAL_EXP042 as a technical failure with no candidate result. | The run failed during retained-output publication before an epoch-16 checkpoint or reconstruction was committed. |
+| 2026-07-12 | Reject the LR 1e-4 continuation direction after LOCAL_EXP043 and do not rerun it. | The recovered orphan epoch-16 diagnostic scored 0.000195416780 below EXP041; bbox and acc8 regressed, no checkpoint existed, and delayed adversarial review failed. |
 
 ## Current gate
 

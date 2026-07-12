@@ -31,6 +31,22 @@ EXP031 leads the completed official runs by `+0.00095015625` versus EXP030's fin
 
 Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; its historical pooled diagnostic `0.9174406281804748` is not the promotion threshold.
 
+## Desktop LOCAL candidate status
+
+_Last verified: 2026-07-12 10:07 KST (2026-07-12 01:07 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
+
+| Candidate | Configuration / evidence | Equal-acc quality | Status |
+|---|---|---:|---|
+| `LOCAL_EXP039` | c4/ch12/s12/e1, seed 431 | 0.882647730465 | rejected: seed-replication gate failed |
+| `LOCAL_EXP040` | 50/50 average of c4/ch16/s8 epochs 5 and 10 | 0.907946926286 | rejected: -0.001647492152 versus epoch 10 |
+| `LOCAL_EXP041` | c4/ch16/s8, epoch 10 -> 15 at LR 3e-4 | **0.913672051958** | current completed LOCAL leader; all component floors passed |
+| `LOCAL_EXP042` | attempted epoch 15 -> 18 continuation at LR 1e-4 | n/a | technical failure before checkpoint or retained result publication |
+| `LOCAL_EXP043` | EXP042 plumbing retry; recovered orphan epoch-16 reconstruction | 0.913476635177 | diagnostic only; -0.000195416780 versus EXP041; reject LR 1e-4 direction |
+
+EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. Its complete 30-volume reconstruction was evaluated only as a sealed diagnostic (`candidate_or_promotion_evidence=false`). No `LOCAL_EXP044` exists, and the LR 1e-4 continuation will not be repeated.
+
+Source-backed report: [`reports/local_comparisons/local_continuation_campaign_20260711.md`](reports/local_comparisons/local_continuation_campaign_20260711.md).
+
 ## Common commands
 
 ```bash
