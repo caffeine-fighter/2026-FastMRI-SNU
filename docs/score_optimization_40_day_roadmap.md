@@ -67,8 +67,8 @@ Suggested thresholds:
 
 ### Required infrastructure and audits
 
-1. Finish reviewed resume-LR/history-prefix support before EXP033.
-2. Use leaderboard-faithful equal-acc validation quality for promotion, and add challenge-quality checkpoint selection; current training still selects `best_model.pt` using whole-image skimage SSIM with `target.max()` and can mis-rank epochs.
+1. Use the resume-LR/history-prefix support published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`; its EXP033 CPU-only launch-readiness gate passed against the safe EXP031 artifact.
+2. Use the leaderboard-faithful strict evaluation, retained validation epochs, epoch sweep, averaging, and candidate materialization published in commit `24bf00677c64e7a0bd84f95d68ded8beb7925b12`. EXP032 was launched without retained validation epochs, so it cannot sweep immutable per-epoch generations; EXP033 and later runs must use `--retain-val-epochs` for score-faithful post-training selection.
 3. Audit mask/ACS detection, normalization, target range, crop, dtype, and metric aggregation against the official pipeline. Initial audit found masking/crop/normalization aligned, uint8 masks as compatibility debt, and inferred ACS one central line narrower than the contiguous run as an A/B hypothesis.
 4. Keep c4/ch18 as a lower-priority fallback; historical ch9 -> ch12 gained only 0.000206 quality, so width ranks below LR, loss alignment, and cascades.
 
