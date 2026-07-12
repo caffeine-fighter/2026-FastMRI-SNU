@@ -1,0 +1,115 @@
+{
+  "exact_identities": {
+    "derived_checkpoint_sha256": "196c2a2c8b5ae0dc1e19507bd3647d9dd5689496040361a58e6cc5e138850931",
+    "frozen_input_manifest_sha256": "0726e7d8c16f45c7ccac35a1589582d8426000aa22a7dc2c2d1926b8364730a5",
+    "helper_sha256": "cf6c81f1e5187cc19c409f5822abba1daf2ec31f5680bb95537d85e584b4ab82",
+    "runner_sha256": "052d67a07d88cf3940ec86af5c81a31a8a2f29299cb435650d07c341410a3c24",
+    "strict_evaluator_commit": "e3b83548584ab7130583e0bfc6748e95cdb65322",
+    "strict_evaluator_tree": "56fc42670b9fdd3d2fa9f22a484c2c465cee377f"
+  },
+  "experiment": {
+    "id": "LOCAL_EXP048_checkpoint_interp_exp041_w0p75_exp046_w0p25_v1",
+    "interpolation": {
+      "exp041_epoch15_weight": 0.75,
+      "exp046_epoch16_weight": 0.25
+    },
+    "machine": "RTX 4070 Ti SUPER desktop",
+    "operation": "inference-only parameter interpolation diagnostic"
+  },
+  "final_classification": {
+    "candidate_eligible": false,
+    "method_gate": "VOID_DUE_TO_REVIEW_FAILURE",
+    "metrics_authority": "non-authoritative post-run diagnostic only",
+    "official_followup_authorized": false,
+    "promotion_authorized": false,
+    "rerun_exact_bytes_authorized": false,
+    "status": "POST_RUN_REVIEW_REJECTED_LAUNCH_PACKAGE",
+    "submission_authorized": false
+  },
+  "handoff_branch": "handoff/local-exp048-postrun-rejected-20260713",
+  "handoff_id": "LOCAL_EXP048_POSTRUN_REJECTED_20260713",
+  "late_exact_byte_review": {
+    "blocking_findings": [
+      "The exact immutable test_runner.py cannot run from the snapshot because it references a missing sibling filename; it exits with FileNotFoundError before executing fixtures.",
+      "Batch/log/experiment namespace claims and initial status publication occur before the protected try/except, so partial pre-worker failures bypass durable failure publication.",
+      "A success/final_evidence.json with status local_probe_done is published before the terminal commit; a later terminal/finalization error can publish failure evidence alongside this success-looking artifact.",
+      "There is no post-evaluator revalidation of approval, evaluator, frozen inputs, targets/reconstructions, or artifact hashes before terminal publication.",
+      "Global-lock acquisition lacks full pre-open and post-flock inode/type/mode/owner/link-count closure; failure occupancy uses exists rather than lexists; WSL CUDA exclusion lacks a /dev/dxg fallback.",
+      "Pending and failure outcomes do not explicitly preserve candidate_eligible=false and official_followup_authorized=false in all machine-readable evidence."
+    ],
+    "tests_reviewed": [
+      {
+        "detail": "16/16 listed files passed twice",
+        "name": "SHA256SUMS verification",
+        "status": "PASS"
+      },
+      {
+        "detail": "runner.py, helper.py, and test_runner.py parsed",
+        "name": "AST parsing",
+        "status": "PASS"
+      },
+      {
+        "detail": "self_test=PASS from the read-only snapshot",
+        "name": "runner built-in self-test",
+        "status": "PASS"
+      },
+      {
+        "detail": "9/9 reported with exact runner/helper/test hashes and no launch or approval",
+        "name": "recorded adversarial suite",
+        "status": "RECORDED_PASS"
+      },
+      {
+        "detail": "FileNotFoundError for missing fastmri_local_exp048_checkpoint_interp_protocol_v1.py; zero fixtures executed",
+        "name": "exact frozen adversarial suite execution",
+        "status": "FAIL"
+      },
+      {
+        "detail": "Exact weighted checkpoint reproduction, strict CPU model load, 197 evaluator entries, frozen-input inventory, H5 storage, metric formulas, and bootstrap gate cross-checks passed",
+        "name": "independent checkpoint and manifest checks",
+        "status": "PASS"
+      }
+    ],
+    "verdict": "REJECT"
+  },
+  "observed_metrics_not_authority": {
+    "cell_deltas_vs_exp041": {
+      "acc4_bbox": 9.355589608162074e-05,
+      "acc4_full": -5.2024896373348284e-05,
+      "acc8_bbox": 0.001097668100286442,
+      "acc8_full": 0.00016025888423121248
+    },
+    "coverage": {
+      "bbox_annotations": 161,
+      "skipped": [],
+      "slices": 791,
+      "unknown": 0,
+      "volumes": 30
+    },
+    "delta_vs_exp041_quality": 0.00032486449605650947,
+    "delta_vs_exp047_quality": 2.3274081885849007e-05,
+    "delta_vs_local_exp031_quality": -0.0014168281876006938,
+    "quality_score": 0.913996916453675,
+    "ssim_bbox_mean": 0.9244959308185887,
+    "ssim_full_mean": 0.9034979020887612
+  },
+  "published_at": "2026-07-13T03:08:17+09:00",
+  "sanitized_evidence_hashes": {
+    "approval_revocation_sha256": "f2e6af34cc25e0d63376ca88da7743cf90823efb09a07efaaf96dd920280c853",
+    "final_evidence_json_sha256": "3cfeaa38bc7f93b560bb9dbec751e918e1a062919de4c4b6e5eb06609d3163e7",
+    "independent_postrun_verification_sha256": "6d3578a379ffd4308753024bd240ebce2731c9be0afdbd490ea448699323ac2b",
+    "late_reject_normalized_sha256": "08875830272d514333b83d207965e62b9148c9eb7b74ab5ea6c04639f32ae15e",
+    "postrun_reclassification_sha256": "75475dda311651b8e44fd462fffa42be4f0b8be38d79c0ac5fd36900a45ebf18",
+    "revocation_enforcement_sha256": "539fc0837393d551e69349fe538d6700737ac6be23440a20168f516e33625467",
+    "terminal_json_sha256": "57ad9d5a696f7106dad061f720426ce43d92d88fdd727ec317ed5441d0b201eb"
+  },
+  "schema_version": 1,
+  "scope": "Sanitized LOCAL desktop probe metadata only; no checkpoint, H5, target data, credential, or raw result tree is included.",
+  "source_repository_base_sha": "5bbe496b4b4b9d15fb1d5a144bbd0a919ea2a568",
+  "vessl_instructions": [
+    "Do not import, promote, evaluate officially, or rerun EXP048 exact bytes.",
+    "Treat numeric metrics only as hypothesis-generating context.",
+    "Keep EXP031 as the protected official leader.",
+    "For EXP032, preserve and hash immutable .checkpoint-generation-*-model.pt files before cleanup or official evaluation.",
+    "Run a score-faithful EXP032 late-epoch sweep only under a separate reviewed handoff."
+  ]
+}
