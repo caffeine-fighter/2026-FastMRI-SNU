@@ -117,6 +117,7 @@ Authoritative LOCAL evidence remains outside Git under ignored result roots:
 - EXP048 late exact-byte REJECT: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_late_delegated_exact_review_052d67a0.reject.json`
 - EXP048 approval revocation: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_launch_approval.revoked_20260713.json`
 - EXP048 post-run reclassification: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_postrun_reclassification_20260713.json`
+- EXP048 revocation enforcement: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_launch_revocation_enforcement_20260713.json`
 
 Raw checkpoints and H5 reconstructions remain ignored and are not committed.
 
