@@ -68,13 +68,21 @@ Suggested thresholds:
 ### Required infrastructure and audits
 
 1. Use the resume-LR/history-prefix support published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`; its EXP033 CPU-only launch-readiness gate passed against the safe EXP031 artifact.
-2. Use the leaderboard-faithful strict evaluation, retained validation epochs, epoch sweep, averaging, and candidate materialization published in commit `24bf00677c64e7a0bd84f95d68ded8beb7925b12`. EXP032 was launched without retained validation epochs, so it cannot sweep immutable per-epoch generations; EXP033 and later runs must use `--retain-val-epochs` for score-faithful post-training selection.
+2. Use the leaderboard-faithful strict evaluation, retained validation epochs, epoch sweep, averaging, and candidate materialization published in commit `24bf00677c64e7a0bd84f95d68ded8beb7925b12`. EXP032 was launched without retained reconstruction outputs, but its immutable checkpoint generations should be inventoried and late epochs reconstructed once for a strict post-training sweep. EXP033 and later runs must use `--retain-val-epochs` for score-faithful selection without recovery work.
 3. Audit mask/ACS detection, normalization, target range, crop, dtype, and metric aggregation against the official pipeline. Initial audit found masking/crop/normalization aligned, uint8 masks as compatibility debt, and inferred ACS one central line narrower than the contiguous run as an A/B hypothesis.
 4. Keep c4/ch18 as a lower-priority fallback; historical ch9 -> ch12 gained only 0.000206 quality, so width ranks below LR, loss alignment, and cascades.
 
 ### Selection
 
 Compare EXP031, EXP032, EXP033, and EXP034 using full, bbox, combined quality, acc4/acc8 breakdowns, complete coverage, and reproducible checkpoint provenance. Official one-shot evaluation remains approval-gated and is reserved for a meaningful, confirmed validation winner.
+
+### LOCAL evidence update — 2026-07-13
+
+- EXP044 closed ordinary fixed-LR `3e-4` late continuation: `-0.000448991839` quality versus EXP041.
+- EXP046 rejected the first sparse metric-aligned objective: `-0.001512813323` versus matched EXP044 and every protected component regressed.
+- EXP047's 75/25 output blend gained `+0.000301591492` versus EXP041; a paired 200,000-replicate volume-cluster bootstrap supported the signal, but it remained `-0.001440102540` below EXP031 and requires two forwards.
+- EXP048's one-model parameter interpolation gained `+0.000324864496` versus EXP041, protected aggregate full and all cell floors, and slightly exceeded EXP047. It passed only a method-diagnostic gate and remains `-0.001416828188` below EXP031; no candidate or official authority was granted.
+- Consequence: preserve interpolation/SWA as a low-cost finishing tool for a future eligible winner, but move the main campaign to score-faithful EXP032 epoch selection, pre-plateau scheduling, capacity replication, and acceleration-focused interventions.
 
 ## Phase 2 — supported follow-ups (July 21–31)
 

@@ -55,11 +55,15 @@ All rows below are RTX 4070 Ti SUPER exploratory evidence evaluated with leaderb
 |---|---:|---|
 | `LOCAL_EXP039` sensitivity-width seed replication | quality 0.882647730465; delta -0.001995170919 | reject c4/ch12/s12 replication |
 | `LOCAL_EXP040` e5/e10 checkpoint average | quality 0.907946926286; delta -0.001647492152 versus e10 | reject this average |
-| `LOCAL_EXP041` e10 -> e15 continuation at LR 3e-4 | quality **0.913672051958**; delta +0.004077633519 versus re-evaluated EXP035 | current completed LOCAL leader |
+| `LOCAL_EXP041` e10 -> e15 continuation at LR 3e-4 | quality 0.913672051958; delta +0.004077633519 versus re-evaluated EXP035 | retained same-basin training leader |
 | `LOCAL_EXP042` e15 -> e18 attempt at LR 1e-4 | no score or committed epoch-16 checkpoint | technical failure during retained-output publication |
 | `LOCAL_EXP043` plumbing-only retry of EXP042 | orphan e16 diagnostic quality 0.913476635177; delta -0.000195416780 versus EXP041 | diagnostic only; reject LR 1e-4 continuation and do not rerun |
+| `LOCAL_EXP044` matched standard-SSIM e15 -> e16 at LR 3e-4 | quality 0.913223060119; delta -0.000448991839 versus EXP041 | reject further fixed-LR duration escalation |
+| `LOCAL_EXP046` matched sparse metric-aligned e15 -> e16 | quality 0.911710246795; delta -0.001512813323 versus EXP044 | reject this objective; every protected component regressed |
+| `LOCAL_EXP047` 75/25 image-space blend | quality 0.913973642372; delta +0.000301591492 versus EXP041 | robust LOCAL blend signal, but below EXP031 and two-forward only |
+| `LOCAL_EXP048` 75/25 parameter interpolation | quality **0.913996916454**; delta +0.000324864496 versus EXP041 | method gate passed; supports future SWA review only; not candidate eligible |
 
-EXP041 remains the strongest completed LOCAL candidate. Its authoritative evaluation covered 30 volumes, 791 slices, and 161 bbox annotations with `unknown=0` and `skipped=[]`. EXP042 and EXP043 both failed before a successful training terminal. EXP043's complete but unpublished epoch-16 reconstruction was sealed and evaluated on CPU; no checkpoint was available, `candidate_or_promotion_evidence=false`, and a delayed adversarial review reclassified the launch package as failed review. No `LOCAL_EXP044` exists.
+EXP041 remains the strongest completed same-basin training checkpoint. EXP047 established a statistically supported image-space complementarity signal: 200,000 paired, acceleration-stratified volume-cluster replicates gave a 90% BCa quality-delta interval of `[+0.000188730881, +0.000397414539]`. EXP048 reproduced and slightly exceeded that gain in one interpolated model, with positive aggregate full and bbox deltas and exact 30/791/161 coverage. Both remain below EXP031's `0.915413744641` LOCAL reference; neither is a promotion candidate or official authority.
 
 Details: [`../reports/local_comparisons/local_continuation_campaign_20260711.md`](../reports/local_comparisons/local_continuation_campaign_20260711.md).
 
@@ -69,10 +73,10 @@ Resume/LR-override and history-prefix support is published in commit `431c690186
 
 ## Remaining actions
 
-1. Complete and locally evaluate EXP032 without launching official evaluation automatically.
-2. Keep EXP041 as the current LOCAL continuation leader; do not spend a third run on the rejected LR 1e-4 direction.
-3. Run the queued EXP033 five-epoch continuation from EXP031 best at LR 3e-4 after EXP032, avoiding GPU contention.
-4. Test score-aligned foreground/bbox loss and supported scheduler/cascade follow-ups through local promotion gates.
+1. Complete EXP032 without launching official evaluation automatically; preserve and hash its immutable per-epoch checkpoint generations before cleanup.
+2. Reconstruct and score-faithfully sweep the available EXP032 late epochs before deciding whether c6 deserves any follow-up.
+3. Keep EXP041 as the same-basin training leader and EXP048 as method evidence only; do not repeat fixed-LR late continuation or the rejected sparse metric-aligned objective.
+4. Prefer a predeclared scheduler from before the plateau, exact mask/ACS A/B, width replication, and acceleration-specialist screens over more same-basin micro-tuning.
 5. Use separately approved one-shot official runs only for meaningful validation winners.
 6. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
 7. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).

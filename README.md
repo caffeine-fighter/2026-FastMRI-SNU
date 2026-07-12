@@ -5,15 +5,15 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-12 10:06 KST (2026-07-12 01:06 UTC)_
+_Last update: 2026-07-13 01:51 KST (2026-07-12 16:51 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
 | Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `17/30`, iteration `210/4651`, `56.8%` |
-| ETA | `17.32 hours`; finish `2026-07-13 03:25 KST (2026-07-12 18:25 UTC)` |
-| Best validation loss | epoch `16`: `3.2091836409498526` |
+| Progress | epoch `28/30`, iteration `4620/4651`, `96.6%` |
+| ETA | `1.42 hours`; finish `2026-07-13 03:16 KST (2026-07-12 18:16 UTC)` |
+| Best validation loss | epoch `26`: `3.1754857592465457` |
 | Validation snapshot | pending final validation |
 | Health | `0` error matches; checkpoints `present` |
 
@@ -33,17 +33,21 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 ## Desktop LOCAL candidate status
 
-_Last verified: 2026-07-12 10:07 KST (2026-07-12 01:07 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
+_Last verified: 2026-07-13 01:44 KST (2026-07-12 16:44 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
 
 | Candidate | Configuration / evidence | Equal-acc quality | Status |
 |---|---|---:|---|
 | `LOCAL_EXP039` | c4/ch12/s12/e1, seed 431 | 0.882647730465 | rejected: seed-replication gate failed |
 | `LOCAL_EXP040` | 50/50 average of c4/ch16/s8 epochs 5 and 10 | 0.907946926286 | rejected: -0.001647492152 versus epoch 10 |
-| `LOCAL_EXP041` | c4/ch16/s8, epoch 10 -> 15 at LR 3e-4 | **0.913672051958** | current completed LOCAL leader; all component floors passed |
+| `LOCAL_EXP041` | c4/ch16/s8, epoch 10 -> 15 at LR 3e-4 | 0.913672051958 | retained same-basin training leader; all component floors passed |
 | `LOCAL_EXP042` | attempted epoch 15 -> 18 continuation at LR 1e-4 | n/a | technical failure before checkpoint or retained result publication |
 | `LOCAL_EXP043` | EXP042 plumbing retry; recovered orphan epoch-16 reconstruction | 0.913476635177 | diagnostic only; -0.000195416780 versus EXP041; reject LR 1e-4 direction |
+| `LOCAL_EXP044` | matched standard-SSIM epoch-16 continuation at LR 3e-4 | 0.913223060119 | rejected; -0.000448991839 versus EXP041 |
+| `LOCAL_EXP046` | matched epoch-16 sparse metric-aligned objective | 0.911710246795 | rejected; -0.001512813323 versus EXP044 and every protected component regressed |
+| `LOCAL_EXP047` | 75/25 image-space blend of EXP041 and EXP046 epoch 16 | 0.913973642372 | robust +0.000301591492 versus EXP041, but below EXP031 and requires two forwards |
+| `LOCAL_EXP048` | 75/25 same-basin parameter interpolation, inference only | **0.913996916454** | method gate passed; supports future SWA review only; not candidate eligible |
 
-EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. Its complete 30-volume reconstruction was evaluated only as a sealed diagnostic (`candidate_or_promotion_evidence=false`). No `LOCAL_EXP044` exists, and the LR 1e-4 continuation will not be repeated.
+EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. EXP044 then closed ordinary fixed-LR `3e-4` duration escalation, and EXP046 rejected the first sparse metric-aligned objective. EXP047's paired 200,000-replicate volume-cluster bootstrap supported its small blend gain, but it remained `-0.001440102540` below the documented EXP031 LOCAL reference. EXP048 compressed that signal into one model and passed its method-only gate at `+0.000324864496` versus EXP041; it still trails EXP031 by `0.001416828188`, is `candidate_eligible=false`, and authorizes no official follow-up.
 
 Source-backed report: [`reports/local_comparisons/local_continuation_campaign_20260711.md`](reports/local_comparisons/local_continuation_campaign_20260711.md).
 

@@ -1,6 +1,6 @@
-# LOCAL continuation campaign: EXP039-EXP043
+# LOCAL continuation campaign: EXP039-EXP048
 
-Verified through: 2026-07-12 02:25 KST (2026-07-11 17:25 UTC)
+Verified through: 2026-07-13 01:44 KST (2026-07-12 16:44 UTC)
 
 **Scope:** Desktop RTX 4070 Ti SUPER exploratory evidence only. Nothing here is an official VESSL score, timing result, checkpoint promotion, or launch authorization.
 
@@ -10,9 +10,13 @@ Verified through: 2026-07-12 02:25 KST (2026-07-11 17:25 UTC)
 |---|---|---:|---:|---:|---|
 | `LOCAL_EXP039` | c4/ch12/s12/e1, seed 431 | 0.882554265162 | 0.882741195767 | 0.882647730465 | rejected seed replication |
 | `LOCAL_EXP040` | c4/ch16/s8, 50/50 e5/e10 checkpoint average | 0.900574274114 | 0.915319578458 | 0.907946926286 | rejected average |
-| `LOCAL_EXP041` | c4/ch16/s8, exact resume e10 -> e15, LR 3e-4, seed 430 | 0.903443785095 | 0.923900318820 | **0.913672051958** | current completed LOCAL leader |
+| `LOCAL_EXP041` | c4/ch16/s8, exact resume e10 -> e15, LR 3e-4, seed 430 | 0.903443785095 | 0.923900318820 | 0.913672051958 | retained same-basin training leader |
 | `LOCAL_EXP042` | attempted exact resume e15 -> e18, LR 1e-4 | n/a | n/a | n/a | technical failure; no candidate result |
 | `LOCAL_EXP043` | plumbing-only EXP042 retry; recovered orphan e16 reconstruction | 0.903816298291 | 0.923136972064 | 0.913476635177 | diagnostic only; rejected direction |
+| `LOCAL_EXP044` | matched standard-SSIM e15 -> e16, LR 3e-4 | 0.903536191978 | 0.922909928259 | 0.913223060119 | rejected fixed-LR duration |
+| `LOCAL_EXP046` | matched sparse metric-aligned e15 -> e16, LR 3e-4 | 0.901425703285 | 0.921994790306 | 0.911710246795 | rejected objective |
+| `LOCAL_EXP047` | 75/25 EXP041/EXP046 output blend | 0.903536900114 | 0.924410384629 | 0.913973642372 | robust blend diagnostic; candidate rejected |
+| `LOCAL_EXP048` | 75/25 EXP041/EXP046 parameter interpolation | 0.903497902089 | 0.924495930819 | **0.913996916454** | method gate passed; SWA evidence only |
 
 ## Decisions
 
@@ -76,7 +80,21 @@ Limitations are binding:
 - a delayed adversarial review marked the launch package failed review;
 - the reconstruction is diagnostic only and cannot authorize promotion.
 
-Decision: `STOP_LOW_LR_1E-4_CONTINUATION_DIRECTION_AND_DO_NOT_SPEND_A_THIRD_FULL_RERUN`. No `LOCAL_EXP044` exists.
+Decision: `STOP_LOW_LR_1E-4_CONTINUATION_DIRECTION_AND_DO_NOT_SPEND_A_THIRD_FULL_RERUN`. At that historical checkpoint no LOCAL_EXP044 existed; it was subsequently launched under a separate reviewed matched-control protocol.
+
+### EXP044 and EXP046: close fixed-LR duration and sparse metric alignment
+
+EXP044's matched standard-SSIM epoch-16 continuation lost `0.000448991839` quality versus EXP041. EXP046's matched sparse metric-aligned objective then lost another `0.001512813323` versus EXP044 and regressed every protected component. Both directions are closed.
+
+### EXP047: statistically supported but non-candidate output complementarity
+
+The validation-selected 75/25 output blend gained `0.000301591492` quality versus EXP041. A paired, acceleration-stratified volume-cluster bootstrap used 200,000 accepted replicates (seed 430): 90% BCa quality-delta CI `[+0.000188730881, +0.000397414539]`, leave-one-volume-out minimum `+0.000270080545`. The signal is robust on this cohort, but EXP047 remains `0.001440102540` below EXP031 and requires two model forwards.
+
+### EXP048: one-model interpolation preserves the signal
+
+The inference-only checkpoint `0.75 * EXP041 epoch 15 + 0.25 * EXP046 epoch 16` scored `0.913996916454`, or `+0.000324864496` versus EXP041 and `+0.000023274082` versus EXP047. Aggregate full improved `+0.000054116994`; bbox improved `+0.000595611998`; F4/B4/F8/B8 deltas were `-0.000052024896 / +0.000093555896 / +0.000160258884 / +0.001097668100`. Exact coverage was 30/791/161 with zero skips, and 38 frozen artifacts independently rehashed.
+
+Decision: `METHOD_DIAGNOSTIC_SUPPORTS_CONSECUTIVE_LATE_EPOCH_INTERPOLATION_FOR_FUTURE_SWA_REVIEW`. EXP048 remains `0.001416828188` below EXP031, `candidate_eligible=false`, and `official_followup_authorized=false`.
 
 ## Evidence integrity
 
@@ -90,12 +108,16 @@ Authoritative LOCAL evidence remains outside Git under ignored result roots:
 - EXP043 diagnostic terminal: `LOCAL_EXP043_ORPHAN_E16_DIAGNOSTIC_20260712_DESKTOP4070TI/terminal.json`
   - SHA-256: `c89700257ee2373d4d01ff9aafa12685de45042ff300e76f455715928a421a7e`
   - reconstruction tree SHA-256: `844cc53c0b9345ddd95e2f5d4d66bdab0c0bc9a780b59bb98cbfaaea047d5f5b`
+- EXP044 independent audit: `AUTONOMOUS_SCORE_LOOP_20260711/EXP044_postrun_independent_audit_20260712.json`
+- EXP046 final evaluation: `AUTONOMOUS_SCORE_LOOP_20260711/EXP046_final_evaluation_20260712.json`
+- EXP047 bootstrap report: `AUTONOMOUS_SCORE_LOOP_20260711/LOCAL_EXP047_PAIRED_CLUSTER_BOOTSTRAP_V1_20260713/report.json`
+- EXP048 independent terminal verification: `AUTONOMOUS_SCORE_LOOP_20260711/EXP048_independent_terminal_verification_20260713.json`
 
 Raw checkpoints and H5 reconstructions remain ignored and are not committed.
 
 ## Guardrails
 
-- Keep EXP041 as the current completed LOCAL leader.
+- Keep EXP041 as the same-basin training leader; treat EXP048 only as interpolation/SWA method evidence.
 - Do not treat EXP043's orphan diagnostic as a successful candidate or checkpoint.
 - Do not repeat the rejected LR 1e-4 direction.
 - Do not overlap desktop CUDA work with an active controlled workload.

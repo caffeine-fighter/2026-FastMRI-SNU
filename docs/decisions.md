@@ -26,10 +26,14 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-11 | Retain LOCAL_EXP041 as the completed LOCAL continuation leader. | Epoch 15 at LR 3e-4 improved equal-acc quality by 0.004077633519 over re-evaluated EXP035 and passed every component floor. |
 | 2026-07-12 | Classify LOCAL_EXP042 as a technical failure with no candidate result. | The run failed during retained-output publication before an epoch-16 checkpoint or reconstruction was committed. |
 | 2026-07-12 | Reject the LR 1e-4 continuation direction after LOCAL_EXP043 and do not rerun it. | The recovered orphan epoch-16 diagnostic scored 0.000195416780 below EXP041; bbox and acc8 regressed, no checkpoint existed, and delayed adversarial review failed. |
+| 2026-07-12 | Reject ordinary fixed-LR 3e-4 duration escalation after LOCAL_EXP044. | The matched epoch-16 control lost 0.000448991839 quality versus EXP041 and failed bbox and acc8 component floors. |
+| 2026-07-12 | Reject the first sparse metric-aligned objective after LOCAL_EXP046. | It lost 0.001512813323 versus matched EXP044, regressed every protected component, and worsened validation loss. |
+| 2026-07-13 | Treat LOCAL_EXP047 as robust complementarity evidence, not a candidate. | Its 75/25 output blend gained 0.000301591492 versus EXP041; a 200,000-replicate paired volume-cluster bootstrap passed, but quality remained 0.001440102540 below EXP031 and deployment would require two forwards. |
+| 2026-07-13 | Accept LOCAL_EXP048 only as positive SWA/interpolation method evidence. | The one-model interpolation gained 0.000324864496 versus EXP041, passed full/cell guards with exact coverage, and slightly exceeded EXP047, but remains 0.001416828188 below EXP031; candidate and official authority stay false. |
 
 ## Current gate
 
-EXP031 stays protected while EXP032 and the forty-day roadmap run. Promote only local validation winners to separately approved official one-shot evaluation. Run the 30-repeat timing cohort only for the frozen final candidate.
+EXP031 stays protected while EXP032 and the forty-day roadmap run. Inventory and score late EXP032 checkpoint generations before any c6 decision. EXP048 justifies considering interpolation/SWA on a future eligible winner; it does not justify promotion itself. Run the 30-repeat timing cohort only for the frozen final candidate.
 
 ## Permanent constraints
 
