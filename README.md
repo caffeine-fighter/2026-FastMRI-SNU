@@ -5,14 +5,14 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-12 21:21 KST (2026-07-12 12:21 UTC)_
+_Last update: 2026-07-12 21:27 KST (2026-07-12 12:27 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
 | Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `25/30`, iteration `2680/4651`, `85.3%` |
-| ETA | `5.94 hours`; finish `2026-07-13 03:18 KST (2026-07-12 18:18 UTC)` |
+| Progress | epoch `25/30`, iteration `3050/4651`, `85.5%` |
+| ETA | `5.84 hours`; finish `2026-07-13 03:18 KST (2026-07-12 18:18 UTC)` |
 | Best validation loss | epoch `23`: `3.1766005954935492` |
 | Validation snapshot | pending final validation |
 | Health | `0` error matches; checkpoints `present` |
