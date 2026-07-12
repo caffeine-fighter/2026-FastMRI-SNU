@@ -600,7 +600,9 @@ def _staged_directory_descriptor_path(staged):
 
 def _stage_retained_reconstructions(reconstructions, retained_root, epoch):
     _validate_retained_reconstruction_names(reconstructions)
-    final_dir = Path(retained_root) / f"epoch_{epoch:04d}"
+    final_dir = Path(os.path.abspath(os.fspath(
+        Path(retained_root) / f"epoch_{epoch:04d}"
+    )))
     staged = _create_staged_directory(final_dir, "Retained epoch")
     try:
         save_reconstructions(

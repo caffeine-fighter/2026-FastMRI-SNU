@@ -173,6 +173,25 @@ class TrainCliTests(unittest.TestCase):
                     hf["reconstruction"][:], reconstructions["sample.h5"]
                 )
 
+    def test_retention_accepts_relative_root_with_same_parent_publication(self):
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            root = Path(tmp)
+            relative_root = Path(
+                os.path.relpath(root / "retained", Path.cwd())
+            )
+            staged, final_dir = train_part_module._stage_retained_reconstructions(
+                {"sample.h5": np.zeros((1, 2, 2), dtype=np.float32)},
+                relative_root,
+                29,
+            )
+
+            self.assertTrue(final_dir.is_absolute())
+            train_part_module._publish_retained_epoch(staged, final_dir)
+
+            self.assertTrue(
+                (root / "retained" / "epoch_0029" / "sample.h5").is_file()
+            )
+
     def test_retention_rejects_content_mutation_after_seal_before_rename(self):
         with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
             root = Path(tmp)
