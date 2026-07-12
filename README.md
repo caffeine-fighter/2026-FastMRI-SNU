@@ -5,13 +5,13 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-13 04:24 KST (2026-07-12 19:24 UTC)_
+_Last update: 2026-07-13 04:28 KST (2026-07-12 19:28 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `EXP033_varnet_c4_ch12_s8_lr3e4_e33` (running) |
 | Change | `five-epoch continuation from EXP031 best; LR 0.001 to 0.0003; retained validation epochs` |
-| Progress | epoch `28/33`, iteration `3990/4651`, `87.4%` |
+| Progress | epoch `28/33`, iteration `4290/4651`, `87.6%` |
 | ETA | `pending`; finish `pending` |
 | Best validation loss | epoch `pending`: `pending` |
 | Validation snapshot | pending final validation |
@@ -31,6 +31,10 @@ _Last update: 2026-07-13 04:24 KST (2026-07-12 19:24 UTC)_
 EXP032 is the current one-shot official leader: quality improved by `+0.00060` and total score by `+0.0005796354166667239` versus EXP031, despite a `+39.1 ms/slice` timing cost. EXP031 and EXP030 remain protected references; the final 30-run timing cohort is deferred until model freeze.
 
 Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; EXP032 scored `0.9149434297189161` locally, so the five-epoch lower-LR continuation uses EXP031 as preregistered. Pooled diagnostics are not promotion thresholds.
+
+## Next objective gate
+
+The opt-in EXP034 score-aligned training path is published in `817c9eb`. It preserves default training and inference, passed independent adversarial review, 53 focused tests, 218 discovered tests, and a five-case production VarNet CPU gradient gate. All losses and 4,848,494-element model gradients were finite and nonzero; the largest score/legacy gradient ratios were `35.68×` L2 and `47.09×` max-absolute, with absolute score-gradient maxima of `0.7404` L2 and `0.4270`. EXP034 remains gated on EXP033 completion and strict retained-epoch sweep; it will change only the training objective.
 
 ## Common commands
 
