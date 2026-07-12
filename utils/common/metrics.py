@@ -101,6 +101,125 @@ def ssim_bbox_tensor(ssim, recon_t, target_t, box, data_range):
     return ssim(recon_crop, target_crop, data_range).mean()
 
 
+class ScoreAlignedLoss(torch.nn.Module):
+    """Training-only objective matching the evaluator's separate score cells."""
+
+    _METADATA_KEYS = {
+        "acceleration", "boxes", "box_count", "foreground_mask",
+        "full_weight", "box_weight",
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.ssim = SSIM()
+
+    def _validate(self, output, target, data_range, metadata):
+        if output.ndim != 3 or target.shape != output.shape:
+            raise ValueError("Score-aligned output and target must be matching (B,H,W)")
+        if not isinstance(metadata, dict) or set(metadata) != self._METADATA_KEYS:
+            raise ValueError("Malformed score-aligned metadata keys")
+        batch_size, height, width = output.shape
+        acceleration = metadata["acceleration"]
+        boxes = metadata["boxes"]
+        box_count = metadata["box_count"]
+        foreground = metadata["foreground_mask"]
+        full_weight = metadata["full_weight"]
+        box_weight = metadata["box_weight"]
+        if (
+            not torch.is_tensor(acceleration)
+            or acceleration.dtype != torch.int64
+            or acceleration.shape != (batch_size,)
+            or not torch.all((acceleration == 4) | (acceleration == 8))
+        ):
+            raise ValueError("Malformed score-aligned acceleration")
+        if (
+            not torch.is_tensor(boxes)
+            or boxes.dtype != torch.int64
+            or boxes.ndim != 3
+            or boxes.shape[0] != batch_size
+            or boxes.shape[2] != 4
+        ):
+            raise ValueError("Malformed score-aligned boxes")
+        if (
+            not torch.is_tensor(box_count)
+            or box_count.dtype != torch.int64
+            or box_count.shape != (batch_size,)
+            or torch.any(box_count < 0)
+            or torch.any(box_count > boxes.shape[1])
+        ):
+            raise ValueError("Malformed score-aligned box count")
+        if (
+            not torch.is_tensor(foreground)
+            or foreground.dtype != torch.bool
+            or foreground.shape != (batch_size, height, width)
+        ):
+            raise ValueError("Malformed score-aligned foreground mask")
+        for weights, name in (
+            (full_weight, "full weight"), (box_weight, "box weight")
+        ):
+            if (
+                not torch.is_tensor(weights)
+                or weights.shape != (batch_size,)
+                or not torch.is_floating_point(weights)
+                or not torch.all(torch.isfinite(weights))
+                or not torch.all(weights > 0)
+            ):
+                raise ValueError(f"Malformed score-aligned {name}")
+        data_range_t = torch.as_tensor(data_range)
+        if (
+            data_range_t.shape != (batch_size,)
+            or not torch.all(torch.isfinite(data_range_t))
+            or not torch.all(data_range_t > 0)
+        ):
+            raise ValueError("Malformed score-aligned data range")
+
+        for sample_index in range(batch_size):
+            count = int(box_count[sample_index].item())
+            active = boxes[sample_index, :count]
+            padding = boxes[sample_index, count:]
+            if active.numel() and torch.any(active[:, 2:] <= 0):
+                raise ValueError("Malformed score-aligned active box")
+            if padding.numel() and torch.any(padding != 0):
+                raise ValueError("Malformed score-aligned box padding")
+
+    def forward(self, output, target, data_range, metadata):
+        self._validate(output, target, data_range, metadata)
+        losses = []
+        for sample_index in range(output.shape[0]):
+            recon_t = output[sample_index]
+            target_t = target[sample_index]
+            mask_t = metadata["foreground_mask"][sample_index].to(
+                device=recon_t.device, dtype=recon_t.dtype
+            )
+            sample_loss = recon_t.sum() * 0
+            full_similarity = ssim_full_tensor(
+                self.ssim, recon_t, target_t, mask_t, data_range[sample_index]
+            )
+            full_weight = metadata["full_weight"][sample_index].to(
+                device=recon_t.device, dtype=recon_t.dtype
+            )
+            if full_similarity is not None:
+                sample_loss = sample_loss + full_weight * (1 - full_similarity)
+
+            box_weight = metadata["box_weight"][sample_index].to(
+                device=recon_t.device, dtype=recon_t.dtype
+            )
+            count = int(metadata["box_count"][sample_index].item())
+            for coordinates in metadata["boxes"][sample_index, :count].tolist():
+                x, y, width, height = coordinates
+                box_similarity = ssim_bbox_tensor(
+                    self.ssim,
+                    recon_t,
+                    target_t,
+                    {"x": x, "y": y, "width": width, "height": height},
+                    data_range[sample_index],
+                )
+                if box_similarity is not None:
+                    sample_loss = sample_loss + box_weight * (1 - box_similarity)
+            losses.append(sample_loss)
+        return torch.stack(losses).mean()
+
+
 def ssim_bbox(ssim, recon_t, target_t, box, data_range):
     """SSIM inside a single annotation box. Returns None if the box is too small."""
     win = ssim.win_size

@@ -16,6 +16,7 @@ from collections import defaultdict
 from utils.data.load_data import create_data_loaders
 from utils.common.utils import save_reconstructions, ssim_loss
 from utils.common.loss_function import SSIMLoss
+from utils.common.metrics import ScoreAlignedLoss
 from utils.learning.resume import (
     CHECKPOINT_MANIFEST_FORMAT_VERSION,
     CHECKPOINT_MANIFEST_NAME,
@@ -50,14 +51,20 @@ def train_epoch(args, epoch, model, data_loader, optimizer, loss_type):
     total_loss = 0.
 
     for iter, data in enumerate(data_loader):
-        mask, kspace, target, maximum, _, _ = data
+        if getattr(args, "score_aligned_loss", False):
+            mask, kspace, target, maximum, _, _, score_metadata = data
+        else:
+            mask, kspace, target, maximum, _, _ = data
         mask = mask.to(device=device, non_blocking=non_blocking)
         kspace = kspace.to(device=device, non_blocking=non_blocking)
         target = target.to(device=device, non_blocking=non_blocking)
         maximum = maximum.to(device=device, non_blocking=non_blocking)
 
         output = model(kspace, mask)
-        loss = loss_type(output, target, maximum)
+        if getattr(args, "score_aligned_loss", False):
+            loss = loss_type(output, target, maximum, score_metadata)
+        else:
+            loss = loss_type(output, target, maximum)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -712,7 +719,10 @@ def train(args):
                    sens_chans=args.sens_chans)
     model.to(device=device)
 
-    loss_type = SSIMLoss().to(device=device)
+    if getattr(args, "score_aligned_loss", False):
+        loss_type = ScoreAlignedLoss().to(device=device)
+    else:
+        loss_type = SSIMLoss().to(device=device)
     optimizer = torch.optim.Adam(model.parameters(), args.lr)
 
     if args.resume_checkpoint is None:
@@ -741,7 +751,12 @@ def train(args):
         )
 
     
-    train_loader = create_data_loaders(data_path = args.data_path_train, args = args, shuffle=True)
+    train_loader = create_data_loaders(
+        data_path=args.data_path_train,
+        args=args,
+        shuffle=True,
+        score_aligned=getattr(args, "score_aligned_loss", False),
+    )
     val_loader = create_data_loaders(data_path = args.data_path_val, args = args)
     
     for epoch in range(start_epoch, args.num_epochs):

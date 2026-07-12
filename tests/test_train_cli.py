@@ -15,6 +15,18 @@ import utils.learning.train_part as train_part_module
 
 
 class TrainCliTests(unittest.TestCase):
+    def test_score_aligned_loss_defaults_off(self):
+        with patch("sys.argv", ["train.py"]):
+            args = train.parse()
+
+        self.assertFalse(args.score_aligned_loss)
+
+    def test_score_aligned_loss_is_opt_in(self):
+        with patch("sys.argv", ["train.py", "--score-aligned-loss"]):
+            args = train.parse()
+
+        self.assertTrue(args.score_aligned_loss)
+
     def test_validation_epoch_retention_defaults_off(self):
         with patch("sys.argv", ["train.py"]):
             args = train.parse()

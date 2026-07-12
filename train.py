@@ -39,6 +39,11 @@ def parse():
     parser.add_argument('--max-key', type=str, default='max', help='Name of max key in attributes')
     parser.add_argument('--seed', type=int, default=430, help='Fix random seed')
     parser.add_argument(
+        '--score-aligned-loss',
+        action='store_true',
+        help='Use the evaluator-aligned SSIM objective for training only',
+    )
+    parser.add_argument(
         '--retain-val-epochs',
         action='store_true',
         help='Retain reconstruction-only validation H5 outputs for every epoch',
