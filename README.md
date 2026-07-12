@@ -5,19 +5,19 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-13 03:20 KST (2026-07-12 18:20 UTC)_
+_Last update: 2026-07-13 03:34 KST (2026-07-12 18:34 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `EXP032_varnet_c6_ch12_s8_e30` (complete) |
-| Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `29/30`, iteration `4650/4651`, `100.0%` |
-| ETA | `complete`; finish `completed by 2026-07-13 03:20 KST` |
-| Best validation loss | epoch `26`: `3.1754857592465457` |
-| Validation snapshot | `final`: full `0.904298`, bbox `0.925589`, quality `0.914943` (`-0.000470` vs EXP031) |
-| Health | `0` error matches; checkpoints `present` |
+| Run | `EXP033_varnet_c4_ch12_s8_lr3e4_e33` (running) |
+| Change | `five-epoch continuation from EXP031 best; LR 0.001 to 0.0003; retained validation epochs` |
+| Progress | epoch `28/33`, iteration `170/4651`, `85.0%` |
+| ETA | `pending`; finish `pending` |
+| Best validation loss | epoch `pending`: `pending` |
+| Validation snapshot | pending final validation |
+| Health | `0` error matches; checkpoints `pending` |
 
-`EXP032_varnet_c6_ch12_s8_e30` completed. Final validation decides whether it is eligible for an approved official evaluation.
+`EXP031` remains the one-shot official leader while this one-variable experiment trains. No official evaluation starts automatically.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
@@ -25,11 +25,12 @@ _Last update: 2026-07-13 03:20 KST (2026-07-12 18:20 UTC)_
 | Candidate | Evidence | SSIM_full | SSIM_bbox | Quality | Time | Total score |
 |---|---|---:|---:|---:|---:|---:|
 | `EXP030_varnet_c4_ch12_s8_e20` | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
-| `EXP031_varnet_c4_ch12_s8_e30` | one official run | **0.9191** | **0.9114** | **0.91525** | **173.1 ms/slice** | **0.9162015104166666** |
+| `EXP031_varnet_c4_ch12_s8_e30` | one official run | 0.9191 | 0.9114 | 0.91525 | **173.1 ms/slice** | 0.9162015104166666 |
+| `EXP032_varnet_c6_ch12_s8_e30` | one official run | **0.9197** | **0.9120** | **0.91585** | 212.2 ms/slice | **0.9167811458333334** |
 
-EXP031 leads the completed official runs by `+0.00095015625` versus EXP030's finalized 30-run score. It stays protected while the 40-day optimization program searches for a stronger final candidate; the final timing cohort is deferred until model freeze.
+EXP032 is the current one-shot official leader: quality improved by `+0.00060` and total score by `+0.0005796354166667239` versus EXP031, despite a `+39.1 ms/slice` timing cost. EXP031 and EXP030 remain protected references; the final 30-run timing cohort is deferred until model freeze.
 
-Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; its historical pooled diagnostic `0.9174406281804748` is not the promotion threshold.
+Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; EXP032 scored `0.9149434297189161` locally, so the five-epoch lower-LR continuation uses EXP031 as preregistered. Pooled diagnostics are not promotion thresholds.
 
 ## Common commands
 
