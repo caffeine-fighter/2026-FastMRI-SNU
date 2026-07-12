@@ -12,6 +12,7 @@ functions used on the leaderboard.
 
 import cv2
 import numpy as np
+import torch
 import torch.nn.functional as F
 
 from utils.common.loss_function import SSIMLoss
@@ -56,6 +57,20 @@ def foreground_mask(target):
     return mask
 
 
+def ssim_full_tensor(ssim, recon_t, target_t, mask_t, data_range):
+    """Differentiable foreground SSIM, or None when the mask is empty."""
+    data_range = torch.as_tensor(
+        data_range, dtype=recon_t.dtype, device=recon_t.device
+    )
+    ssim_map = ssim(recon_t * mask_t, target_t * mask_t, data_range)
+    pad = ssim.win_size // 2
+    mask_valid = mask_t[pad:mask_t.shape[0] - pad, pad:mask_t.shape[1] - pad]
+    denom = mask_valid.sum()
+    if denom <= 0:
+        return None
+    return (ssim_map * mask_valid).sum() / denom
+
+
 def ssim_full(ssim, recon_t, target_t, mask_t, data_range):
     """SSIM averaged only inside the foreground mask.
 
@@ -68,6 +83,22 @@ def ssim_full(ssim, recon_t, target_t, mask_t, data_range):
     if denom <= 0:
         return None
     return ((ssim_map * mask_valid).sum() / denom).item()
+
+
+def ssim_bbox_tensor(ssim, recon_t, target_t, box, data_range):
+    """Differentiable SSIM inside one clipped box, or None when too small."""
+    win = ssim.win_size
+    x0, y0 = max(0, box["x"]), max(0, box["y"])
+    x1 = min(target_t.shape[1], box["x"] + box["width"])
+    y1 = min(target_t.shape[0], box["y"] + box["height"])
+    if (x1 - x0) < win or (y1 - y0) < win:
+        return None
+    recon_crop = recon_t[y0:y1, x0:x1]
+    target_crop = target_t[y0:y1, x0:x1]
+    data_range = torch.as_tensor(
+        data_range, dtype=recon_t.dtype, device=recon_t.device
+    )
+    return ssim(recon_crop, target_crop, data_range).mean()
 
 
 def ssim_bbox(ssim, recon_t, target_t, box, data_range):
