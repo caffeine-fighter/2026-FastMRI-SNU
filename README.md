@@ -17,7 +17,7 @@ _Last update: 2026-07-13 16:24 KST (2026-07-13 07:24 UTC)_
 | Validation snapshot | strict epoch `33`: full `0.9032527316484851`, bbox `0.9266163614092091`, quality `0.9149345465288471`; coverage `30/791/161`, skips `0` |
 | Health | `0` error matches; checkpoints `present` |
 
-`EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` completed cleanly, but its strict winner trails EXP033R by `0.0007479093652618118`. The official one-shot was skipped; EXP032 remains the official leader.
+`EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` completed cleanly, but its strict winner trails EXP033R by `0.0007479093652618118`. Its authorized official one-shot scored full `0.9181`, bbox `0.9106`, quality `0.91435`, `173.7 ms/slice`, and total `0.9153011979166666`; EXP032 remains the official leader.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
@@ -27,6 +27,7 @@ _Last update: 2026-07-13 16:24 KST (2026-07-13 07:24 UTC)_
 | `EXP030_varnet_c4_ch12_s8_e20` | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
 | `EXP031_varnet_c4_ch12_s8_e30` | one official run | 0.9191 | 0.9114 | 0.91525 | **173.1 ms/slice** | 0.9162015104166666 |
 | `EXP032_varnet_c6_ch12_s8_e30` | one official run | **0.9197** | **0.9120** | **0.91585** | 212.2 ms/slice | **0.9167811458333334** |
+| `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` | one official run | 0.9181 | 0.9106 | 0.91435 | 173.7 ms/slice | 0.9153011979166666 |
 
 EXP032 is the current one-shot official leader: quality improved by `+0.00060` and total score by `+0.0005796354166667239` versus EXP031, despite a `+39.1 ms/slice` timing cost. EXP031 and EXP030 remain protected references; the final 30-run timing cohort is deferred until model freeze.
 
@@ -34,7 +35,7 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 ## Latest objective result
 
-EXP034 tested the opt-in score-aligned objective as a one-variable comparison against EXP033R. It preserved the same EXP031 source checkpoint, c4/ch12/s8 architecture, LR `0.0003`, seed `430`, sampler order, and five-epoch budget. The run and all five retained epochs completed with zero error matches and strict `30 volumes / 791 slices / 161 boxes / 0 skips` coverage. Epoch 33 ranked first locally at full `0.9032527316484851`, bbox `0.9266163614092091`, and quality `0.9149345465288471`, trailing EXP033R's `0.9156824558941089` by `0.0007479093652618118`. This objective is rejected for promotion; no official run was spent on it.
+EXP034 tested the opt-in score-aligned objective as a one-variable comparison against EXP033R. It preserved the same EXP031 source checkpoint, c4/ch12/s8 architecture, LR `0.0003`, seed `430`, sampler order, and five-epoch budget. The run and all five retained epochs completed with zero error matches and strict `30 volumes / 791 slices / 161 boxes / 0 skips` coverage. Epoch 33 ranked first locally at full `0.9032527316484851`, bbox `0.9266163614092091`, and quality `0.9149345465288471`, trailing EXP033R's `0.9156824558941089` by `0.0007479093652618118`. The authorized official one-shot confirmed rejection: total `0.9153011979166666`, which trails EXP032 by `0.001479947916666724`.
 
 ## Common commands
 
