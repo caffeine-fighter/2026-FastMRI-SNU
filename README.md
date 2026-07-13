@@ -31,7 +31,7 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 ## Desktop LOCAL candidate status
 
-_Last verified: 2026-07-13 15:13:59 KST (2026-07-13 06:13:59 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
+_Last verified: 2026-07-13 18:52:42 KST (2026-07-13 09:52:42 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
 
 | Candidate | Configuration / evidence | Equal-acc quality | Status |
 |---|---|---:|---|
@@ -46,15 +46,17 @@ _Last verified: 2026-07-13 15:13:59 KST (2026-07-13 06:13:59 UTC). These are RTX
 | `LOCAL_EXP048` | 75/25 same-basin parameter interpolation, inference only | 0.913996916454 | post-run exact-byte review rejected; method gate void; non-authoritative diagnostic only |
 | `LOCAL_EXP050` / `LOCAL_EXP052` | c8/ch12/s8/e1, seeds 430/431 | 0.887020276038 / 0.885970484235 | seed-robust positive; longer follow-up eligible but not authorized |
 | `LOCAL_EXP051` / `LOCAL_EXP053` | c8/ch18/s8/e1, seeds 430/431 | 0.881390927133 / 0.883208297423 | rejected: no seed-robust positive capacity signal |
+| `LOCAL_EXP054` | c8/ch12/s8/e5, fresh seed 430 | 0.908697111775 | meaningful +0.002871432627 vs matched EXP032 e5; remains -0.004974940182 below EXP041 e15; capacity signal only |
 
 EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. EXP044 then closed ordinary fixed-LR `3e-4` duration escalation, and EXP046 rejected the first sparse metric-aligned objective. EXP047's paired 200,000-replicate volume-cluster bootstrap supported its small blend gain, but it remained `-0.001440102540` below the documented EXP031 LOCAL reference. EXP048 execution produced quality `0.913996916454`, but a previously dispatched exact-byte reviewer returned six blocking runner/evidence findings. The approval is revoked, the method gate is void, and the metrics are retained only as non-authoritative post-run diagnostic data; they cannot authorize SWA, promotion, or official follow-up.
 
-The recovered EXP050-EXP053 capacity screen found c8/ch12/s8 positive under both seeds and eligible for a separately reviewed longer comparison; c8/ch18/s8 failed under both seeds. No follow-up is automatic or official. An operator-reported winner survey suggests that model capacity near the official 8192 MB VRAM ceiling may matter, but the source and training-versus-inference measurement context remain unverified.
+The recovered EXP050-EXP053 capacity screen found c8/ch12/s8 positive under both seeds and eligible for a separately reviewed longer comparison; c8/ch18/s8 failed under both seeds. The separately reviewed EXP054 fresh five-epoch follow-up then reproduced a meaningful `+0.002871432627` gain over matched EXP032 e5 with every protected component positive, but remained `-0.004974940182` below EXP041 e15. It is a capacity signal, not a new best. No follow-up is automatic or official. An operator-reported winner survey suggests that model capacity near the official 8192 MB VRAM ceiling may matter, but the source and training-versus-inference measurement context remain unverified; EXP054's sampled 13,062 MiB LOCAL training footprint is not official inference memory.
 
 Source-backed reports:
 
 - [`reports/local_comparisons/local_continuation_campaign_20260711.md`](reports/local_comparisons/local_continuation_campaign_20260711.md)
 - [`reports/local_comparisons/local_capacity_screen_20260713.md`](reports/local_comparisons/local_capacity_screen_20260713.md)
+- [`reports/local_comparisons/local_exp054_fresh_e5_20260713.md`](reports/local_comparisons/local_exp054_fresh_e5_20260713.md)
 
 ## Common commands
 
