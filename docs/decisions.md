@@ -31,10 +31,14 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-13 | Treat LOCAL_EXP047 as robust complementarity evidence, not a candidate. | Its 75/25 output blend gained 0.000301591492 versus EXP041; a 200,000-replicate paired volume-cluster bootstrap passed, but quality remained 0.001440102540 below EXP031 and deployment would require two forwards. |
 | 2026-07-13 | Initially classify LOCAL_EXP048 as positive interpolation evidence, subject to exact-byte review closure. | The one-model interpolation numerically gained 0.000324864496 versus EXP041 and passed metric-cell guards, but this preliminary classification was later voided by a late-delivered independent REJECT. |
 | 2026-07-13 | Revoke LOCAL_EXP048 launch approval and void its method gate. | A previously dispatched exact-byte reviewer reported six blocking runner/evidence defects; the frozen test harness failure was reproduced locally. A conflicting APPROVE cannot override a substantive REJECT under fail-closed policy. |
+| 2026-07-13 | Keep EXP031 protected while EXP032 is evaluated and EXP033R runs. | EXP032 is operator-confirmed complete and EXP033R is operator-confirmed running, but no EXP032/EXP033R metrics are yet present in Git-tracked VESSL evidence. |
+| 2026-07-13 | Retain LOCAL c8/ch12/s8 as longer-follow-up eligible, not authorized. | EXP050 and EXP052 were positive under seeds 430 and 431 with minimum matched-baseline quality delta +0.001327582851; the c8/ch12 versus c4/ch16 ordering still flips by seed. |
+| 2026-07-13 | Reject the LOCAL c8/ch18/s8 ceiling screen. | EXP051 was slightly negative and EXP053 regressed by 0.001434603960 with component-floor failure. |
+| 2026-07-13 | Treat near-8-GB winner memory use as a capacity-planning hypothesis. | The operator reports four of five prize winners near the GTX1080 8192 MB limit and one near 6 GB with gradient checkpointing, but source and training-versus-inference measurement context remain unverified. |
 
 ## Current gate
 
-EXP031 stays protected while EXP032 and the forty-day roadmap run. Inventory and score late EXP032 checkpoint generations before any c6 decision. EXP048 is non-authoritative post-run diagnostic data and cannot authorize interpolation/SWA work, promotion, or official follow-up. Run the 30-repeat timing cohort only for the frozen final candidate.
+EXP031 stays protected while EXP032 awaits source-backed validation and EXP033R runs on VESSL. Evaluate and record EXP032 first, then evaluate and record EXP033R after completion; do not infer either run's metrics from status alone. EXP048 is non-authoritative post-run diagnostic data and cannot authorize interpolation/SWA work, promotion, or official follow-up. LOCAL c8/ch12/s8 is eligible only for a separately reviewed longer comparison after the VESSL evidence and an 8 GB inference-memory audit justify it. Run the 30-repeat timing cohort only for the frozen final candidate.
 
 ## Permanent constraints
 

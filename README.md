@@ -5,19 +5,17 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-13 01:56 KST (2026-07-12 16:56 UTC)_
+_Status basis: operator update received 2026-07-13. Exact EXP032 metrics and EXP033R run details are pending a Git-tracked VESSL handoff._
 
-| Check | Value |
+| Role | State |
 |---|---|
-| Run | `EXP032_varnet_c6_ch12_s8_e30` (running) |
-| Change | `cascades 4 to 6; all else fixed` |
-| Progress | epoch `28/30`, iteration `4650/4651`, `96.7%` |
-| ETA | `1.42 hours`; finish `2026-07-13 03:21 KST (2026-07-12 18:21 UTC)` |
-| Best validation loss | epoch `26`: `3.1754857592465457` |
-| Validation snapshot | pending final validation |
-| Health | `0` error matches; checkpoints `present` |
+| Current VESSL job | `EXP033R` is running on VESSL; configuration, progress, and metrics are not yet recorded in tracked local evidence |
+| Recent completed VESSL job | `EXP032_varnet_c6_ch12_s8_e30` is complete; validation and official metrics are pending |
+| Protected official leader | `EXP031_varnet_c4_ch12_s8_e30` remains the one-shot official leader |
+| Finalized rollback | `EXP030_varnet_c4_ch12_s8_e20` retains the completed 30-run official result |
+| Next decision | Monitor EXP033R, evaluate and record EXP032, then evaluate and record EXP033R; reserve official `bash recon_eval.sh` comparison for a separately approved validation winner |
 
-`EXP031` remains the one-shot official leader while this one-variable experiment trains. No official evaluation starts automatically.
+No EXP032 or EXP033R metric is assumed in this dashboard until it appears in Git-tracked VESSL evidence.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
@@ -33,7 +31,7 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 ## Desktop LOCAL candidate status
 
-_Last verified: 2026-07-13 01:44 KST (2026-07-12 16:44 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
+_Last verified: 2026-07-13 15:13:59 KST (2026-07-13 06:13:59 UTC). These are RTX 4070 Ti SUPER exploratory results, not official VESSL scores or launch authority._
 
 | Candidate | Configuration / evidence | Equal-acc quality | Status |
 |---|---|---:|---|
@@ -46,10 +44,17 @@ _Last verified: 2026-07-13 01:44 KST (2026-07-12 16:44 UTC). These are RTX 4070 
 | `LOCAL_EXP046` | matched epoch-16 sparse metric-aligned objective | 0.911710246795 | rejected; -0.001512813323 versus EXP044 and every protected component regressed |
 | `LOCAL_EXP047` | 75/25 image-space blend of EXP041 and EXP046 epoch 16 | 0.913973642372 | robust +0.000301591492 versus EXP041, but below EXP031 and requires two forwards |
 | `LOCAL_EXP048` | 75/25 same-basin parameter interpolation, inference only | 0.913996916454 | post-run exact-byte review rejected; method gate void; non-authoritative diagnostic only |
+| `LOCAL_EXP050` / `LOCAL_EXP052` | c8/ch12/s8/e1, seeds 430/431 | 0.887020276038 / 0.885970484235 | seed-robust positive; longer follow-up eligible but not authorized |
+| `LOCAL_EXP051` / `LOCAL_EXP053` | c8/ch18/s8/e1, seeds 430/431 | 0.881390927133 / 0.883208297423 | rejected: no seed-robust positive capacity signal |
 
 EXP043 had no successful training terminal or epoch-16 checkpoint, and its delayed adversarial launch review failed. EXP044 then closed ordinary fixed-LR `3e-4` duration escalation, and EXP046 rejected the first sparse metric-aligned objective. EXP047's paired 200,000-replicate volume-cluster bootstrap supported its small blend gain, but it remained `-0.001440102540` below the documented EXP031 LOCAL reference. EXP048 execution produced quality `0.913996916454`, but a previously dispatched exact-byte reviewer returned six blocking runner/evidence findings. The approval is revoked, the method gate is void, and the metrics are retained only as non-authoritative post-run diagnostic data; they cannot authorize SWA, promotion, or official follow-up.
 
-Source-backed report: [`reports/local_comparisons/local_continuation_campaign_20260711.md`](reports/local_comparisons/local_continuation_campaign_20260711.md).
+The recovered EXP050-EXP053 capacity screen found c8/ch12/s8 positive under both seeds and eligible for a separately reviewed longer comparison; c8/ch18/s8 failed under both seeds. No follow-up is automatic or official. An operator-reported winner survey suggests that model capacity near the official 8192 MB VRAM ceiling may matter, but the source and training-versus-inference measurement context remain unverified.
+
+Source-backed reports:
+
+- [`reports/local_comparisons/local_continuation_campaign_20260711.md`](reports/local_comparisons/local_continuation_campaign_20260711.md)
+- [`reports/local_comparisons/local_capacity_screen_20260713.md`](reports/local_comparisons/local_capacity_screen_20260713.md)
 
 ## Common commands
 

@@ -8,7 +8,8 @@ The root [`README.md`](../README.md) is the compact status dashboard. This page 
 |---|---|---|
 | Finalized 30-run fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and timing cohort complete |
 | One-shot official leader | `EXP031_varnet_c4_ch12_s8_e30` | Training, validation, and first approved official run complete |
-| Active quality experiment | `EXP032_varnet_c6_ch12_s8_e30` | VESSL training; cascades 4 -> 6, all other main variables fixed |
+| Recent completed quality experiment | `EXP032_varnet_c6_ch12_s8_e30` | VESSL run complete; metrics pending a Git-tracked VESSL handoff |
+| Active VESSL experiment | `EXP033R` | Running on VESSL; exact configuration, progress, and metrics pending tracked evidence |
 
 ## Official results
 
@@ -32,7 +33,7 @@ Evidence: [`../reports/phase2/EXP031_official_20260711_014023/score.json`](../re
 
 ## Active optimization gate
 
-EXP031 remains the protected one-shot official leader while the 40-day optimization program runs. EXP032 is the first architecture-capacity test. Its final validation result must beat EXP031 before any official evaluation is considered.
+EXP031 remains the protected one-shot official leader while the 40-day optimization program runs. EXP032 is complete on VESSL, but its final validation and official metrics are not yet present in Git-tracked evidence. EXP033R is running on VESSL. Neither run changes candidate authority until its source-backed validation is recorded and passes the promotion gate.
 
 Local promotion uses the fixed evaluator's equal-acceleration semantics, not the historical pooled `overall` row:
 
@@ -62,24 +63,33 @@ All rows below are RTX 4070 Ti SUPER exploratory evidence evaluated with leaderb
 | `LOCAL_EXP046` matched sparse metric-aligned e15 -> e16 | quality 0.911710246795; delta -0.001512813323 versus EXP044 | reject this objective; every protected component regressed |
 | `LOCAL_EXP047` 75/25 image-space blend | quality 0.913973642372; delta +0.000301591492 versus EXP041 | robust LOCAL blend signal, but below EXP031 and two-forward only |
 | `LOCAL_EXP048` 75/25 parameter interpolation | quality 0.913996916454; delta +0.000324864496 versus EXP041 | post-run exact-byte review rejected; method gate void; diagnostic only |
+| `LOCAL_EXP050` / `LOCAL_EXP052` c8/ch12/s8 one-epoch seed pair | qualities 0.887020276038 / 0.885970484235; matched c4 deltas +0.005563956839 / +0.001327582851 | seed-robust positive; longer follow-up eligible but not authorized |
+| `LOCAL_EXP051` / `LOCAL_EXP053` c8/ch18/s8 one-epoch seed pair | qualities 0.881390927133 / 0.883208297423; matched c4 deltas -0.000065392066 / -0.001434603960 | reject combined depth/width ceiling direction |
 
 EXP041 remains the strongest completed same-basin training checkpoint. EXP047 established a statistically supported image-space complementarity signal: 200,000 paired, acceleration-stratified volume-cluster replicates gave a 90% BCa quality-delta interval of `[+0.000188730881, +0.000397414539]`. EXP048 numerically reproduced that signal, but a previously dispatched exact-byte reviewer found six blocking runner/evidence defects; the frozen test failure was independently reproduced. EXP048's approval is revoked, its runner-consumed approval path now contains a tested `passed=false` denial marker, and its method gate is void. Its outputs remain immutable, independently rehashed, non-authoritative diagnostic data only and cannot authorize interpolation/SWA follow-up.
 
-Details: [`../reports/local_comparisons/local_continuation_campaign_20260711.md`](../reports/local_comparisons/local_continuation_campaign_20260711.md).
+The exact-byte-reviewed EXP050-EXP053 salvage recovered four scientifically complete one-epoch runs without changing artifact bytes. c8/ch12/s8 was positive under both seeds and met the predeclared longer-follow-up eligibility rule; c8/ch18/s8 did not. The c8/ch12 versus c4/ch16 ranking still flips by seed, so this is a supported depth direction rather than an established architecture winner. The operator also reports that four of five prize-winning solutions used nearly the official GTX1080 8192 MB VRAM budget and the fifth reported about 6 GB with gradient checkpointing; this is a planning clue pending source and measurement-context verification.
+
+Details:
+
+- [`../reports/local_comparisons/local_continuation_campaign_20260711.md`](../reports/local_comparisons/local_continuation_campaign_20260711.md)
+- [`../reports/local_comparisons/local_capacity_screen_20260713.md`](../reports/local_comparisons/local_capacity_screen_20260713.md)
 
 ## Resume/checkpoint infrastructure status
 
-Resume/LR-override and history-prefix support is published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`. A CPU-only preflight against the safe EXP031 artifact verified checkpoint schema, optimizer restoration, epoch-28 history, the `3e-4` LR override, retained epoch generations, and the required inexact-resume opt-in. EXP033 remains launch-gated on the handoff worker proving EXP032 and its authorized evaluation have exited.
+Resume/LR-override and history-prefix support is published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`. A CPU-only preflight against the safe EXP031 artifact verified checkpoint schema, optimizer restoration, epoch-28 history, the `3e-4` LR override, retained epoch generations, and the required inexact-resume opt-in. The operator reports that EXP033R is now running on VESSL; its exact launch/configuration evidence is not yet tracked here, so local documentation does not infer its configuration or metrics.
 
 ## Remaining actions
 
-1. Complete EXP032 without launching official evaluation automatically; preserve and hash its immutable per-epoch checkpoint generations before cleanup.
-2. Reconstruct and score-faithfully sweep the available EXP032 late epochs before deciding whether c6 deserves any follow-up.
-3. Keep EXP041 as the same-basin training leader; treat EXP048 as post-run-review-rejected diagnostic data and do not use it to authorize interpolation/SWA follow-up.
-4. Prefer a predeclared scheduler from before the plateau, exact mask/ACS A/B, width replication, and acceleration-specialist screens over more same-basin micro-tuning.
-5. Use separately approved one-shot official runs only for meaningful validation winners.
-6. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
-7. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
+1. Monitor EXP033R on VESSL without launching a competing GPU task or automatic official evaluation.
+2. Evaluate EXP032, record its checkpoint provenance and leaderboard-faithful validation metrics, and add its evidence to the experiment log/reports.
+3. After EXP033R completes, evaluate and record it with the same provenance, coverage, and equal-acceleration validation requirements.
+4. Compare EXP032 and EXP033R against the protected EXP031 reference; request a separate approval for official `bash recon_eval.sh` only if a meaningful validation winner exists.
+5. Keep EXP041 as the same-basin training leader; treat EXP048 as post-run-review-rejected diagnostic data and do not use it to authorize interpolation/SWA follow-up.
+6. Retain c8/ch12/s8 as a LOCAL longer-follow-up-eligible direction, but do not launch it unless EXP032/EXP033R evidence, an 8 GB inference-memory audit, and a separate exact-byte review justify the spend.
+7. Prefer a predeclared scheduler from before the plateau, exact mask/ACS A/B, width replication, and acceleration-specialist screens over more same-basin micro-tuning.
+8. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
+9. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
 
 ## Submission state
 
