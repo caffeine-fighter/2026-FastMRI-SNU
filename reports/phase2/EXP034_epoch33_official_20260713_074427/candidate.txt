@@ -1,0 +1,8 @@
+=== candidate ===
+EXP_ID=EXP034_epoch33
+CHECKPOINT=/root/result/EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33/checkpoints/.checkpoint-generation-1ae7b2a017044964aeff4cffff46c14a-model.pt
+CHECKPOINT_SYMLINK=checkpoints_phase2/best_model.pt
+CASCADE=4
+CHANS=12
+SENS_CHANS=8
+NOTES=authorized official one-shot; strict local winner epoch 33; score-aligned objective

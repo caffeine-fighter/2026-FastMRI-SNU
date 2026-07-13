@@ -1,0 +1,17 @@
+{
+  "tag": "EXP032_official",
+  "log": "reports/phase2/EXP032_official_20260712_182124/eval_run.log",
+  "ssim_full": 0.9197,
+  "ssim_bbox": 0.912,
+  "quality_score": 0.91585,
+  "recon_time_s": 469.51,
+  "time_ms_per_slice": 212.2,
+  "time_score": 0.0009311458333333334,
+  "total_score": 0.9167811458333334,
+  "ssim_full_acc4": 0.9422,
+  "ssim_full_acc8": 0.8972,
+  "ssim_bbox_acc4": 0.9397,
+  "ssim_bbox_acc8": 0.8844,
+  "recon_time_acc4_s": 243.41,
+  "recon_time_acc8_s": 226.1
+}
