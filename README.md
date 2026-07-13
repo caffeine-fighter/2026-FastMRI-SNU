@@ -35,7 +35,8 @@ _Last verified: 2026-07-14 01:23 KST (2026-07-13 16:23 UTC). Completed rows thro
 
 | Candidate | Configuration / evidence | Equal-acc quality | Status |
 |---|---|---:|---|
-| `LOCAL_EXP055_RETRY2` / `LOCAL_EXP056_RETRY2` | Fresh matched c8/ch12/s8/e5 seed 430 pair: Adam (`wd=0`) control, then AdamW (`wd=1e-6`) candidate | pending | **LOCAL-only V4 campaign launched 2026-07-14 00:18 KST.** The Adam control process is still present, but its training log has not advanced beyond epoch 0, iteration 1340/4651 since 00:25 KST. The fail-closed health watchdog has raised `active_phase_log_stale_over_20m`; no metric, candidate decision, official follow-up, or further launch is authorized. |
+| `LOCAL_EXP055_RETRY2` / `LOCAL_EXP056_RETRY2` | Fresh matched c8/ch12/s8/e5 seed 430 pair: Adam (`wd=0`) control, then AdamW (`wd=1e-6`) candidate | n/a | **V4 failed closed 2026-07-14 01:27 KST.** The Adam control stalled at epoch 0, iteration 1340/4651; the watchdog raised `active_phase_log_stale_over_20m`. The operator terminated the unresponsive runner/child, and immutable emergency failure evidence was recorded. No metric, candidate decision, official follow-up, or further launch is authorized. |
+| `LOCAL_EXP057_RETRY3` / `LOCAL_EXP058_RETRY3` | Fresh V5 matched retry of the same Adam/AdamW protocol, with hardened failure publication | pending review | LOCAL-only recovery package is frozen and passing package tests/preflight; it is **not launched** and requires a fresh exact-hash review plus approval. |
 | `LOCAL_EXP039` | c4/ch12/s12/e1, seed 431 | 0.882647730465 | rejected: seed-replication gate failed |
 | `LOCAL_EXP040` | 50/50 average of c4/ch16/s8 epochs 5 and 10 | 0.907946926286 | rejected: -0.001647492152 versus epoch 10 |
 | `LOCAL_EXP041` | c4/ch16/s8, epoch 10 -> 15 at LR 3e-4 | 0.913672051958 | retained same-basin training leader; all component floors passed |
