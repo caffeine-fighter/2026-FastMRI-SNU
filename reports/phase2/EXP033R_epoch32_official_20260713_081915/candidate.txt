@@ -1,0 +1,8 @@
+=== candidate ===
+EXP_ID=EXP033R_epoch32
+CHECKPOINT=/root/result/EXP033R_varnet_c4_ch12_s8_lr3e4_e33/checkpoints/.checkpoint-generation-b35d78bdb1624e1b8d7565365bec3622-model.pt
+CHECKPOINT_SYMLINK=checkpoints_phase2/best_model.pt
+CASCADE=4
+CHANS=12
+SENS_CHANS=8
+NOTES=authorized official one-shot; EXP033R strict local winner epoch 32
