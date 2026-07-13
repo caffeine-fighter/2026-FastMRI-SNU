@@ -1,77 +1,58 @@
 # Current state
 
-The root [`README.md`](../README.md) is the compact status dashboard. This page records candidate state and remaining decisions.
+The root [`README.md`](../README.md) is the live VESSL dashboard. This page records the current candidate hierarchy and the decisions that govern the next work.
+
+For the full execution plan, including the RTX 3090 training role and the 8 GB final-inference requirement, see [`our_strategy.md`](our_strategy.md).
 
 ## Candidate status
 
 | Role | Experiment | Status |
 |---|---|---|
-| Finalized 30-run fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and timing cohort complete |
-| One-shot official leader | `EXP031_varnet_c4_ch12_s8_e30` | Training, validation, and first approved official run complete |
-| Active quality experiment | `EXP032_varnet_c6_ch12_s8_e30` | VESSL training; cascades 4 -> 6, all other main variables fixed |
+| Protected official leader | `EXP033R_varnet_c4_ch12_s8_lr3e4_e33`, epoch 32 | One approved official run; current one-shot leader |
+| Verified fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and 30-run timing cohort complete |
+| Active capacity experiment | `EXP035_varnet_c8_ch12_s8_e30` | VESSL training; one-variable cascade comparison against EXP032 |
+| Rejected score-aligned-loss direction | `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` | Official one-shot trailed the protected leader |
 
-## Official results
+## Official reference results
 
-| Candidate | Evidence | SSIM_full | SSIM_bbox | Quality | Time | Total score |
-|---|---|---:|---:|---:|---:|---:|
-| EXP030 | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
-| EXP031 | one official run | **0.9191** | **0.9114** | **0.91525** | **173.1 ms/slice** | **0.9162015104166666** |
+| Candidate | Evidence | Quality | Time | Total score |
+|---|---|---:|---:|---:|
+| EXP030 | 30-run minimum | 0.91430 | 173.4 ms/slice | 0.9152513541666667 |
+| EXP031 | one official run | 0.91525 | 173.1 ms/slice | 0.9162015104166666 |
+| EXP032 | one official run | 0.91585 | 212.2 ms/slice | 0.9167811458333334 |
+| EXP033R, epoch 32 | one official run | **0.91595** | 173.6 ms/slice | **0.91690125** |
+| EXP034 | one official run | 0.91435 | 173.7 ms/slice | 0.9153011979166666 |
 
-EXP031 improved official SSIM_full by `+0.0013`, SSIM_bbox by `+0.0006`, quality by `+0.00095`, and one-shot total score by `+0.0009501041666666` relative to EXP030's one-shot result. It leads EXP030's finalized 30-run score by `+0.00095015625`.
+`EXP033R` is protected because it improves both the quality/timing balance and the total score. `EXP030` remains the safe fallback because its 30-run timing cohort is complete.
 
-Evidence: [`../reports/phase2/EXP031_official_20260711_014023/score.json`](../reports/phase2/EXP031_official_20260711_014023/score.json).
+## Active gate: EXP035
 
-## EXP031 provenance
+`EXP035` tests `c8/ch12/s8` over 30 epochs against the prior c6/ch12 capacity result. It is the final decisive capacity test for the unmodified vanilla VarNet track.
 
-- best training epoch: 27
-- best validation loss: `3.1818922822357556`
-- best checkpoint SHA-256: `3e68d94922f68d9a536e4bdbe7802785f8b43792524ddac252dbbe8d5c11d31f`
-- official run: `EXP031_official_20260711_014023`
-- official evaluator exit code: 0
-- official error-pattern matches: 0
+- Do not start a competing VESSL GPU job while it trains.
+- Verify every retained candidate independently with 30 volumes, 791 slices, 161 boxes, and `skipped=[]`.
+- Recompute full/bbox × acc4/acc8 and equal-acc quality from the source artifacts.
+- Measure inference VRAM and official-path timing only after training is terminal and approval is granted.
 
-## Active optimization gate
+The leaderboard-faithful LOCAL reference for `EXP033R` is `0.9156824558941089`.
 
-EXP031 remains the protected one-shot official leader while the 40-day optimization program runs. EXP032 is the first architecture-capacity test. Its final validation result must beat EXP031 before any official evaluation is considered.
+| EXP035 result | Decision |
+|---|---|
+| quality `<= 0.9156824558941089` | Reject c8 and stop unmodified vanilla depth scaling. |
+| gain `0 ~ 0.0005` | Require matched robustness or seed evidence. |
+| quality `>= 0.9161824558941088` | Use c8 as the vanilla baseline for controlled recipe tests. |
 
-Local promotion uses the fixed evaluator's equal-acceleration semantics, not the historical pooled `overall` row:
+## Next actions
 
-| EXP031 local reference | SSIM_full | SSIM_bbox | Quality |
-|---|---:|---:|---:|
-| Leaderboard-faithful equal-acc | 0.904053714106 | 0.926773775177 | **0.915413744641** |
-| Pooled diagnostic only | 0.904500772769 | 0.930380483592 | 0.917440628180 |
-
-The validation set has 407 acc4 versus 384 acc8 slices and 107 versus 54 boxes, so pooled aggregation overweights acc4. Leaderboard-faithful strict evaluation, retained validation epochs, epoch sweep, averaging, and candidate materialization are published in commit `24bf00677c64e7a0bd84f95d68ded8beb7925b12`.
-
-The final 30-run timing cohort is intentionally deferred until the model is frozen near the deadline. Running it now would measure a candidate that may soon be replaced.
-
-Full schedule: [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md).
-
-## Resume/checkpoint infrastructure status
-
-Resume/LR-override and history-prefix support is published in commit `431c69018678c47ae90ecba9c3863a5ef47ab68b`. A CPU-only preflight against the safe EXP031 artifact verified checkpoint schema, optimizer restoration, epoch-28 history, the `3e-4` LR override, retained epoch generations, and the required inexact-resume opt-in. EXP033 remains launch-gated on the handoff worker proving EXP032 and its authorized evaluation have exited.
-
-## Remaining actions
-
-1. Complete and locally evaluate EXP032 without launching official evaluation automatically.
-2. Run the queued EXP033 five-epoch continuation from EXP031 best at LR 3e-4 after EXP032, avoiding GPU contention.
-3. Test score-aligned foreground/bbox loss, supported scheduler/cascade follow-ups, and no-cost checkpoint averaging through local promotion gates.
-4. Use separately approved one-shot official runs only for meaningful validation winners.
-5. Freeze the final candidate around August 15, then run its approved 30-run timing cohort.
-6. Build, verify, and upload the final package before August 20 using [`final_submission_checklist.md`](final_submission_checklist.md).
-
-## Submission state
-
-- GitHub default branch: `baseline/2026-baby-varnet`
-- Existing EXP030 implementation commit: `fbbddf6700cd65b1e2b52c1c6418f48a5eef9b82`
-- Existing EXP030 package: `/root/submissions/EXP030_final_fbbddf6.zip`
-- Existing package SHA-256: `65b150fb749b772db99e4fde77a636ed58eb19f215e859dbc77cf60ea3aeb18f`
-- EXP031 package: not built pending timing cohort
-- External organizer upload: pending
+1. Finish and independently validate EXP035; no official evaluation is automatic.
+2. Use the local RTX 3090 24 GB environment for main training, longer matched runs, and seed confirmation; use 8 GB VESSL only to prove final inference compatibility and run approved official evaluations.
+3. Add opt-in memory controls with output/resume parity tests, then run controlled AdamW/scheduler and masked SSIM + L1 comparisons one variable at a time.
+4. Run a bounded Feature/FI-VarNet versus reduced PromptMR feasibility race only after their largest-input 8 GB inference contract is viable.
+5. Freeze one finalist and one fallback, then run the approved 30-repeat timing cohort, fresh-clone package verification, and upload.
 
 ## Guardrails
 
-- Do not modify `recon_eval.py`.
-- Do not run official evaluation without approval.
-- Do not modify mounted `Data`.
+- Do not modify `recon_eval.py` or mounted `Data`.
 - Do not commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
+- LOCAL results are evidence only; they do not become official candidates without independent validation and approval.
+- Gradient checkpointing reduces training activation memory only. It does not reduce final checkpoint size, inference VRAM, or inference time; the final model must fit 8 GB structurally.
