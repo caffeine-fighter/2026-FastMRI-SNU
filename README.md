@@ -14,10 +14,10 @@ _Last update: 2026-07-13 16:24 KST (2026-07-13 07:24 UTC)_
 | Progress | epoch `32/33`, iteration `4650/4651`, `100.0%` |
 | ETA | `complete`; finish `completed by 2026-07-13 16:24 KST` |
 | Best validation loss | epoch `27`: `3.1818922822357556` |
-| Validation snapshot | pending final validation |
+| Validation snapshot | strict epoch `33`: full `0.9032527316484851`, bbox `0.9266163614092091`, quality `0.9149345465288471`; coverage `30/791/161`, skips `0` |
 | Health | `0` error matches; checkpoints `present` |
 
-`EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` completed. Final validation decides whether it is eligible for an approved official evaluation.
+`EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` completed cleanly, but its strict winner trails EXP033R by `0.0007479093652618118`. The official one-shot was skipped; EXP032 remains the official leader.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
@@ -32,9 +32,9 @@ EXP032 is the current one-shot official leader: quality improved by `+0.00060` a
 
 Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; EXP032 scored `0.9149434297189161` locally, so the five-epoch lower-LR continuation uses EXP031 as preregistered. Pooled diagnostics are not promotion thresholds.
 
-## Next objective gate
+## Latest objective result
 
-The opt-in EXP034 score-aligned training path is published in `817c9eb`. It preserves default training and inference, passed independent adversarial review, 53 focused tests, 218 discovered tests, and a five-case production VarNet CPU gradient gate. All losses and 4,848,494-element model gradients were finite and nonzero; the largest score/legacy gradient ratios were `35.68×` L2 and `47.09×` max-absolute, with absolute score-gradient maxima of `0.7404` L2 and `0.4270`. EXP034 remains gated on EXP033 completion and strict retained-epoch sweep; it will change only the training objective.
+EXP034 tested the opt-in score-aligned objective as a one-variable comparison against EXP033R. It preserved the same EXP031 source checkpoint, c4/ch12/s8 architecture, LR `0.0003`, seed `430`, sampler order, and five-epoch budget. The run and all five retained epochs completed with zero error matches and strict `30 volumes / 791 slices / 161 boxes / 0 skips` coverage. Epoch 33 ranked first locally at full `0.9032527316484851`, bbox `0.9266163614092091`, and quality `0.9149345465288471`, trailing EXP033R's `0.9156824558941089` by `0.0007479093652618118`. This objective is rejected for promotion; no official run was spent on it.
 
 ## Common commands
 
