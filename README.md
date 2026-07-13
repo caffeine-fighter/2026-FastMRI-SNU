@@ -5,19 +5,19 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-13 16:24 KST (2026-07-13 07:24 UTC)_
+_Last update: 2026-07-13 18:05 KST (2026-07-13 09:05 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` (complete) |
-| Change | `objective-only comparison versus EXP033R control; opt-in score-aligned loss; same EXP031 source/LR/seed/budget` |
-| Progress | epoch `32/33`, iteration `4650/4651`, `100.0%` |
-| ETA | `complete`; finish `completed by 2026-07-13 16:24 KST` |
-| Best validation loss | epoch `27`: `3.1818922822357556` |
-| Validation snapshot | strict epoch `33`: full `0.9032527316484851`, bbox `0.9266163614092091`, quality `0.9149345465288471`; coverage `30/791/161`, skips `0` |
-| Health | `0` error matches; checkpoints `present` |
+| Run | `EXP035_varnet_c8_ch12_s8_e30` (running) |
+| Change | `capacity-only comparison versus EXP032: cascades 6 to 8; same chans/sens/LR/epochs/seed; worst-shape training uses 7741/8192 MiB` |
+| Progress | epoch `0/30`, iteration `340/4651`, `0.2%` |
+| ETA | `pending`; finish `pending` |
+| Best validation loss | epoch `pending`: `pending` |
+| Validation snapshot | pending final validation |
+| Health | `0` error matches; checkpoints `pending` |
 
-`EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` completed cleanly, but its strict winner trails EXP033R by `0.0007479093652618118`. EXP034's official one-shot was rejected. EXP033R epoch 32 now leads officially with full `0.9199`, bbox `0.9120`, quality `0.91595`, `173.6 ms/slice`, and total `0.91690125`.
+`EXP033R_epoch32` remains the one-shot official leader while this one-variable experiment trains. No official evaluation starts automatically.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
