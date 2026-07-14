@@ -12,6 +12,7 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 | Verified fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and 30-run timing cohort complete |
 | Active capacity experiment | `EXP035_varnet_c8_ch12_s8_e30` | VESSL training; one-variable cascade comparison against EXP032 |
 | Rejected score-aligned-loss direction | `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` | Official one-shot trailed the protected leader |
+| Rejected LOCAL optimizer direction | `LOCAL_EXP068_RETRY8_varnet_c8_ch12_s8_e5_adamw_wd1e6_seed430` | Exact tie with matched Adam; 7.50% slower; no follow-up authorized |
 
 ## Official reference results
 
@@ -24,6 +25,10 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 | EXP034 | one official run | 0.91435 | 173.7 ms/slice | 0.9153011979166666 |
 
 `EXP033R` is protected because it improves both the quality/timing balance and the total score. `EXP030` remains the safe fallback because its 30-run timing cohort is complete.
+
+## Closed LOCAL recipe gate: AdamW
+
+The independently verified V10 matched optimizer probe held source, `c8/ch12/s8`, seed `430`, LR `0.001`, batch size 1, five epochs, and evaluation fixed. Adam and AdamW (`weight_decay=1e-6`) both selected epoch 4 and tied exactly at equal-acc quality `0.9079597004022214`; all seven reported metric deltas were zero. AdamW was `9m51s` (`7.50%`) slower. Retain Adam and stop the AdamW branch: no second seed, longer AdamW run, scheduler rescue, VESSL promotion, or official evaluation is authorized. The independently audited evidence is recorded in [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md).
 
 ## Active gate: EXP035
 
@@ -46,9 +51,10 @@ The leaderboard-faithful LOCAL reference for `EXP033R` is `0.9156824558941089`.
 
 1. Finish and independently validate EXP035; no official evaluation is automatic.
 2. Use the local RTX 3090 24 GB environment for main training, longer matched runs, and seed confirmation; use 8 GB VESSL only to prove final inference compatibility and run approved official evaluations.
-3. Add opt-in memory controls with output/resume parity tests, then run controlled AdamW/scheduler and masked SSIM + L1 comparisons one variable at a time.
-4. Run a bounded Feature/FI-VarNet versus reduced PromptMR feasibility race only after their largest-input 8 GB inference contract is viable.
-5. Freeze one finalist and one fallback, then run the approved 30-repeat timing cohort, fresh-clone package verification, and upload.
+3. Keep Adam as the optimizer baseline. After EXP035 selects the architecture baseline, consider at most one independently preregistered Adam scheduler-only comparison; do not continue the rejected AdamW branch automatically.
+4. Add opt-in memory controls with output/resume parity tests, then test masked SSIM + L1 separately from optimizer, scheduler, and architecture changes.
+5. Run a bounded Feature/FI-VarNet versus reduced PromptMR feasibility race only after their largest-input 8 GB inference contract is viable.
+6. Freeze one finalist and one fallback, then run the approved 30-repeat timing cohort, fresh-clone package verification, and upload.
 
 ## Guardrails
 

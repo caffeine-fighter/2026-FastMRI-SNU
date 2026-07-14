@@ -25,6 +25,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 | EXP031 final validation | [`../reports/phase2/EXP031_validation_summary.md`](../reports/phase2/EXP031_validation_summary.md) |
 | Official candidate comparison | [`../reports/phase2/official_candidate_comparison.md`](../reports/phase2/official_candidate_comparison.md) |
 | Local probe results | [`../reports/local_comparisons/local_probe_summary.md`](../reports/local_comparisons/local_probe_summary.md) |
+| V10 matched Adam-vs-AdamW LOCAL result | [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md) |
 
 ## Planning and archive
 

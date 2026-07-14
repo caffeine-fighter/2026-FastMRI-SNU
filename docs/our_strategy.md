@@ -114,10 +114,13 @@
 
 ### 3. 학습 recipe를 통제된 사다리로 비교
 
-1. 같은 seed·데이터·구조·epoch에서 Adam과 AdamW를 비교한다.
-2. AdamW가 이기면 warmup + cosine 또는 사전 등록한 decay schedule 하나만 추가 비교한다.
-3. accumulation과 clipping은 optimizer/schedule 승자가 정해진 뒤 따로 본다.
-4. 강한 gain(`>= 0.0005`), 네 보호 지표 건강성, 완전한 coverage, 두 번째 seed 또는 matched long run을 만족해야 VESSL로 올린다.
+2026-07-14에 종료된 V10 LOCAL matched probe는 같은 source, `c8/ch12/s8`, seed `430`, LR `0.001`, batch 1, 5 epochs에서 Adam과 AdamW(`weight_decay=1e-6`)를 비교했다. 두 arm 모두 retained epoch 4를 선택했고 equal-acc quality `0.9079597004022214`로 정확히 동률이었으며, full/bbox × acc4/acc8 delta도 모두 `0`이었다. AdamW는 `9m51s`(`7.50%`) 더 느렸다. 따라서 AdamW-only 방향은 종료하고 Adam을 baseline으로 유지한다. 상세 독립 검증은 [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md)에 기록한다.
+
+1. AdamW second seed, long run, AdamW scheduler rescue, VESSL/official 승격을 자동 실행하지 않는다.
+2. EXP035가 architecture baseline을 결정한 뒤에만 Adam fixed LR 대 사전 등록된 Adam warmup+cosine 하나를 별도 one-variable 후보로 검토할 수 있다.
+3. short screen은 기각에만 사용하고, scheduler는 본질적으로 장기 intervention이므로 승격 전 matched longer trajectory가 필요하다.
+4. accumulation과 clipping은 optimizer/schedule 판단 뒤에 각각 별도 실험으로 본다.
+5. 강한 gain(`>= 0.0005`), 네 보호 지표 건강성, 완전한 coverage, 두 번째 seed 또는 matched long run을 만족해야 VESSL로 올린다.
 
 ### 4. winner-style masked SSIM + L1을 별도 검증
 

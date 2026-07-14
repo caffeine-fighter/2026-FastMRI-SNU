@@ -4,7 +4,7 @@
 
 **Goal:** EXP054의 검증된 capacity signal과 `winningstrategies.txt`의 2025년 상위권 공통점을 이용해, 현재 vanilla VarNet 탐색을 빠르게 판정하고 8 GB 제약 안에서 더 높은 품질을 낼 수 있는 학습 레시피와 차세대 모델로 전환한다.
 
-**Architecture:** 두 트랙을 병행한다. 첫째, 이미 실행 중인 `EXP035`로 c8/ch12 vanilla VarNet의 장기 효과를 판정한다. 둘째, 그 동안 LOCAL/CPU에서 메모리 절감, AdamW+schedule, winner-style masked loss, Feature/FI-VarNet 또는 PromptMR 계열의 feasibility를 준비한다. 모든 방향은 `LOCAL short screen -> matched longer run -> second-seed confirmation -> separately approved VESSL run -> separately approved official run` 순서로만 승격한다.
+**Architecture:** 두 트랙을 병행한다. 첫째, 이미 실행 중인 `EXP035`로 c8/ch12 vanilla VarNet의 장기 효과를 판정한다. 둘째, 그 동안 LOCAL/CPU에서 메모리 절감, 조건부 Adam scheduler-only recipe, winner-style masked loss, Feature/FI-VarNet 또는 PromptMR 계열의 feasibility를 준비한다. V10은 AdamW-only 방향을 exact tie와 더 긴 runtime으로 종료했다. 모든 새 방향은 `LOCAL short screen -> matched longer run -> second-seed confirmation -> separately approved VESSL run -> separately approved official run` 순서로만 승격한다.
 
 **Tech Stack:** PyTorch, repository VarNet pipeline, strict equal-acc evaluator, final Intel i7-8700K 6C/12T + 16 GB RAM + GTX 1080 8192 MiB + driver 550.127.08, desktop RTX 4070 Ti SUPER/RTX 3090 for training, GitHub worktrees/PRs, Python `unittest`. Exact target Python/PyTorch/CUDA-runtime versions remain an environment-capture gate; see [`final_evaluation_server.md`](final_evaluation_server.md).
 
@@ -142,29 +142,20 @@
 
 ---
 
-### Task 4: Run a controlled optimizer/scheduler ladder
+### Task 4: Close AdamW and retain only a conditional Adam scheduler probe
 
-**Objective:** Replace the current fixed Adam recipe only when a source-backed matched comparison wins.
+**Result:** completed on 2026-07-14 KST. The independently verified V10 LOCAL matched probe held source, `c8/ch12/s8`, seed `430`, LR `0.001`, batch 1, five epochs, and evaluation fixed. Adam and AdamW (`weight_decay=1e-6`) both selected epoch 4 and tied exactly at equal-acc quality `0.9079597004022214`; every protected metric delta was zero. AdamW was `9m51s` (`7.50%`) slower. Distinct selected checkpoint hashes and optimizer/state lineage confirm that this is a neutral optimizer result rather than accidental checkpoint reuse. Evidence: [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md).
 
-**Why this is high priority:** winner strategies repeatedly use AdamW, warmup, decay, long training, accumulation, and often clipping. EXP033R also showed that lower-LR late optimization can beat longer fixed-LR training.
+**Decision:** retain fixed-LR Adam and close the AdamW-only branch. No AdamW second seed, long run, scheduler rescue, VESSL promotion, or official evaluation is authorized.
 
-**Likely files:**
-- Modify: `train.py`
-- Modify: `utils/learning/train_part.py`
-- Modify: `utils/learning/resume.py`
-- Test: `tests/test_train_cli.py`
-- Test: `tests/test_training_resume.py`
-- Create: `tests/test_optimizer_scheduler.py`
+**Remaining conditional work:**
+1. Let EXP035 determine the architecture baseline first.
+2. If recipe optimization remains the selected next question, preregister one Adam fixed-LR versus Adam warmup+cosine comparison; do not transfer authority from the rejected AdamW probe.
+3. Use a short screen only for rejection and require a matched longer trajectory before promotion because schedules are inherently long-horizon interventions.
+4. Test accumulation and clipping separately only after an optimizer/schedule winner is established.
+5. Retain and independently rescore every epoch; do not select an undeclared transient checkpoint.
 
-**Experiment order:**
-1. Implement Adam/AdamW and scheduler configuration as explicit, serialized, resumable metadata.
-2. Run a fresh LOCAL matched control and AdamW-only candidate at the same seed/data/architecture/epoch count; do not combine scheduler yet.
-3. If AdamW passes, compare fixed LR against one preregistered warmup+cosine schedule.
-4. Use a short screen only for rejection; require a matched longer trajectory before promotion because schedules are inherently long-horizon interventions.
-5. Test accumulation and clipping separately after the optimizer/schedule winner is known.
-6. Retain and independently rescore every epoch; do not select an undeclared transient checkpoint.
-
-**Gate:** strong quality gain `>= 0.0005`, all four protected cells healthy, exact coverage, and a second seed or matched longer run before VESSL promotion. Weak or non-monotonic short results do not authorize a long official run.
+**Gate:** strong quality gain `>= 0.0005`, all four protected cells healthy, exact coverage, and a second seed or matched longer run before VESSL promotion. Weak, tied, or non-monotonic results do not authorize a long official run.
 
 ---
 
@@ -273,7 +264,7 @@
 
 - **Jul 13–15:** EXP035 continues; perform Git-consolidation preparation, memory-feature TDD, architecture feasibility, and synthetic mask/MoE audits. No competing VESSL job.
 - **Jul 15–18:** close EXP035 with independent local evidence; make the c8 pass/fail decision; profile c8 inference memory and timing after GPU release.
-- **Jul 16–24:** LOCAL optimizer/scheduler and memory-engineering ladder; begin bounded Feature/FI versus reduced PromptMR feasibility race.
+- **Jul 16–24:** close the AdamW branch; if EXP035 leaves recipe work as the next priority, run at most one Adam scheduler-only comparison alongside memory engineering; begin the bounded Feature/FI versus reduced PromptMR feasibility race.
 - **Jul 22–31:** one matched longer run for the best recipe or next model family; no broad matrix.
 - **Aug 1–8:** one winner-style loss/augmentation follow-up and, only if oracle evidence supports it, one acceleration-specialist probe; seed confirmation.
 - **Aug 8–13:** no-cost averaging, finalist comparison, inference optimization, 8 GB proof, code/checkpoint freeze.
@@ -281,6 +272,7 @@
 
 ## Explicit deprioritization / stop list
 
+- No AdamW second seed, longer AdamW run, AdamW scheduler rescue, VESSL promotion, or official evaluation from V10.
 - No more `chans=18` capacity probes without fundamentally new evidence.
 - No c9/c10/c12 launch before Task 3 proves training and inference feasibility.
 - No more sparse EXP034-style score-aligned loss iterations before the simpler masked SSIM+L1 gate.
@@ -294,4 +286,4 @@
 
 ## One-sentence recommendation
 
-Treat EXP035 as the final gate for the current unmodified vanilla-capacity track; meanwhile invest LOCAL engineering in 8 GB-safe memory controls and a controlled Feature/FI-VarNet-versus-reduced-PromptMR feasibility race, then apply AdamW/scheduling and masked SSIM+L1 one variable at a time before considering MRAugment, MoE, or ensembles.
+Treat EXP035 as the final gate for the current unmodified vanilla-capacity track; close the tied and slower AdamW branch, and meanwhile invest LOCAL engineering in 8 GB-safe memory controls and a controlled Feature/FI-VarNet-versus-reduced-PromptMR feasibility race. Consider one Adam scheduler-only probe or masked SSIM+L1 only as separate, preregistered one-variable work before MRAugment, MoE, or ensembles.

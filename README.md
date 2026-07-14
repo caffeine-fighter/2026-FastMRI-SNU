@@ -38,6 +38,10 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 EXP034 tested the opt-in score-aligned objective as a one-variable comparison against EXP033R. It preserved the same EXP031 source checkpoint, c4/ch12/s8 architecture, LR `0.0003`, seed `430`, sampler order, and five-epoch budget. The run and all five retained epochs completed with zero error matches and strict `30 volumes / 791 slices / 161 boxes / 0 skips` coverage. Epoch 33 ranked first locally at full `0.9032527316484851`, bbox `0.9266163614092091`, and quality `0.9149345465288471`, trailing EXP033R's `0.9156824558941089` by `0.0007479093652618118`. The authorized official one-shot confirmed rejection: total `0.9153011979166666`, which trails EXP032 by `0.001479947916666724`.
 
+## Latest LOCAL recipe result
+
+The independently verified V10 matched optimizer probe compared five-epoch Adam and AdamW (`weight_decay=1e-6`) on the same frozen `c8/ch12/s8`, seed-430 trajectory. Both selected epoch 4 and tied exactly at leaderboard-faithful quality `0.9079597004022214`; every full/bbox and acc4/acc8 delta was zero, while AdamW took `9m51s` longer (`+7.50%`). Adam remains the default. No AdamW second seed, longer run, scheduler rescue, VESSL promotion, or official evaluation is authorized. See [`reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md).
+
 ## Common commands
 
 ```bash
