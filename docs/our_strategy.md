@@ -5,7 +5,7 @@
 
 ## 목표
 
-평가 환경의 8GB GPU 제약과 공식 평가 규칙을 지키면서 최종 점수를 올린다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다.
+평가 환경의 8GB GPU 제약과 공식 평가 규칙을 지키면서 최종 점수를 올린다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다. 최종 서버의 CPU·RAM·GTX 1080·driver/runtime 계약과 합격 기준은 [`final_evaluation_server.md`](final_evaluation_server.md)를 단일 기준으로 사용한다.
 로컬 **RTX 3090 24 GB**는 VESSL 8 GB 환경에서 오래 걸리거나 메모리 여유가 부족한 학습 screen·seed 검증·긴 recipe 실험을 빠르게 수행하는 주력 학습 환경으로 쓴다. 다만 최종 후보는 반드시 공식 8 GB 추론 계약과 시간을 별도로 통과해야 한다.
 
 ## 현재 기준선
@@ -52,9 +52,9 @@
 
 ### A. 8 GB 계약을 먼저 등록
 
-- 후보 config, commit, 입력 shape·coil 수, dtype, CUDA/PyTorch 환경을 고정한다.
+- 후보 config, commit, 입력 shape·coil 수, dtype과 [`final_evaluation_server.md`](final_evaluation_server.md)의 환경 fingerprint를 고정한다.
 - 학습 전 무작위 가중치로 공식 `recon_eval.py` 호출 경로의 최대 허용 slice를 batch 1로 warm-up 후 반복 실행한다.
-- `max_memory_allocated`와 `max_memory_reserved`, OOM 여부, ms/slice를 모두 기록한다. 단 한 번의 forward 성공이 아니라 반복 실행과 allocator headroom을 확인한다.
+- `max_memory_allocated`와 `max_memory_reserved`, process peak RSS, system available RAM, OOM 여부, ms/slice를 모두 기록한다. 단 한 번의 forward 성공이 아니라 반복 실행과 GPU/host headroom을 확인한다.
 - 현재 고정 harness는 `model.eval()`과 `torch.no_grad()`를 이미 사용한다. `torch.inference_mode()`는 더 낮은 overhead 가능성이 있지만 별도 opt-in으로 출력 parity와 호출 호환성을 증명한 뒤에만 사용한다.
 
 ### B. 통과하면 압축 없이 직접 학습·배포
@@ -68,7 +68,7 @@
 1. sensitivity map per-coil 또는 coil chunking
 2. cascade 순차 실행 중 불필요한 tensor lifetime·복사 제거
 3. batch 1, eval/no-grad 계약과 출력 저장 경로 점검
-4. 선택적 FP16/autocast: GTX 1080 지원성, complex FFT 안정성, SSIM parity, 실제 속도를 모두 통과할 때만 채택
+4. 선택적 FP16/autocast: GTX 1080에는 Tensor Core가 없으므로 속도 향상을 가정하지 않는다. complex FFT 안정성, SSIM parity, peak VRAM과 실제 총점이 FP32 control을 이길 때만 채택한다.
 
 각 변경은 FP32 기준 출력·지표 parity와 peak VRAM을 함께 비교한다. 단순히 `empty_cache()` 호출이나 checkpoint 파일 압축을 VRAM 개선으로 인정하지 않는다.
 
@@ -129,7 +129,7 @@
 
 ### 5. 다음 모델 계열은 deployment-first feasibility race로 제한
 
-우선순위는 공식 fastMRI 구현과 memory-efficient sensitivity 경로가 있는 **PromptMR+**, 그 다음 **Feature/FI-VarNet**이다. SDUM의 progressive cascade expansion과 sampling-aware DC는 근거 있는 후속 아이디어이지만, 새 전체 stack을 바로 이식하지 않고 작은 ablation으로만 다룬다.
+고정된 논문 순위를 먼저 정하지 않는다. **PromptMR+**는 upside와 공식 fastMRI 구현이 강하지만 license/integration risk가 있고, **Feature/FI-VarNet**은 현재 stack과 가까워 구현 위험이 낮다. PromptMR+ license 확인을 가장 먼저 끝낸 뒤 두 계열의 CPU shape/schema와 동일한 GTX 1080 최대입력 probe를 싸게 비교하여, direct-deploy·속도·구현 비용 gate를 먼저 통과한 계열을 학습한다. SDUM의 progressive cascade expansion과 sampling-aware DC는 근거 있는 후속 아이디어이지만 새 전체 stack을 바로 이식하지 않고 작은 ablation으로만 다룬다.
 
 1. 논문/참조 구현 commit과 라이선스를 고정한다.
 2. CPU shape test와 checkpoint schema test를 만든다.
@@ -185,7 +185,7 @@ PromptMR+ 참조 구현은 non-commercial research license이므로 challenge �
 
 ## 한 문장 전략
 
-`EXP035`로 vanilla capacity 가설을 끝내고, PromptMR+와 Feature/FI 후보를 학습 전에 8 GB 최대입력으로 걸러 직접 배포 가능한 가장 큰 모델을 RTX 3090에서 학습하며, 무손실 메모리 제어와 선택적 정밀도 축소로도 실패할 때만 증류한 뒤 재현 가능한 최종 후보만 공식 평가와 제출로 올린다.
+`EXP035`로 vanilla capacity 가설을 끝내고, PromptMR+와 Feature/FI 후보를 학습 전에 최종 GTX 1080 최대입력으로 걸러 직접 배포 가능한 가장 큰 모델을 RTX 3090에서 학습하며, 무손실 메모리 제어와 GTX 1080에서 이득이 증명된 선택적 정밀도로도 실패할 때만 증류한 뒤 재현 가능한 최종 후보만 공식 평가와 제출로 올린다.
 
 ## 추가 근거
 
