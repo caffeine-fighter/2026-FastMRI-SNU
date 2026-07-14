@@ -6,7 +6,7 @@
 
 **Architecture:** 두 트랙을 병행한다. 첫째, 이미 실행 중인 `EXP035`로 c8/ch12 vanilla VarNet의 장기 효과를 판정한다. 둘째, 그 동안 LOCAL/CPU에서 메모리 절감, AdamW+schedule, winner-style masked loss, Feature/FI-VarNet 또는 PromptMR 계열의 feasibility를 준비한다. 모든 방향은 `LOCAL short screen -> matched longer run -> second-seed confirmation -> separately approved VESSL run -> separately approved official run` 순서로만 승격한다.
 
-**Tech Stack:** PyTorch, repository VarNet pipeline, strict equal-acc evaluator, VESSL GTX1080 8192 MiB, desktop RTX 4070 Ti SUPER, GitHub worktrees/PRs, Python `unittest`.
+**Tech Stack:** PyTorch, repository VarNet pipeline, strict equal-acc evaluator, final Intel i7-8700K 6C/12T + 16 GB RAM + GTX 1080 8192 MiB + driver 550.127.08, desktop RTX 4070 Ti SUPER/RTX 3090 for training, GitHub worktrees/PRs, Python `unittest`. Exact target Python/PyTorch/CUDA-runtime versions remain an environment-capture gate; see [`final_evaluation_server.md`](final_evaluation_server.md).
 
 ---
 
@@ -134,8 +134,9 @@
 3. Fixed minibatch forward/loss/gradient comparison under deterministic settings.
 4. Save/resume compatibility and optimizer-state coverage tests.
 5. Largest-legal-shape peak allocation/reservation measurements for training and inference separately.
-6. Profile on desktop first; repeat the inference contract on VESSL-compatible 8 GB hardware only after EXP035 releases the GPU.
-7. Confirm `recon_eval.py` remains byte-identical.
+6. Record process peak RSS and available host RAM as well as GPU peaks; the final server has 16 GB system memory.
+7. Profile on desktop first; repeat the inference contract on the exact GTX 1080 target only after EXP035 releases the GPU.
+8. Confirm `recon_eval.py` remains byte-identical.
 
 **Gate:** a memory feature may enable a larger experiment only if outputs/checkpoint semantics pass, measured memory improves, runtime remains acceptable, and the largest legal inference input fits with a predeclared safety margin. Activation checkpointing alone is not evidence of lower inference memory.
 
@@ -196,10 +197,11 @@
 
 **Objective:** Find better quality per VRAM than vanilla E2E VarNet before spending a multi-day VESSL run.
 
-**Default order for this repository/deadline:**
-1. Feature/FI-VarNet tracer implementation—the closer and lower-integration-risk successor to E2E VarNet.
-2. Reduced PromptMR/PromptMR+ feasibility implementation—the higher-upside but higher-risk option.
-3. No adjacent slices, historical features, or four-way experts in the first architecture comparison; add them only after a base model passes.
+**Selection order for this repository/deadline:**
+1. Resolve PromptMR+ license compatibility before copying code; terminate that path immediately if challenge use or redistribution is incompatible.
+2. Build the cheapest CPU shape/schema tracer for both Feature/FI-VarNet and reduced PromptMR/PromptMR+.
+3. Run the same largest-input GTX 1080 probe and estimate integration cost for both. Feature/FI has lower integration risk; PromptMR+ has higher upside and an official fastMRI implementation. Select the first training candidate from measured deployment fit and cost, not a fixed paper ranking.
+4. No adjacent slices, historical features, or four-way experts in the first architecture comparison; add them only after a base model passes.
 
 **Likely files:**
 - Create: `utils/model/feature_varnet.py`

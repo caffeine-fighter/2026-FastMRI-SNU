@@ -2,7 +2,7 @@
 
 The root [`README.md`](../README.md) is the live VESSL dashboard. This page records the current candidate hierarchy and the decisions that govern the next work.
 
-For the full execution plan, including the RTX 3090 training role and the 8 GB final-inference requirement, see [`our_strategy.md`](our_strategy.md).
+For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](our_strategy.md). Final promotion is governed by the exact GTX 1080, 16 GB RAM, and runtime acceptance rules in [`final_evaluation_server.md`](final_evaluation_server.md).
 
 ## Candidate status
 
