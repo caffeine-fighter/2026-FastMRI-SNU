@@ -6,6 +6,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 
 | Need | Document |
 |---|---|
+| Current strategy, promotion gates, and RTX 3090 role | [`our_strategy.md`](our_strategy.md) |
 | Current candidate, active run, next actions | [`current_state.md`](current_state.md) |
 | Forty-day score-optimization program | [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md) |
 | Train or validate on VESSL | [`vessl_workflow.md`](vessl_workflow.md) |
@@ -26,6 +27,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 
 ## Planning and archive
 
+- [`our_strategy.md`](our_strategy.md) is the current concise execution strategy, including the RTX 3090 training role and the 8 GB final-inference contract.
 - [`experiment_plan.md`](experiment_plan.md) contains the short experiment sequence and selection gate.
 - [`archive/github_issue_plan.md`](archive/github_issue_plan.md) is the unused Phase 2 issue draft.
 - [`archive/vessl_after_exp030_runbook.md`](archive/vessl_after_exp030_runbook.md) is the completed EXP030 handoff runbook.
