@@ -12,6 +12,7 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 | Verified fallback | `EXP030_varnet_c4_ch12_s8_e20` | Official score and 30-run timing cohort complete |
 | Prior one-shot leader | `EXP033R_varnet_c4_ch12_s8_lr3e4_e33`, epoch 32 | Preserved immutable fallback candidate |
 | Rejected score-aligned-loss direction | `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` | Official one-shot trailed the protected leader |
+| Rejected optimizer direction | LOCAL AdamW V10 | Exact quality/component tie versus Adam and 7.50% slower; closed |
 
 ## Official reference results
 
@@ -34,6 +35,7 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 - Epoch 30 won at local quality `0.9199788092310326`, `+0.004296353336923686` over EXP033R LOCAL.
 - The approved official one-shot scored full `0.9234`, bbox `0.9177`, quality `0.92055`, and total `0.92146109375` at `250.7 ms/slice`.
 - The immutable checkpoint generation is `3e8af14268a64d67a308ebe30484ddf2`, SHA-256 `dc6e034f18df2a7872c416d4dccb4bb00e6e5b41fb89e438a86682db3097ffb7`.
+- Epoch 30 was the global retained winner. From epoch 26 to 30, quality/full/bbox changed by `+0.0003553055859381 / +0.0002618608353651 / +0.0004487503365111`; the trajectory was positive but non-monotonic.
 
 The completed gate used the leaderboard-faithful EXP033R LOCAL reference `0.9156824558941089`. New matched recipe candidates must now compare against EXP035 epoch 30 at `0.9199788092310326`.
 
@@ -46,10 +48,11 @@ The completed gate used the leaderboard-faithful EXP033R LOCAL reference `0.9156
 ## Next actions
 
 1. Protect EXP035 epoch 30 as the new one-shot official leader; do not rerun its one-shot.
-2. Decide separately whether to freeze it for the approval-gated 30-repeat cohort or spend one bounded Adam lower-LR continuation with architecture/objective/data fixed.
-3. Do not launch c9/c10/c12 capacity rescue. Any next model-family work must pin a licensed upstream implementation and integrate it through a thin repository adapter.
-4. Before any new family trains, run the maximum-input GTX 1080 FP32/no-grad deployment contract; PromptMR+ stops immediately if its license is incompatible.
-5. After explicit final freeze approval, run the 30-repeat timing cohort, fresh-clone package verification, and upload.
+2. When the LOCAL GPU is free, run the preregistered matched continuation pair from the same epoch-30 generation: Adam LR `0.001` control versus Adam LR `0.0003`, epochs 31–35. The dry-run plan is [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md); no GPU job has started.
+3. AdamW-only is closed. Do not run a second seed, long rescue, scheduler combination, VESSL promotion, or official evaluation for AdamW.
+4. Do not launch c9/c10/c12 capacity rescue. Reuse the pinned MIT Feature/FI implementation through a thin adapter; PromptMR+ remains blocked on written competition/license confirmation. See [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
+5. Before any new family trains, run the maximum-input GTX 1080 FP32/no-grad deployment contract.
+6. After explicit final freeze approval, run the 30-repeat timing cohort, fresh-clone package verification, and upload.
 
 ## Guardrails
 
@@ -57,3 +60,4 @@ The completed gate used the leaderboard-faithful EXP033R LOCAL reference `0.9156
 - Do not commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
 - LOCAL results are evidence only; they do not become official candidates without independent validation and approval.
 - Gradient checkpointing reduces training activation memory only. It does not reduce final checkpoint size, inference VRAM, or inference time; the final model must fit 8 GB structurally.
+- Do not reinvent the post-EXP035 model stack. Pin, license, and smoke-test upstream code before writing repository adapters.

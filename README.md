@@ -39,6 +39,10 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 EXP035 closed the current unmodified vanilla capacity track with a clear PASS. The strict retained sweep selected terminal epoch 30 at quality `0.9199788092310326`, `+0.004296353336923686` over the EXP033R LOCAL reference. The authorized one-shot confirmed the gain on the official path at total `0.92146109375`. See the [self-contained validation and official report](reports/phase2/EXP035_epoch30_official_20260715_090400/validation_summary.md). No c9/c10/c12 capacity run or 30-repeat timing cohort starts automatically.
 
+## Prepared next work
+
+The matched LOCAL AdamW V10 probe is closed after an exact quality/component tie and 7.50% slower runtime. When the LOCAL GPU is free, the only prepared vanilla follow-up is a dry-run-gated pair from the same immutable EXP035 epoch-30 state: Adam LR `1e-3` versus `3e-4`, epochs 31–35. No arm has started. In parallel, CPU-only model-family work is adapter-first: MIT Feature/FI commit `91f2df47` is source-pinned, while PromptMR+ remains blocked pending written competition/license confirmation. See [`docs/exp035_matched_continuation_runbook.md`](docs/exp035_matched_continuation_runbook.md) and [`docs/upstream_model_feasibility.md`](docs/upstream_model_feasibility.md).
+
 ## Common commands
 
 ```bash

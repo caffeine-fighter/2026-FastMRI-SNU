@@ -77,7 +77,7 @@ Suggested thresholds:
 
 ### Selection
 
-Compare EXP031, EXP032, EXP033, and EXP034 using full, bbox, combined quality, acc4/acc8 breakdowns, complete coverage, and reproducible checkpoint provenance. Official one-shot evaluation remains approval-gated and is reserved for a meaningful, confirmed validation winner.
+Compare EXP031 through EXP035 using full, bbox, combined quality, acc4/acc8 breakdowns, complete coverage, and reproducible checkpoint provenance. EXP035 epoch 30 is the protected local and one-shot official leader; its last-five trajectory is positive but non-monotonic. Official one-shot evaluation remains approval-gated and is reserved for a meaningful, confirmed validation winner.
 
 ### Revised deployment-first capacity decision
 
@@ -100,10 +100,10 @@ Post-training unstructured pruning and INT8 are last-resort research tracks, not
 
 Prioritize by measured gain per GPU-day:
 
-1. Finish EXP035 and close the unmodified vanilla capacity track under its preregistered gate.
-2. Clear the PromptMR+ non-commercial license gate first, then run matched CPU/schema and GTX 1080 maximum-input feasibility probes for PromptMR+ and Feature/FI-VarNet. Select by direct-deploy fit, measured time, and integration cost rather than a fixed paper ranking.
-3. Train the largest direct-deploy candidate on RTX 3090; use activation checkpointing and accumulation only as LOCAL training controls.
-4. Low-LR/scheduler finalists: Adam 3e-4 with a StepLR-style late drop versus a separately controlled cosine decay. Do not change architecture and schedule together.
+1. Protect completed EXP035 epoch 30 and close unmodified vanilla capacity scaling.
+2. When the LOCAL GPU is free, fork the same immutable epoch-30 state into matched Adam LR `1e-3` and `3e-4` epochs 31–35. This separates extra epochs from LR; no arm has started.
+3. Use MIT Feature/FI commit `91f2df47` for adapter-first CPU work. PromptMR+ commit `934eeda6` remains blocked until written competition/submission license confirmation.
+4. Train only an upstream candidate that passes CPU schema and GTX 1080 maximum-input feasibility; use activation checkpointing and accumulation only as LOCAL training controls.
 5. Test output-equivalent coil/sensitivity memory controls before any lossy compression. Treat `inference_mode` as an opt-in parity benchmark against the existing no-grad control. Treat FP16 as a memory experiment, not an assumed speed path on GTX 1080.
 6. If a non-deployable teacher clears the 0.001 oracle-gap gate, distill it into a preregistered 8 GB student; otherwise stop the compression track.
 7. Cascades: if the capacity signal warrants it, test progressive cascade expansion or a c4 -> c6 warm start with added cascades initialized as no-op residual updates, without simultaneously changing the reconstructor.
@@ -112,7 +112,7 @@ Prioritize by measured gain per GPU-day:
 10. One independent seed of the strongest configuration; output ensembling is viable only when its quality gain exceeds its measured timing penalty.
 11. Final train+validation retraining only after hyperparameters are frozen and only if the challenge rules explicitly permit use of public validation labels for final training.
 
-Deprioritize broad width sweeps, sensitivity width above 8, fixed-LR 1e-3 continuation, GAN/perceptual/diffusion objectives, test-time training, GRAPPA/ESPIRiT assistance, and full FI-VarNet/XPDNet rewrites. Wavelet or feature-propagation changes are contingency research only after the supported interventions have been tested.
+Deprioritize broad width sweeps, sensitivity width above 8, unbounded fixed-LR continuation, GAN/perceptual/diffusion objectives, test-time training, GRAPPA/ESPIRiT assistance, and full FI-VarNet/XPDNet rewrites. Do not recreate a winner-scale stack from E2E-VarNet when compatible upstream code exists. Wavelet or feature-propagation changes are contingency research only after the supported interventions have been tested.
 
 Every change starts with a short feasibility probe and gets abandoned when it fails the declared gate.
 
@@ -155,4 +155,4 @@ Every change starts with a short feasibility probe and gets abandoned when it fa
 
 ## Current action
 
-EXP035 is the active VESSL capacity run. Do not start a competing VESSL GPU task. While it runs, prepare CPU shape/schema tests and untrained maximum-input 8 GB inference probes for PromptMR+ and Feature/FI-VarNet; do not start a long LOCAL teacher run until its deployment path and license gate are recorded.
+EXP035 is complete and protected. The next GPU work is the matched continuation pair, but it remains unlaunched while another process owns the GPU. CPU-only work uses [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md) and [`upstream_model_feasibility.md`](upstream_model_feasibility.md).

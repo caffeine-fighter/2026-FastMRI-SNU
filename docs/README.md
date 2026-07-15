@@ -8,6 +8,8 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 |---|---|
 | Current strategy, promotion gates, and RTX 3090 role | [`our_strategy.md`](our_strategy.md) |
 | Current candidate, active run, next actions | [`current_state.md`](current_state.md) |
+| EXP035 matched continuation preflight | [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md) |
+| Upstream Feature/FI and PromptMR+ source/license audit | [`upstream_model_feasibility.md`](upstream_model_feasibility.md) |
 | Forty-day score-optimization program | [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md) |
 | Final GTX 1080 hardware and runtime contract | [`final_evaluation_server.md`](final_evaluation_server.md) |
 | Train or validate on VESSL | [`vessl_workflow.md`](vessl_workflow.md) |
@@ -22,9 +24,11 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 | Experiment metrics and commands | [`../experiments/experiment_log.csv`](../experiments/experiment_log.csv) |
 | Candidate decisions | [`decisions.md`](decisions.md) |
 | Verified official score | [`../reports/phase2/final_score_summary.md`](../reports/phase2/final_score_summary.md) |
+| EXP035 retained sweep and official one-shot | [`../reports/phase2/EXP035_epoch30_official_20260715_090400/validation_summary.md`](../reports/phase2/EXP035_epoch30_official_20260715_090400/validation_summary.md) |
 | EXP031 final validation | [`../reports/phase2/EXP031_validation_summary.md`](../reports/phase2/EXP031_validation_summary.md) |
 | Official candidate comparison | [`../reports/phase2/official_candidate_comparison.md`](../reports/phase2/official_candidate_comparison.md) |
 | Local probe results | [`../reports/local_comparisons/local_probe_summary.md`](../reports/local_comparisons/local_probe_summary.md) |
+| Matched Adam-vs-AdamW rejection | [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md) |
 
 ## Planning and archive
 
