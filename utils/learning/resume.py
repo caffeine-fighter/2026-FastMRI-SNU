@@ -2,6 +2,7 @@ import ctypes
 import copy
 import errno
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -173,25 +174,36 @@ def _open_manifest_artifact(directory_fd, manifest, field):
     return _open_regular_at(directory_fd, name, f"manifest {field} artifact")
 
 
-def _load_checkpoint_from_handle(handle):
+def _load_checkpoint_from_handle(handle, expected_sha256=None):
+    if expected_sha256 is not None:
+        handle.seek(0)
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+        actual_sha256 = digest.hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise ValueError(
+                "Checkpoint SHA-256 mismatch: "
+                f"expected={expected_sha256} actual={actual_sha256}"
+            )
     handle.seek(0)
     return torch.load(handle, map_location="cpu", weights_only=True)
 
 
-def _load_requested_checkpoint(checkpoint_path):
+def _load_requested_checkpoint(checkpoint_path, expected_sha256=None):
     checkpoint_path = Path(checkpoint_path)
     field = {"model.pt": "model", "best_model.pt": "best"}.get(checkpoint_path.name)
-    if field is None:
-        with open(checkpoint_path, "rb") as handle:
-            return _load_checkpoint_from_handle(handle)
     directory_fd = _open_checkpoint_directory(checkpoint_path.parent)
     try:
+        if field is None:
+            with _open_regular_at(directory_fd, checkpoint_path.name, "checkpoint") as handle:
+                return _load_checkpoint_from_handle(handle, expected_sha256)
         manifest = _read_checkpoint_manifest(checkpoint_path.parent, directory_fd)
         if manifest is None:
             with _open_regular_at(directory_fd, checkpoint_path.name, "checkpoint") as handle:
-                return _load_checkpoint_from_handle(handle)
+                return _load_checkpoint_from_handle(handle, expected_sha256)
         with _open_manifest_artifact(directory_fd, manifest, field) as handle:
-            return _load_checkpoint_from_handle(handle)
+            return _load_checkpoint_from_handle(handle, expected_sha256)
     finally:
         os.close(directory_fd)
 
@@ -660,9 +672,10 @@ def load_training_state(
     device,
     allow_inexact=False,
     learning_rate_override=None,
+    expected_sha256=None,
 ):
     """Transactionally restore a complete checkpoint or leave live state untouched."""
-    checkpoint = _load_requested_checkpoint(checkpoint_path)
+    checkpoint = _load_requested_checkpoint(checkpoint_path, expected_sha256)
     validate_training_checkpoint(checkpoint)
     if checkpoint["rng_state"] is None and not allow_inexact:
         raise ValueError(

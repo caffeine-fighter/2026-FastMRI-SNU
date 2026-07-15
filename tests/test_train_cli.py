@@ -39,6 +39,16 @@ class TrainCliTests(unittest.TestCase):
 
         self.assertTrue(args.retain_val_epochs)
 
+    def test_parse_accepts_required_cuda_device_name(self):
+        expected = "NVIDIA GeForce GTX 1080"
+        with patch(
+            "sys.argv",
+            ["train.py", "--require-cuda-device-name", expected],
+        ):
+            args = train.parse()
+
+        self.assertEqual(args.require_cuda_device_name, expected)
+
     def test_parse_accepts_resume_checkpoint(self):
         checkpoint = Path("/tmp/EXP030/checkpoints/model.pt")
         with patch(
@@ -49,6 +59,44 @@ class TrainCliTests(unittest.TestCase):
 
         self.assertEqual(args.resume_checkpoint, checkpoint)
         self.assertFalse(args.allow_inexact_resume)
+
+    def test_parse_accepts_resume_checkpoint_sha256(self):
+        digest = "a" * 64
+        with patch(
+            "sys.argv",
+            [
+                "train.py",
+                "--resume-checkpoint",
+                "/tmp/model.pt",
+                "--resume-checkpoint-sha256",
+                digest,
+            ],
+        ):
+            args = train.parse()
+
+        self.assertEqual(args.resume_checkpoint_sha256, digest)
+
+    def test_parse_rejects_malformed_resume_checkpoint_sha256(self):
+        with patch(
+            "sys.argv",
+            [
+                "train.py",
+                "--resume-checkpoint",
+                "/tmp/model.pt",
+                "--resume-checkpoint-sha256",
+                "not-a-sha256",
+            ],
+        ):
+            with self.assertRaises(SystemExit):
+                train.parse()
+
+    def test_parse_rejects_resume_checkpoint_sha256_without_checkpoint(self):
+        with patch(
+            "sys.argv",
+            ["train.py", "--resume-checkpoint-sha256", "a" * 64],
+        ):
+            with self.assertRaises(SystemExit):
+                train.parse()
 
     def test_parse_rejects_explicit_inexact_resume_without_checkpoint(self):
         with patch(
@@ -519,6 +567,62 @@ class TrainCliTests(unittest.TestCase):
             self.assertFalse(
                 (args.val_epochs_dir / "epoch_0001").exists()
             )
+
+    def test_required_cuda_device_fails_closed_when_cuda_is_unavailable(self):
+        args = SimpleNamespace(
+            GPU_NUM=0,
+            require_cuda_device_name="NVIDIA GeForce GTX 1080",
+        )
+        with patch.object(
+            train_part_module.torch.cuda, "is_available", return_value=False
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Required CUDA device"):
+                train_part_module.train(args)
+
+    def test_resume_passes_expected_checkpoint_sha256_to_loader(self):
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            root = Path(tmp)
+            checkpoint_dir = root / "checkpoints"
+            checkpoint_dir.mkdir()
+            digest = "a" * 64
+            args = SimpleNamespace(
+                GPU_NUM=0,
+                cascade=1,
+                chans=1,
+                sens_chans=1,
+                lr=0.001,
+                resume_checkpoint=root / "source.pt",
+                resume_checkpoint_sha256=digest,
+                allow_inexact_resume=False,
+                resume_lr=0.0003,
+                num_epochs=30,
+                data_path_train=root / "train",
+                data_path_val=root / "val",
+                exp_dir=checkpoint_dir,
+                val_loss_dir=root,
+                val_dir=root / "reconstructions",
+                val_epochs_dir=root / "reconstructions_val_epochs",
+                retain_val_epochs=True,
+                net_name="resume-hash-propagation",
+            )
+            model = torch.nn.Linear(1, 1)
+            loss = torch.nn.Identity()
+
+            with patch.object(
+                train_part_module.torch.cuda, "is_available", return_value=False
+            ), patch.object(
+                train_part_module, "VarNet", return_value=model
+            ), patch.object(
+                train_part_module, "SSIMLoss", return_value=loss
+            ), patch.object(
+                train_part_module,
+                "load_training_state",
+                return_value=(30, 0.1),
+            ) as load_state:
+                with self.assertRaisesRegex(ValueError, "must be less than"):
+                    train_part_module.train(args)
+
+            self.assertEqual(load_state.call_args.kwargs["expected_sha256"], digest)
 
     def test_fresh_cpu_training_never_queries_or_selects_cuda_device(self):
         with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:

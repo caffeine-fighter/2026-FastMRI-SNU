@@ -708,6 +708,17 @@ def _publish_retained_epoch(staged, final_dir):
 
 
 def train(args):
+    required_cuda_name = getattr(args, "require_cuda_device_name", None)
+    if required_cuda_name is not None:
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                f"Required CUDA device {required_cuda_name!r} is unavailable"
+            )
+        actual_cuda_name = torch.cuda.get_device_name(args.GPU_NUM)
+        if actual_cuda_name != required_cuda_name:
+            raise RuntimeError(
+                f"Required CUDA device {required_cuda_name!r}, found {actual_cuda_name!r}"
+            )
     if torch.cuda.is_available():
         device = torch.device(f'cuda:{args.GPU_NUM}')
         torch.cuda.set_device(device)
@@ -739,6 +750,7 @@ def train(args):
             device,
             allow_inexact=args.allow_inexact_resume,
             learning_rate_override=args.resume_lr,
+            expected_sha256=getattr(args, "resume_checkpoint_sha256", None),
         )
         if start_epoch >= args.num_epochs:
             raise ValueError(

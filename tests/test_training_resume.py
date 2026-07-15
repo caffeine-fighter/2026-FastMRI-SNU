@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import random
 import importlib.util
@@ -145,6 +146,7 @@ class TrainingResumeTests(unittest.TestCase):
                     best_val_loss=0.1068,
                 )
             torch.save(state, checkpoint)
+            checkpoint_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
 
             expected_random = random.random()
             expected_numpy = float(np.random.rand())
@@ -164,6 +166,7 @@ class TrainingResumeTests(unittest.TestCase):
                     resumed_model,
                     resumed_optimizer,
                     torch.device("cpu"),
+                    expected_sha256=checkpoint_sha256,
                 )
 
         self.assertEqual(start_epoch, 20)
@@ -175,6 +178,144 @@ class TrainingResumeTests(unittest.TestCase):
         self.assertEqual(random.random(), expected_random)
         self.assertEqual(float(np.random.rand()), expected_numpy)
         self.assertEqual(float(torch.rand(1)), expected_torch)
+
+    def test_load_training_state_rejects_expected_sha256_mismatch_before_mutation(self):
+        source_model = torch.nn.Linear(2, 1)
+        source_optimizer = torch.optim.Adam(source_model.parameters(), lr=0.001)
+        resumed_model = torch.nn.Linear(2, 1)
+        resumed_optimizer = torch.optim.Adam(resumed_model.parameters(), lr=0.001)
+
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            checkpoint = Path(tmp) / "checkpoint.pt"
+            with patch(
+                "utils.learning.resume.torch.cuda.is_available",
+                return_value=False,
+            ):
+                torch.save(
+                    build_training_state(
+                        epoch=20,
+                        model=source_model,
+                        optimizer=source_optimizer,
+                        best_val_loss=0.1,
+                    ),
+                    checkpoint,
+                )
+            before = _capture_live_state(resumed_model, resumed_optimizer)
+
+            with patch("utils.learning.resume.torch.load") as mocked_load:
+                with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                    load_training_state(
+                        checkpoint,
+                        resumed_model,
+                        resumed_optimizer,
+                        torch.device("cpu"),
+                        expected_sha256="0" * 64,
+                    )
+            mocked_load.assert_not_called()
+
+        _assert_live_state_unchanged(
+            self, resumed_model, resumed_optimizer, before
+        )
+
+    def test_expected_sha256_and_deserialization_share_one_open_descriptor(self):
+        source_model = torch.nn.Linear(2, 1)
+        source_optimizer = torch.optim.Adam(source_model.parameters(), lr=0.001)
+        replacement_model = torch.nn.Linear(2, 1)
+        replacement_optimizer = torch.optim.Adam(
+            replacement_model.parameters(), lr=0.001
+        )
+        with torch.no_grad():
+            replacement_model.weight.fill_(99.0)
+            replacement_model.bias.fill_(99.0)
+
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            root = Path(tmp)
+            checkpoint = root / "checkpoint.pt"
+            replacement = root / "replacement.pt"
+            with patch(
+                "utils.learning.resume.torch.cuda.is_available",
+                return_value=False,
+            ):
+                torch.save(
+                    build_training_state(
+                        epoch=20,
+                        model=source_model,
+                        optimizer=source_optimizer,
+                        best_val_loss=0.1,
+                    ),
+                    checkpoint,
+                )
+                torch.save(
+                    build_training_state(
+                        epoch=20,
+                        model=replacement_model,
+                        optimizer=replacement_optimizer,
+                        best_val_loss=0.2,
+                    ),
+                    replacement,
+                )
+            expected_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+            resumed_model = torch.nn.Linear(2, 1)
+            resumed_optimizer = torch.optim.Adam(
+                resumed_model.parameters(), lr=0.001
+            )
+            real_torch_load = torch.load
+
+            def replace_path_then_load(handle, *args, **kwargs):
+                os.replace(replacement, checkpoint)
+                return real_torch_load(handle, *args, **kwargs)
+
+            with patch(
+                "utils.learning.resume.torch.load",
+                side_effect=replace_path_then_load,
+            ):
+                load_training_state(
+                    checkpoint,
+                    resumed_model,
+                    resumed_optimizer,
+                    torch.device("cpu"),
+                    expected_sha256=expected_sha256,
+                )
+
+        for key, value in source_model.state_dict().items():
+            self.assertTrue(torch.equal(resumed_model.state_dict()[key], value))
+
+    def test_direct_generation_checkpoint_symlink_is_rejected(self):
+        source_model = torch.nn.Linear(2, 1)
+        source_optimizer = torch.optim.Adam(source_model.parameters(), lr=0.001)
+        resumed_model = torch.nn.Linear(2, 1)
+        resumed_optimizer = torch.optim.Adam(resumed_model.parameters(), lr=0.001)
+
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            root = Path(tmp)
+            checkpoint = root / "checkpoint.pt"
+            link = root / ".checkpoint-generation-test-model.pt"
+            with patch(
+                "utils.learning.resume.torch.cuda.is_available",
+                return_value=False,
+            ):
+                torch.save(
+                    build_training_state(
+                        epoch=20,
+                        model=source_model,
+                        optimizer=source_optimizer,
+                        best_val_loss=0.1,
+                    ),
+                    checkpoint,
+                )
+            try:
+                link.symlink_to(checkpoint)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlink creation is unavailable")
+
+            with self.assertRaisesRegex(ValueError, "Cannot securely open checkpoint"):
+                load_training_state(
+                    link,
+                    resumed_model,
+                    resumed_optimizer,
+                    torch.device("cpu"),
+                    expected_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+                )
 
     def test_load_training_state_applies_explicit_learning_rate_override(self):
         source_model = torch.nn.Linear(2, 1)
@@ -1371,6 +1512,69 @@ class TrainingResumeTests(unittest.TestCase):
         )
         np.testing.assert_array_equal(actual, history)
         np.testing.assert_array_equal(recovered_alias, history)
+
+    def test_manifest_model_is_authoritative_over_stale_alias_for_expected_sha256(self):
+        source_model = torch.nn.Linear(2, 1)
+        source_optimizer = torch.optim.Adam(source_model.parameters(), lr=0.001)
+        stale_model = torch.nn.Linear(2, 1)
+        stale_optimizer = torch.optim.Adam(stale_model.parameters(), lr=0.001)
+        with torch.no_grad():
+            stale_model.weight.fill_(99.0)
+            stale_model.bias.fill_(99.0)
+
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-") as tmp:
+            checkpoints = Path(tmp) / "checkpoints"
+            checkpoints.mkdir()
+            with patch(
+                "utils.learning.resume.torch.cuda.is_available", return_value=False
+            ):
+                save_model(
+                    checkpoints,
+                    2,
+                    source_model,
+                    source_optimizer,
+                    0.3,
+                    True,
+                )
+                stale_state = build_training_state(
+                    2, stale_model, stale_optimizer, 9.0
+                )
+            manifest = resume_module._read_checkpoint_manifest(checkpoints)
+            if manifest is None:
+                self.fail("checkpoint manifest was not published")
+            canonical = checkpoints / manifest["model"]
+            canonical_sha256 = hashlib.sha256(canonical.read_bytes()).hexdigest()
+            torch.save(stale_state, checkpoints / "model.pt")
+            stale_sha256 = hashlib.sha256(
+                (checkpoints / "model.pt").read_bytes()
+            ).hexdigest()
+            self.assertNotEqual(canonical_sha256, stale_sha256)
+
+            resumed_model = torch.nn.Linear(2, 1)
+            resumed_optimizer = torch.optim.Adam(
+                resumed_model.parameters(), lr=0.001
+            )
+            epoch, _ = load_training_state(
+                checkpoints / "model.pt",
+                resumed_model,
+                resumed_optimizer,
+                torch.device("cpu"),
+                expected_sha256=canonical_sha256,
+            )
+            self.assertEqual(epoch, 2)
+            for key, value in source_model.state_dict().items():
+                self.assertTrue(torch.equal(resumed_model.state_dict()[key], value))
+
+            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                load_training_state(
+                    checkpoints / "model.pt",
+                    torch.nn.Linear(2, 1),
+                    torch.optim.Adam(
+                        torch.nn.Linear(2, 1).parameters(), lr=0.001
+                    ),
+                    torch.device("cpu"),
+                    expected_sha256=stale_sha256,
+                )
 
     def test_interruption_before_history_alias_refresh_keeps_committed_history(self):
         model = torch.nn.Linear(2, 1)

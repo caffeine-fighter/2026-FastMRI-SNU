@@ -1,6 +1,7 @@
 import argparse
 import math
 import os, sys
+import re
 from pathlib import Path
 
 if os.getcwd() + '/utils/model/' not in sys.path:
@@ -19,10 +20,21 @@ def positive_finite_float(value):
     return parsed
 
 
+def sha256_hex(value):
+    if re.fullmatch(r'[0-9a-f]{64}', value) is None:
+        raise argparse.ArgumentTypeError('must be exactly 64 lowercase hexadecimal characters')
+    return value
+
+
 def parse():
     parser = argparse.ArgumentParser(description='Train Varnet on FastMRI challenge Images',
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-g', '--GPU-NUM', type=int, default=0, help='GPU number to allocate')
+    parser.add_argument(
+        '--require-cuda-device-name',
+        default=None,
+        help='Fail closed unless the selected CUDA device has this exact name',
+    )
     parser.add_argument('-b', '--batch-size', type=int, default=1, help='Batch size')
     parser.add_argument('-e', '--num-epochs', type=int, default=1, help='Number of epochs')
     parser.add_argument('-l', '--lr', type=float, default=1e-3, help='Learning rate')
@@ -55,6 +67,12 @@ def parse():
         help='Safe training checkpoint whose complete state should be resumed',
     )
     parser.add_argument(
+        '--resume-checkpoint-sha256',
+        type=sha256_hex,
+        default=None,
+        help='Expected SHA-256 verified from the exact checkpoint descriptor before loading',
+    )
+    parser.add_argument(
         '--resume-lr',
         type=positive_finite_float,
         default=None,
@@ -67,6 +85,8 @@ def parse():
     )
 
     args = parser.parse_args()
+    if args.resume_checkpoint_sha256 is not None and args.resume_checkpoint is None:
+        parser.error('--resume-checkpoint-sha256 requires --resume-checkpoint')
     if args.resume_lr is not None and args.resume_checkpoint is None:
         parser.error('--resume-lr requires --resume-checkpoint')
     if args.allow_inexact_resume and args.resume_checkpoint is None:
