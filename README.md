@@ -92,6 +92,7 @@ Start with [`docs/README.md`](docs/README.md). The most useful pages are:
 - [`docs/our_strategy.md`](docs/our_strategy.md): current execution strategy, RTX 3090 training role, and promotion gates
 - [`docs/current_state.md`](docs/current_state.md): current candidate, active work, and next actions
 - [`docs/score_optimization_40_day_roadmap.md`](docs/score_optimization_40_day_roadmap.md): experiment portfolio through final freeze
+- [`docs/final_evaluation_server.md`](docs/final_evaluation_server.md): final GTX 1080/16 GB server and deployment acceptance contract
 - [`docs/vessl_workflow.md`](docs/vessl_workflow.md): training and validation commands
 - [`docs/phase2_plan.md`](docs/phase2_plan.md): scoring and official-evaluation rules
 - [`docs/final_submission_checklist.md`](docs/final_submission_checklist.md): external upload checklist

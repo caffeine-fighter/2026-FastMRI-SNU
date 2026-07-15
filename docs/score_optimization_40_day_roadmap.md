@@ -11,6 +11,8 @@ Window: 2026-07-11 through 2026-08-20.
 5. Stop weak directions early after enough evidence; spend GPU time on confirmed improvements.
 6. Preserve checkpoint hashes, exact commands, code commit, validation metrics, and error scans for every promoted run.
 7. Cap exploratory training at 720 GPU-hours and stop broad training by 2026-08-11, preserving the final nine days for official evaluation, freeze, timing, packaging, and submission.
+8. Separate training memory from inference memory. Before any long LOCAL architecture run, preflight its untrained maximum-input forward path on the actual 8 GB contract; do not assume a model that needs more than 8 GB to train also needs compression to infer.
+9. Treat [`final_evaluation_server.md`](final_evaluation_server.md) as the deployment authority: GTX 1080 Pascal, 16 GB host RAM, driver 550.127.08, and the captured PyTorch runtime—not a generic 8 GB GPU—decide final compatibility.
 
 ## Compute and evidence budget
 
@@ -18,6 +20,7 @@ Window: 2026-07-11 through 2026-08-20.
 - Evaluate declared gate checkpoints instead of selecting an undeclared transient best after inspecting the curve.
 - Carry at most two finalists into seed confirmation. A finalist should beat EXP031 in at least two of three total seeds, have positive mean gain, and reproduce under deterministic rescoring.
 - Allow at most three new approval-gated official evaluations before final freeze.
+- Do not spend a long run on a compression-only teacher unless it either passes the 8 GB direct-inference preflight or demonstrates a plausible route to an oracle gap of at least 0.001 over the best fixed 8 GB student.
 
 ## Promotion gates
 
@@ -76,16 +79,38 @@ Suggested thresholds:
 
 Compare EXP031, EXP032, EXP033, and EXP034 using full, bbox, combined quality, acc4/acc8 breakdowns, complete coverage, and reproducible checkpoint provenance. Official one-shot evaluation remains approval-gated and is reserved for a meaningful, confirmed validation winner.
 
+### Revised deployment-first capacity decision
+
+The default is no longer "train an unconstrained teacher, then compress it." Training retains backward activations, whereas the fixed evaluator runs `model.eval()`, batch 1, and `torch.no_grad()`. A model that is expensive to train can therefore still be a valid uncompressed 8 GB inference model.
+
+Use this gate before every PromptMR+/Feature/FI or other large-model run:
+
+1. Freeze the candidate config, commit, maximum input shape/coil count, dtype, and checkpoint schema.
+2. On the 8 GB target, warm up and repeatedly run the official `recon_eval.py` call path with untrained weights.
+3. Record OOM status, `max_memory_allocated`, `max_memory_reserved`, allocator headroom, and ms/slice. A single successful forward is insufficient.
+4. If it passes, train the same architecture on RTX 3090 with training-only checkpointing/accumulation and deploy it without compression.
+5. If it fails, test output-equivalent per-coil sensitivity, coil chunking, tensor-lifetime cleanup, and only then parity-checked selective FP16.
+6. Distill only if the exact model still cannot fit and a large teacher beats the best fixed 8 GB baseline by at least 0.001 equal-acc quality with healthy full/bbox and acc4/acc8 submetrics.
+
+For distillation, freeze the student and its 8 GB contract first. Start with supervised SSIM/L1 plus final-output imitation; add cascade-output or attention/feature transfer as a separate ablation. Promotion still depends on absolute score: at least +0.0005 over the current leader, complete coverage, repeated 8 GB stability, and an acceptable official-time tradeoff. Do not promote based only on percentage of teacher gain retained.
+
+Post-training unstructured pruning and INT8 are last-resort research tracks, not assumed deployment tools: sparse weights do not guarantee lower GTX 1080 memory/runtime, and complex FFT/data-consistency parity must be demonstrated. If pruning is tested, compare initialization-time pruning against dense and post-training controls rather than presuming last-minute pruning will preserve quality.
+
 ## Phase 2 — supported follow-ups (July 21–31)
 
 Prioritize by measured gain per GPU-day:
 
-1. Low-LR/scheduler finalists: Adam 3e-4 with a StepLR-style late drop versus a separately controlled cosine decay. Do not change architecture and schedule together.
-2. Cascades: if EXP032 is promising, test a lower-LR continuation or a c4 -> c6 warm start with the added cascades initialized as no-op residual updates.
-3. Acceleration specialists: audit mask/ACS behavior first, then consider separate acc4/acc8 models routed only by the observed mask.
-4. Same-basin checkpoint interpolation and EMA/SWA: validation-only, no additional inference cost.
-5. One independent seed of the strongest configuration; output ensembling is viable only when its quality gain exceeds its measured timing penalty.
-6. Final train+validation retraining only after hyperparameters are frozen and only if the challenge rules explicitly permit use of public validation labels for final training.
+1. Finish EXP035 and close the unmodified vanilla capacity track under its preregistered gate.
+2. Clear the PromptMR+ non-commercial license gate first, then run matched CPU/schema and GTX 1080 maximum-input feasibility probes for PromptMR+ and Feature/FI-VarNet. Select by direct-deploy fit, measured time, and integration cost rather than a fixed paper ranking.
+3. Train the largest direct-deploy candidate on RTX 3090; use activation checkpointing and accumulation only as LOCAL training controls.
+4. Low-LR/scheduler finalists: Adam 3e-4 with a StepLR-style late drop versus a separately controlled cosine decay. Do not change architecture and schedule together.
+5. Test output-equivalent coil/sensitivity memory controls before any lossy compression. Treat `inference_mode` as an opt-in parity benchmark against the existing no-grad control. Treat FP16 as a memory experiment, not an assumed speed path on GTX 1080.
+6. If a non-deployable teacher clears the 0.001 oracle-gap gate, distill it into a preregistered 8 GB student; otherwise stop the compression track.
+7. Cascades: if the capacity signal warrants it, test progressive cascade expansion or a c4 -> c6 warm start with added cascades initialized as no-op residual updates, without simultaneously changing the reconstructor.
+8. Acceleration specialists: audit mask/ACS behavior first, then consider separate acc4/acc8 models routed only by the observed mask.
+9. Same-basin checkpoint interpolation and EMA/SWA: validation-only, no additional inference cost.
+10. One independent seed of the strongest configuration; output ensembling is viable only when its quality gain exceeds its measured timing penalty.
+11. Final train+validation retraining only after hyperparameters are frozen and only if the challenge rules explicitly permit use of public validation labels for final training.
 
 Deprioritize broad width sweeps, sensitivity width above 8, fixed-LR 1e-3 continuation, GAN/perceptual/diffusion objectives, test-time training, GRAPPA/ESPIRiT assistance, and full FI-VarNet/XPDNet rewrites. Wavelet or feature-propagation changes are contingency research only after the supported interventions have been tested.
 
@@ -120,9 +145,14 @@ Every change starts with a short feasibility probe and gets abandoned when it fa
 - E2E-VarNet used substantially more cascades and a lower Adam learning rate over a longer schedule: <https://arxiv.org/abs/2004.06688>.
 - The official fastMRI VarNet training module provides the reference loss, optimizer, and StepLR conventions: <https://github.com/facebookresearch/fastMRI/blob/main/fastmri/pl_modules/varnet_module.py>.
 - Feature/FI-VarNet reports late gains from longer scheduled optimization but its largest models exceed this 8 GB budget: <https://www.nature.com/articles/s41598-024-59705-0>.
+- PromptMR+ improves information flow and sensitivity estimation, publishes fastMRI results and code, and explicitly separates high training-memory needs from its inference path: <https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/09565.pdf>, <https://github.com/hellopipu/PromptMR-plus>.
+- KD-MRI supports attention/feature transfer plus output imitation as a conditional compact-student path: <https://arxiv.org/abs/2004.05319>.
+- PUN reports that initialization-time pruning outperformed post-training pruning for an unrolled MoDL setting; this motivates an ablation, not an assumption of real sparse-kernel savings on the target GPU: <https://arxiv.org/abs/2412.18668>.
+- SDUM reports progressive cascade expansion and sampling-aware weighted data consistency, but remains a 2025 preprint and is therefore a bounded follow-up rather than the baseline rewrite: <https://arxiv.org/abs/2512.17137>.
+- PyTorch documents the memory effect of no-grad, the additional restrictions/overhead reduction of inference mode, and allocated-versus-reserved CUDA peak measurements: <https://docs.pytorch.org/docs/stable/generated/torch.no_grad>, <https://docs.pytorch.org/docs/stable/generated/torch.autograd.grad_mode.inference_mode.html>, <https://docs.pytorch.org/docs/stable/generated/torch.cuda.memory.max_memory_reserved.html>.
 - MRAugment is retained as a lower-priority option because it reports diminishing benefit at full-data scale and requires physics-correct complex-coil transforms: <https://arxiv.org/abs/2106.14947>.
 - SWA is a generic no-inference-cost averaging option after MRI-specific interventions: <https://arxiv.org/abs/1803.05407>.
 
 ## Current action
 
-EXP032 is training on VESSL. Do not start a competing GPU task. CPU-only analysis, resume hardening, experiment design, and documentation can proceed while it runs.
+EXP035 is the active VESSL capacity run. Do not start a competing VESSL GPU task. While it runs, prepare CPU shape/schema tests and untrained maximum-input 8 GB inference probes for PromptMR+ and Feature/FI-VarNet; do not start a long LOCAL teacher run until its deployment path and license gate are recorded.
