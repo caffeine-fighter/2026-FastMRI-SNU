@@ -5,16 +5,16 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-16 02:50 KST (2026-07-15 17:50 UTC)_
+_Last update: 2026-07-16 02:56 KST (2026-07-15 17:56 UTC)_
 
 | Check | Value |
 |---|---|
 | Run | `LOCAL_EXP035_E30_TO_E35_ADAM_LR1E3_SEED430_R1` (running) |
 | Design | exact epoch-30 continuation; Adam LR `0.001` Control; c8/ch12/s8; seed `430` |
-| Progress | epoch `30/35`, iteration `4500/4651`, continuation `19.4%`; latest loss `0.09021` |
-| Completed continuation epochs | `0/5`; retained reconstruction directories `0/5` |
-| Best validation loss | source epoch `30`: `0.104427190` |
-| Health | error matches `0`; checkpoint generations `0`; PID `917599` |
+| Progress | epoch `31/35`, iteration `0/4651`, continuation `20.0%`; latest loss `0.0581` |
+| Completed continuation epochs | `1/5`; retained reconstruction directories `1/5` |
+| Best validation loss | epoch `30`: `3.132815693` |
+| Health | error matches `0`; checkpoint generations `1`; PID `917599` |
 
 EXP035 epoch 30 remains the protected official leader. Candidate LR `0.0003` will not start until this Control exits `0` and passes the strict retained-epoch sweep. No official evaluation or timing cohort starts automatically.
 <!-- EXP031_STATUS_END -->
