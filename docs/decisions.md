@@ -21,10 +21,11 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-11 | Rank score-aligned foreground/bbox loss above channel widening. | The official objective weights foreground and bbox equally, training has 2,593 boxes, and historical ch9 -> ch12 improved validation quality by only 0.000206. |
 | 2026-07-11 | Use equal-acceleration local quality for promotion. | The fixed evaluator averages acc4 and acc8 equally; pooled local validation overweights acc4 because slice and box counts differ, biasing EXP031's diagnostic quality upward by 0.002026883539. |
 | 2026-07-11 | Stop broad training by August 11 and cap exploration at 720 GPU-hours. | This preserves nine days for confirmation, approval-gated official evaluation, immutable freeze, repeated timing, package verification, and upload. |
+| 2026-07-15 | End unmodified vanilla capacity scaling at EXP035 and protect epoch 30 as the one-shot official leader. | All 30 retained epochs passed strict coverage/provenance gates; epoch 30 scored 0.9199788092310326 locally and the approved official one-shot scored 0.92146109375 total, beating EXP033R by 0.00455984375. |
 
 ## Current gate
 
-EXP031 stays protected while EXP032 and the forty-day roadmap run. Promote only local validation winners to separately approved official one-shot evaluation. Run the 30-repeat timing cohort only for the frozen final candidate.
+EXP035 epoch 30 is the protected one-shot official leader at total `0.92146109375`. Do not repeat its one-shot. Promote only independently verified challengers, and run the 30-repeat timing cohort only after separate final-freeze approval.
 
 ## Permanent constraints
 

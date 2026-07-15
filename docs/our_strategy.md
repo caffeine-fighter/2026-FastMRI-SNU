@@ -1,6 +1,6 @@
 # FastMRI 우승 전략 요약
 
-> 기준일: 2026-07-13 KST
+> 기준일: 2026-07-15 KST
 > 이 문서는 현재 기본 브랜치의 기록과 `EXP054` 전략 로드맵을 한 장으로 정리한 실행 기준이다. 실험·공식 평가·Git 병합은 각각 별도 승인 범위로 취급한다.
 
 ## 목표
@@ -12,12 +12,12 @@
 
 | 역할 | 후보 | 근거 |
 |---|---|---|
-| 보호할 공식 리더 | `EXP033R_epoch32` | one-shot quality `0.91595`, total `0.91690125` |
+| 보호할 공식 리더 | `EXP035_epoch30` | one-shot quality `0.92055`, total `0.92146109375` |
 | 확정 fallback | `EXP030` | 30회 공식 timing cohort 완료 |
-| 진행 중인 마지막 vanilla capacity 검증 | `EXP035_varnet_c8_ch12_s8_e30` | c6/ch12 대비 c8/ch12의 장기 효과를 판단 |
+| 이전 one-shot 리더 | `EXP033R_epoch32` | quality `0.91595`, total `0.91690125`; 더 빠른 보존 후보 |
 
 - LOCAL 평가는 방향을 찾는 증거일 뿐, 공식 후보 체크포인트로 승격하지 않는다.
-- LOCAL 승격 기준은 acc4와 acc8을 동등하게 평균내는 leaderboard-faithful quality다. 현재 `EXP033R`의 비교 기준은 `0.9156824558941089`다.
+- LOCAL 승격 기준은 acc4와 acc8을 동등하게 평균내는 leaderboard-faithful quality다. 완료된 EXP035 gate는 EXP033R `0.9156824558941089`를 사용했으며, 새 matched recipe의 보호 기준은 EXP035 epoch 30 `0.9199788092310326`이다.
 - 공식 평가는 자동 실행하지 않는다. 독립 검증과 별도 승인을 통과한 후보만 one-shot 평가한다.
 
 ## 핵심 판단
@@ -84,12 +84,12 @@
 
 ## 실행 순서
 
-### 1. EXP035 종료 및 판정
+### 1. EXP035 종료 및 판정 — 완료
 
-- 학습이 끝날 때까지 경쟁 VESSL GPU 작업을 추가하지 않는다.
-- retained checkpoint마다 30 volumes, 791 slices, 161 boxes, `skipped=[]`를 독립 확인한다.
-- full/bbox × acc4/acc8 지표와 equal-acc quality를 원본 산출물에서 다시 계산한다.
-- 종료 뒤에만 실제 추론 VRAM과 공식 경로 시간을 측정한다.
+- tracked terminal이 exit code 0으로 끝났고 30개 retained checkpoint가 모두 exact coverage와 finite-output gate를 통과했다.
+- epoch 30 LOCAL quality는 `0.9199788092310326`으로 EXP033R 기준보다 `+0.004296353336923686` 높다.
+- 승인된 공식 one-shot은 full `0.9234`, bbox `0.9177`, quality `0.92055`, total `0.92146109375`를 기록했다.
+- EXP035가 명확한 PASS이므로 c8/ch12/s8을 vanilla recipe baseline으로 보호하고, c9/c10/c12 unmodified scaling은 시작하지 않는다.
 
 판정 기준:
 
@@ -185,7 +185,7 @@ PromptMR+ 참조 구현은 non-commercial research license이므로 challenge �
 
 ## 한 문장 전략
 
-`EXP035`로 vanilla capacity 가설을 끝내고, PromptMR+와 Feature/FI 후보를 학습 전에 최종 GTX 1080 최대입력으로 걸러 직접 배포 가능한 가장 큰 모델을 RTX 3090에서 학습하며, 무손실 메모리 제어와 GTX 1080에서 이득이 증명된 선택적 정밀도로도 실패할 때만 증류한 뒤 재현 가능한 최종 후보만 공식 평가와 제출로 올린다.
+`EXP035` epoch 30을 새 one-shot 공식 리더로 보호하고 vanilla capacity scaling을 끝내며, 다음 recipe 또는 upstream model-family 후보는 최종 GTX 1080 최대입력 계약과 thin-adapter 원칙을 먼저 통과시킨 뒤 재현 가능한 최종 후보만 별도 승인된 timing freeze와 제출로 올린다.
 
 ## 추가 근거
 

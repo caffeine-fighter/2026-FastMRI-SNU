@@ -5,19 +5,19 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-15 17:33 KST (2026-07-15 08:33 UTC)_
+_Last update: 2026-07-15 18:22 KST (2026-07-15 09:22 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `EXP035_varnet_c8_ch12_s8_e30` (running) |
-| Change | `capacity-only comparison versus EXP032: cascades 6 to 8; same chans/sens/LR/epochs/seed; worst-shape training uses 7741/8192 MiB` |
-| Progress | epoch `29/30`, iteration `4650/4651`, `100.0%` |
-| ETA | `0.10 hours`; finish `2026-07-15 17:39 KST (2026-07-15 08:39 UTC)` |
-| Best validation loss | epoch `25`: `3.135454704415557` |
-| Validation snapshot | pending final validation |
-| Health | `0` error matches; checkpoints `present` |
+| Run | `EXP035_varnet_c8_ch12_s8_e30` (complete; terminal exit code `0`) |
+| Change | `final unmodified vanilla capacity comparison: cascades 6 to 8 with chans/sens/LR/epochs/seed fixed` |
+| Strict validation | epoch `30/30` won; equal-acc full `0.90666693657748`, bbox `0.9332906818845851`, quality `0.9199788092310326` |
+| Coverage | all 30 retained epochs; each `30 volumes / 791 slices / 161 boxes`; skips/unknown/non-finite `0` |
+| Official one-shot | full `0.9234`, bbox `0.9177`, quality `0.92055`, `250.7 ms/slice`, total `0.92146109375` |
+| Provenance | immutable generation `3e8af14268a64d67a308ebe30484ddf2`; checkpoint SHA-256 `dc6e034f…3097ffb7` |
+| Health | official wrapper exit code `0`; error matches `0`; GPU returned idle |
 
-`EXP033R_epoch32` remains the one-shot official leader while this one-variable experiment trains. No official evaluation starts automatically.
+`EXP035_epoch30` is the new one-shot official leader. It improves total score over EXP033R by `+0.00455984375`. The required repeated timing cohort remains separately approval-gated and has not run.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
@@ -26,17 +26,18 @@ _Last update: 2026-07-15 17:33 KST (2026-07-15 08:33 UTC)_
 |---|---|---:|---:|---:|---:|---:|
 | `EXP030_varnet_c4_ch12_s8_e20` | 30-run minimum | 0.9178 | 0.9108 | 0.9143 | 173.4 ms/slice | 0.9152513541666667 |
 | `EXP031_varnet_c4_ch12_s8_e30` | one official run | 0.9191 | 0.9114 | 0.91525 | **173.1 ms/slice** | 0.9162015104166666 |
-| `EXP032_varnet_c6_ch12_s8_e30` | one official run | 0.9197 | **0.9120** | 0.91585 | 212.2 ms/slice | 0.9167811458333334 |
-| `EXP033R_varnet_c4_ch12_s8_lr3e4_e33` epoch 32 | one official run | **0.9199** | **0.9120** | **0.91595** | 173.6 ms/slice | **0.91690125** |
+| `EXP032_varnet_c6_ch12_s8_e30` | one official run | 0.9197 | 0.9120 | 0.91585 | 212.2 ms/slice | 0.9167811458333334 |
+| `EXP033R_varnet_c4_ch12_s8_lr3e4_e33` epoch 32 | one official run | 0.9199 | 0.9120 | 0.91595 | 173.6 ms/slice | 0.91690125 |
 | `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` | one official run | 0.9181 | 0.9106 | 0.91435 | 173.7 ms/slice | 0.9153011979166666 |
+| `EXP035_varnet_c8_ch12_s8_e30` epoch 30 | one official run | **0.9234** | **0.9177** | **0.92055** | 250.7 ms/slice | **0.92146109375** |
 
-EXP033R epoch 32 is the current one-shot official leader. Versus EXP032, it improves quality by `+0.00010`, is `38.6 ms/slice` faster, and improves total score by `+0.0001201041666666347`. EXP031, EXP032, and EXP030 remain protected references; the final 30-run timing cohort is deferred until model freeze.
+EXP035 epoch 30 is the current one-shot official leader. Versus EXP033R, it improves full by `+0.0035`, bbox by `+0.0057`, quality by `+0.0046`, and total score by `+0.00455984375`; its `+77.1 ms/slice` latency costs only `0.00004015625` in time score. EXP033R and the 30-run EXP030 fallback remain protected. Final repeated timing is deferred until explicit freeze approval.
 
 Local promotion uses leaderboard-faithful equal-acceleration validation quality. EXP031's reference is `0.9154137446412757`; EXP032 scored `0.9149434297189161` locally, so the five-epoch lower-LR continuation uses EXP031 as preregistered. Pooled diagnostics are not promotion thresholds.
 
-## Latest objective result
+## Latest capacity result
 
-EXP034 tested the opt-in score-aligned objective as a one-variable comparison against EXP033R. It preserved the same EXP031 source checkpoint, c4/ch12/s8 architecture, LR `0.0003`, seed `430`, sampler order, and five-epoch budget. The run and all five retained epochs completed with zero error matches and strict `30 volumes / 791 slices / 161 boxes / 0 skips` coverage. Epoch 33 ranked first locally at full `0.9032527316484851`, bbox `0.9266163614092091`, and quality `0.9149345465288471`, trailing EXP033R's `0.9156824558941089` by `0.0007479093652618118`. The authorized official one-shot confirmed rejection: total `0.9153011979166666`, which trails EXP032 by `0.001479947916666724`.
+EXP035 closed the current unmodified vanilla capacity track with a clear PASS. The strict retained sweep selected terminal epoch 30 at quality `0.9199788092310326`, `+0.004296353336923686` over the EXP033R LOCAL reference. The authorized one-shot confirmed the gain on the official path at total `0.92146109375`. See the [self-contained validation and official report](reports/phase2/EXP035_epoch30_official_20260715_090400/validation_summary.md). No c9/c10/c12 capacity run or 30-repeat timing cohort starts automatically.
 
 ## Common commands
 
