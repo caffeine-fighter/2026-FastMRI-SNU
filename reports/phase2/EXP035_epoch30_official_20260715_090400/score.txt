@@ -1,0 +1,18 @@
+=== Phase 2 score ===
+tag: EXP035_epoch30_official
+log: reports/phase2/EXP035_epoch30_official_20260715_090400/eval_run.log
+ssim_full: 0.9234
+ssim_bbox: 0.9177
+quality_score: 0.92055
+recon_time_s: 554.85
+time_ms_per_slice: 250.7
+time_score: 0.00091109375
+total_score: 0.92146109375
+ssim_full_acc4: 0.9442
+ssim_full_acc8: 0.9025
+ssim_bbox_acc4: 0.9424
+ssim_bbox_acc8: 0.893
+recon_time_acc4_s: 287.57
+recon_time_acc8_s: 267.29
+saved json: reports/phase2/EXP035_epoch30_official_20260715_090400/score.json
+appended csv: reports/phase2/scoreboard.csv

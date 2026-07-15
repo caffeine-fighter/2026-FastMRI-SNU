@@ -1,0 +1,8 @@
+=== candidate ===
+EXP_ID=EXP035_epoch30
+CHECKPOINT=/root/result/EXP035_varnet_c8_ch12_s8_e30/checkpoints/.checkpoint-generation-3e8af14268a64d67a308ebe30484ddf2-model.pt
+CHECKPOINT_SYMLINK=checkpoints_phase2/best_model.pt
+CASCADE=8
+CHANS=12
+SENS_CHANS=8
+NOTES=authorized official one-shot; strict local PASS; immutable epoch-30 generation 3e8af14268a64d67a308ebe30484ddf2
