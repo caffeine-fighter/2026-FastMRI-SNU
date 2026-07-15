@@ -5,19 +5,18 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-15 18:22 KST (2026-07-15 09:22 UTC)_
+_Last update: 2026-07-16 01:18 KST (2026-07-15 16:18 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `EXP035_varnet_c8_ch12_s8_e30` (complete; terminal exit code `0`) |
-| Change | `final unmodified vanilla capacity comparison: cascades 6 to 8 with chans/sens/LR/epochs/seed fixed` |
-| Strict validation | epoch `30/30` won; equal-acc full `0.90666693657748`, bbox `0.9332906818845851`, quality `0.9199788092310326` |
-| Coverage | all 30 retained epochs; each `30 volumes / 791 slices / 161 boxes`; skips/unknown/non-finite `0` |
-| Official one-shot | full `0.9234`, bbox `0.9177`, quality `0.92055`, `250.7 ms/slice`, total `0.92146109375` |
-| Provenance | immutable generation `3e8af14268a64d67a308ebe30484ddf2`; checkpoint SHA-256 `dc6e034f…3097ffb7` |
-| Health | official wrapper exit code `0`; error matches `0`; GPU returned idle |
+| Run | `LOCAL_EXP035_E30_TO_E35_ADAM_LR1E3_SEED430_R1` (running) |
+| Design | exact epoch-30 continuation; Adam LR `0.001` Control; c8/ch12/s8; seed `430` |
+| Progress | epoch `30/35`, iteration `0/4651`, continuation `0.0%`; latest loss `0.09739` |
+| Completed continuation epochs | `0/5`; retained reconstruction directories `0/5` |
+| Best validation loss | source epoch `30`: `0.104427190` |
+| Health | error matches `0`; checkpoint generations `0`; PID `917599` |
 
-`EXP035_epoch30` is the new one-shot official leader. It improves total score over EXP033R by `+0.00455984375`. The required repeated timing cohort remains separately approval-gated and has not run.
+EXP035 epoch 30 remains the protected official leader. Candidate LR `0.0003` will not start until this Control exits `0` and passes the strict retained-epoch sweep. No official evaluation or timing cohort starts automatically.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
