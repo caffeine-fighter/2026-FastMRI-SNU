@@ -4,7 +4,7 @@
 
 **Goal:** EXP054의 검증된 capacity signal과 `winningstrategies.txt`의 2025년 상위권 공통점을 이용해, 현재 vanilla VarNet 탐색을 빠르게 판정하고 8 GB 제약 안에서 더 높은 품질을 낼 수 있는 학습 레시피와 차세대 모델로 전환한다.
 
-**Architecture:** 두 트랙을 병행한다. 첫째, 이미 실행 중인 `EXP035`로 c8/ch12 vanilla VarNet의 장기 효과를 판정한다. 둘째, 그 동안 LOCAL/CPU에서 메모리 절감, AdamW+schedule, winner-style masked loss, Feature/FI-VarNet 또는 PromptMR 계열의 feasibility를 준비한다. 모든 방향은 `LOCAL short screen -> matched longer run -> second-seed confirmation -> separately approved VESSL run -> separately approved official run` 순서로만 승격한다.
+**Architecture:** 완료된 `EXP035` epoch 30을 보호 baseline으로 두고 두 트랙을 병행한다. 첫째, 같은 immutable state에서 Adam LR `1e-3` 대 `3e-4`의 bounded matched continuation을 준비한다. 둘째, LOCAL/CPU에서 메모리 절감과 upstream Feature/FI-VarNet feasibility를 adapter-first로 준비한다. AdamW-only는 종료됐고 PromptMR+는 license confirmation 전까지 코드 사용을 중단한다. 모든 방향은 `LOCAL short screen -> matched longer run -> second-seed confirmation -> separately approved VESSL run -> separately approved official run` 순서로만 승격한다.
 
 **Tech Stack:** PyTorch, repository VarNet pipeline, strict equal-acc evaluator, final Intel i7-8700K 6C/12T + 16 GB RAM + GTX 1080 8192 MiB + driver 550.127.08, desktop RTX 4070 Ti SUPER/RTX 3090 for training, GitHub worktrees/PRs, Python `unittest`. Exact target Python/PyTorch/CUDA-runtime versions remain an environment-capture gate; see [`final_evaluation_server.md`](final_evaluation_server.md).
 
@@ -17,9 +17,9 @@
 - `winningstrategies.txt` blob: `31fb893ce6268a9edda83fef92f3992681526ee7`.
 - EXP054 terminal: `/home/ray1001/result/LOCAL_EXP054_FRESH_E5_V1_20260713_DESKTOP4070TI/terminal/terminal.json`.
 - EXP054 independent audit: `/home/ray1001/result/AUTONOMOUS_SCORE_LOOP_20260711/LOCAL_EXP054_FRESH_E5_V1_independent_audit_6330d3d0.json`.
-- 2026-07-13 19:41 KST 현재 VESSL은 `EXP035_varnet_c8_ch12_s8_e30`을 실행 중이다. worst-shape training memory는 `7741/8192 MiB`, 종료 ETA는 2026-07-15 17:13 KST로 기록되어 있다.
-- Current one-shot official leader: `EXP033R_epoch32`, quality `0.91595`, total `0.91690125`, `173.6 ms/slice`.
-- Current leaderboard-faithful LOCAL leader reference for EXP033R: `0.9156824558941089`.
+- `EXP035_varnet_c8_ch12_s8_e30`은 terminal exit code 0으로 완료됐다. 30개 retained epoch가 모두 strict coverage를 통과했고 epoch 30이 LOCAL quality `0.9199788092310326`으로 global best였다.
+- Current one-shot official leader: `EXP035_epoch30`, quality `0.92055`, total `0.92146109375`, `250.7 ms/slice`.
+- Current leaderboard-faithful LOCAL protected reference: EXP035 epoch 30 `0.9199788092310326`.
 
 ## 1. What EXP054 changed
 
@@ -46,8 +46,8 @@
    - The prior EXP034 score-aligned sparse objective failed, but it is not the same objective as winner-style foreground-masked SSIM+L1.
 
 5. **Strategic conclusion.**
-   - EXP035 is the final decisive capacity test for the current unmodified vanilla training stack.
-   - Further c9/c10/c12 work is allowed only after memory engineering and largest-legal-input inference profiling.
+   - EXP035 passed and closed the current unmodified vanilla capacity track. Do not launch c9/c10/c12 scaling.
+   - Epoch 30 is the global best and the final-five component trajectory is positive but non-monotonic, authorizing only a bounded matched continuation.
    - The next large quality bet should be better quality per VRAM—Feature/FI-VarNet or a reduced PromptMR-family model—not `chans > 12` brute force.
 
 ---
@@ -56,7 +56,7 @@
 
 **Objective:** Preserve reviewed LOCAL evidence without overwriting newer VESSL/default-branch state.
 
-**Current blocker:** PR #19 is 317 commits behind the live default branch and carries a stale README/status block. It must not be merged as-is.
+**Current blocker:** PR #19 and PR #24 both conflict with the EXP035-complete default branch and carry stale overlapping status text. Neither may be merged as-is.
 
 **Files to transplant from reviewed evidence:**
 - `reports/local_comparisons/local_capacity_screen_20260713.md`
@@ -65,47 +65,45 @@
 - a manually reconciled LOCAL section in `README.md`
 
 **Steps:**
-1. Wait for a safe Git handoff point from the active VESSL publisher; do not modify or delete `phase2/eval-wrapper-vessl` while EXP035 is active.
-2. Create a clean worktree from the then-current live default SHA.
-3. Copy only reviewed LOCAL reports and rows; do not cherry-pick the stale README wholesale.
-4. Rebuild README/current-state text from the current default plus validated EXP054 evidence.
-5. Run:
+1. Use a clean worktree from EXP035-complete default commit `e6c7665daca9950e3f1bdb250dcbf7376393da99`; preserve the old dirty worktree unchanged.
+2. Copy only reviewed LOCAL reports; do not cherry-pick stale README/current-state text wholesale.
+3. Rebuild strategy/current-state text from the current default plus validated AdamW and post-EXP035 evidence.
+4. Run:
    - `python scripts/check_submission.py`
    - `git diff --check`
    - exact staged allowlist review
    - fresh remote-worktree verification after push
-6. Replace or close PR #19 only after the fresh PR exists and is verified.
-7. After merge and safe VESSL handoff, archive/prune obsolete consolidation and handoff branches; never prune the active VESSL producer branch.
+5. Replace or close PR #19 and PR #24 only after the fresh PR exists and is verified.
+6. After merge, archive obsolete consolidation branches; keep source evidence available until remote verification completes.
 
 **Acceptance criteria:** default-branch VESSL status stays current, EXP054 is explicitly LOCAL-only, no raw checkpoints/H5/results enter Git, and the remote merged SHA is independently verified.
 
 ---
 
-### Task 2: Let EXP035 answer the immediate scientific question
+### Task 2: Close EXP035 and preregister the matched continuation — completed/prepared
 
-**Objective:** Determine whether c8/ch12 survives a full 30-epoch, one-variable VESSL comparison against c6/ch12.
+**Outcome:** c8/ch12 passed. Epoch 30 is the protected LOCAL and one-shot official leader. The next question is whether another five epochs help by themselves or specifically benefit from LR `3e-4`.
 
-**Do now:**
-1. Do not launch another VESSL GPU job or official evaluation while EXP035 trains.
-2. Monitor terminal evidence, not only branch movement or a PID.
-3. At completion, independently validate every retained epoch/checkpoint, 30 volumes, 791 slices, 161 boxes, zero unknowns, and `skipped=[]`.
-4. Recompute full/bbox/acc4/acc8 and equal-acc quality from source artifacts.
-5. Measure actual inference memory and official-path timing only after training is terminal and the evaluator is separately approved.
+**Prepared next comparison:**
+1. Source both LOCAL arms from generation `3e8af14268a64d67a308ebe30484ddf2`, SHA-256 `dc6e034f18df2a7872c416d4dccb4bb00e6e5b41fb89e438a86682db3097ffb7`.
+2. Compare Adam LR `1e-3` control against Adam LR `3e-4`, total epoch 35, with architecture/objective/data/batch/seed/RNG fixed.
+3. Run [`scripts/plan_exp035_continuations.py`](../scripts/plan_exp035_continuations.py) first. It is dry-run only and must not start CUDA.
+4. No GPU arm starts while another process owns the GPU; no official evaluation is automatic.
 
-**Local decision gate:**
-- `quality <= 0.9156824558941089`: reject c8 as the next candidate; stop unmodified vanilla depth scaling.
-- gain `(0, 0.0005)`: marginal; require matched robustness/seed evidence before any official run.
-- `quality >= 0.9161824558941088`, with every protected component healthy: strong local promotion signal.
+**Completed EXP035 gate:**
+- epoch 30 LOCAL quality `0.9199788092310326`; prior EXP033R reference `0.9156824558941089`; PASS by `+0.004296353336923686`.
+- official quality `0.92055`, total `0.92146109375`; new protected one-shot leader.
 
 **Official decision gate:**
 - No official run is automatic.
-- If separately approved, candidate total must exceed `0.91690125` using its measured time.
-- Exact break-even formula: `required_quality = 0.91690125 - time_score(actual_ms_per_slice)`.
-- For reference only, at `212.2 ms/slice`, required quality is `0.9159701041666667`; use the actual c8 timing, not this proxy.
+- A future candidate must beat EXP035 total `0.92146109375` using its own measured time.
+- Exact break-even formula: `required_quality = 0.92146109375 - time_score(actual_ms_per_slice)`.
 
 **Branching decision:**
-- **Pass:** c8 becomes the vanilla baseline for recipe tests, but no c9/c10 is attempted before Task 3.
-- **Fail:** keep EXP033R as protected leader and move directly to Tasks 3, 4, and 6; do not rescue c8 by simultaneously changing width, loss, optimizer, and schedule.
+- **LR candidate beats fixed control by `>= 0.0005`:** retain Adam and promote lower-LR continuation for confirmation.
+- **Both improve similarly:** classify as extra-epoch gain and allow at most one more bounded five-epoch block on the better arm.
+- **Both plateau:** stop vanilla continuation and move GPU budget to the upstream feasibility winner.
+- **Any protected-component regression:** reject regardless of aggregate quality.
 
 ---
 
@@ -146,7 +144,9 @@
 
 **Objective:** Replace the current fixed Adam recipe only when a source-backed matched comparison wins.
 
-**Why this is high priority:** winner strategies repeatedly use AdamW, warmup, decay, long training, accumulation, and often clipping. EXP033R also showed that lower-LR late optimization can beat longer fixed-LR training.
+**Completed AdamW gate:** matched LOCAL V10 tied equal-acc quality and every protected component exactly while AdamW was 7.50% slower. AdamW-only is closed.
+
+**Remaining rationale:** EXP035 ended at its global best with a positive but noisy final-five trajectory. Scheduling remains an Adam-only intervention, and the matched fixed-LR arm is required to separate LR from extra epochs.
 
 **Likely files:**
 - Modify: `train.py`
@@ -157,12 +157,11 @@
 - Create: `tests/test_optimizer_scheduler.py`
 
 **Experiment order:**
-1. Implement Adam/AdamW and scheduler configuration as explicit, serialized, resumable metadata.
-2. Run a fresh LOCAL matched control and AdamW-only candidate at the same seed/data/architecture/epoch count; do not combine scheduler yet.
-3. If AdamW passes, compare fixed LR against one preregistered warmup+cosine schedule.
-4. Use a short screen only for rejection; require a matched longer trajectory before promotion because schedules are inherently long-horizon interventions.
-5. Test accumulation and clipping separately after the optimizer/schedule winner is known.
-6. Retain and independently rescore every epoch; do not select an undeclared transient checkpoint.
+1. Do not run another AdamW arm.
+2. Execute the preregistered epoch-30-to-35 Adam fixed-LR control and lower-LR candidate only after the GPU is free and a separate launch check passes.
+3. Use a short screen only for rejection; require matched longer evidence before promotion.
+4. Test accumulation and clipping separately after the continuation decision.
+5. Retain and independently rescore every epoch; do not select an undeclared transient checkpoint.
 
 **Gate:** strong quality gain `>= 0.0005`, all four protected cells healthy, exact coverage, and a second seed or matched longer run before VESSL promotion. Weak or non-monotonic short results do not authorize a long official run.
 
@@ -198,10 +197,11 @@
 **Objective:** Find better quality per VRAM than vanilla E2E VarNet before spending a multi-day VESSL run.
 
 **Selection order for this repository/deadline:**
-1. Resolve PromptMR+ license compatibility before copying code; terminate that path immediately if challenge use or redistribution is incompatible.
-2. Build the cheapest CPU shape/schema tracer for both Feature/FI-VarNet and reduced PromptMR/PromptMR+.
-3. Run the same largest-input GTX 1080 probe and estimate integration cost for both. Feature/FI has lower integration risk; PromptMR+ has higher upside and an official fastMRI implementation. Select the first training candidate from measured deployment fit and cost, not a fixed paper ranking.
-4. No adjacent slices, historical features, or four-way experts in the first architecture comparison; add them only after a base model passes.
+1. Pin the MIT Feature/FI implementation at `facebookresearch/fastMRI@91f2df4711adbb6d643df1810f234e4abcf5881b` and reproduce its CPU smoke before adapting it.
+2. Keep PromptMR+ at `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e` blocked until written competition/submission confirmation under the Rutgers Non-commercial Research License.
+3. Preserve upstream algorithm modules and build only thin repository data/mask/checkpoint/harness adapters and CPU schema tests.
+4. Run the same largest-input GTX 1080 probe and estimate integration cost for every cleared family. Select by deployment fit and measured cost, not a fixed paper ranking.
+5. No adjacent slices, historical features, or four-way experts in the first architecture comparison.
 
 **Likely files:**
 - Create: `utils/model/feature_varnet.py`
@@ -214,15 +214,15 @@
 - Create later: `tests/test_promptmr.py`
 
 **Feasibility sequence:**
-1. Pin source paper/reference implementation commits and license compatibility.
-2. Build random-weight CPU shape tests and exact checkpoint schema tests.
-3. Run largest-input forward-only memory/runtime probes; reject configurations that cannot meet the official inference contract.
-4. Run one-epoch LOCAL screens with two seeds against the selected vanilla baseline.
-5. Advance only a seed-robust direction to matched e5.
-6. Advance only an e5 winner to e15/e30 or VESSL.
+1. Pin source, commit, representative config, and license.
+2. Pass the upstream installation and CPU smoke unchanged; if dependencies block it, record the exact blocker rather than rewriting.
+3. Add thin adapters, random-weight CPU shape tests, and exact checkpoint schema tests.
+4. Run largest-input forward-only memory/runtime probes; reject configurations that cannot meet the official inference contract.
+5. Run one-epoch LOCAL screens with two seeds against the selected vanilla baseline.
+6. Advance only a seed-robust direction to matched e5, then e15/e30 or VESSL.
 7. Keep the first comparison architecture-only: same loss, optimizer, schedule, data, seed, and evaluator.
 
-**Stop rule:** if neither family produces a seed-robust, component-safe signal within the bounded screen budget, stop the rewrite and return compute to the best vanilla recipe. Do not spend the remaining competition window reproducing full 2025 winner systems blindly.
+**Stop rule:** if no cleared upstream family produces a seed-robust, component-safe signal within the bounded screen budget, stop the integration and return compute to EXP035. Do not rebuild E2E-VarNet upward or reproduce a full winner system blindly.
 
 ---
 
@@ -271,9 +271,9 @@
 
 ## Recommended calendar
 
-- **Jul 13–15:** EXP035 continues; perform Git-consolidation preparation, memory-feature TDD, architecture feasibility, and synthetic mask/MoE audits. No competing VESSL job.
-- **Jul 15–18:** close EXP035 with independent local evidence; make the c8 pass/fail decision; profile c8 inference memory and timing after GPU release.
-- **Jul 16–24:** LOCAL optimizer/scheduler and memory-engineering ladder; begin bounded Feature/FI versus reduced PromptMR feasibility race.
+- **Jul 15–16:** publish EXP035/AdamW consolidation, preserve the leader, and finish CPU-only continuation/source preflight. No GPU use while another process owns it.
+- **Jul 16–20:** when separately cleared, run the matched fixed-LR versus LR `3e-4` continuation; in parallel reproduce the pinned Feature/FI CPU smoke in the existing LOCAL PyTorch environment.
+- **Jul 20–24:** run the first cleared upstream adapter/schema and GTX 1080 feasibility gate; PromptMR+ remains blocked without written license confirmation.
 - **Jul 22–31:** one matched longer run for the best recipe or next model family; no broad matrix.
 - **Aug 1–8:** one winner-style loss/augmentation follow-up and, only if oracle evidence supports it, one acceleration-specialist probe; seed confirmation.
 - **Aug 8–13:** no-cost averaging, finalist comparison, inference optimization, 8 GB proof, code/checkpoint freeze.
@@ -291,7 +291,9 @@
 - No LOCAL checkpoint promotion.
 - No automatic official evaluation.
 - No merge of PR #19 as currently based.
+- No merge of PR #24 as currently based.
+- No AdamW rescue or full model-family reimplementation from E2E-VarNet primitives.
 
 ## One-sentence recommendation
 
-Treat EXP035 as the final gate for the current unmodified vanilla-capacity track; meanwhile invest LOCAL engineering in 8 GB-safe memory controls and a controlled Feature/FI-VarNet-versus-reduced-PromptMR feasibility race, then apply AdamW/scheduling and masked SSIM+L1 one variable at a time before considering MRAugment, MoE, or ensembles.
+Protect EXP035 epoch 30, use one matched fixed-LR-versus-lower-LR continuation to separate epoch and schedule effects, and integrate only pinned licensed upstream model families through thin adapters before considering masked loss, MRAugment, MoE, or ensembles.

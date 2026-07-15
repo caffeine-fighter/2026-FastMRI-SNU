@@ -35,6 +35,16 @@ Before the first promotion probe and again at final freeze, save the output of a
 - exact installed package lock or environment export;
 - repository commit, checkpoint SHA-256, model config, and reconstruction command.
 
+Repository helper:
+
+```bash
+python scripts/print_run_context.py \
+  --checkpoint /absolute/path/to/immutable-model.pt \
+  --include-packages
+```
+
+During CPU-only preparation while another process owns the GPU, use `--no-gpu-probe`; this deliberately omits the target acceptance evidence and must be rerun without that flag at promotion/freeze.
+
 The current unpinned `requirements.txt` is an installation convenience, not a reproducible final environment. A fresh-clone install verified on the target server and an exact target-compatible lock/export are freeze requirements; do not guess package pins before the target environment is captured.
 
 ## Preflight and promotion gates

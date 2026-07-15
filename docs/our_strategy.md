@@ -18,6 +18,7 @@
 
 - LOCAL 평가는 방향을 찾는 증거일 뿐, 공식 후보 체크포인트로 승격하지 않는다.
 - LOCAL 승격 기준은 acc4와 acc8을 동등하게 평균내는 leaderboard-faithful quality다. 완료된 EXP035 gate는 EXP033R `0.9156824558941089`를 사용했으며, 새 matched recipe의 보호 기준은 EXP035 epoch 30 `0.9199788092310326`이다.
+- EXP035 공식 `SSIM_full=0.9234`, `SSIM_bbox=0.9177`의 차이는 `0.0057`이다. bbox는 유력한 병목이지만 LOCAL에서는 bbox가 full보다 높으므로 절대 gap만 보고 loss를 고르지 않고 모델 간 component delta로 판단한다.
 - 공식 평가는 자동 실행하지 않는다. 독립 검증과 별도 승인을 통과한 후보만 one-shot 평가한다.
 
 ## 핵심 판단
@@ -30,9 +31,11 @@
    직접 추론이 실패할 때만 per-coil sensitivity, coil chunking, tensor lifetime 정리 같은 출력 동등 메모리 제어를 적용한다. 선택적 FP16은 parity를 통과한 뒤에만 허용하고, 지식 증류·구조적 pruning은 그 뒤의 손실 가능 fallback이다.
 4. **VRAM당 품질을 먼저 개선한다.**
    8 GB에서 기존 stack은 여유가 거의 없으므로, vanilla 폭을 무작정 키우기보다 PromptMR+의 정보 흐름·memory-efficient sensitivity와 같은 효율적인 구조를 먼저 screen한다.
-5. **한 번에 큰 변수 하나만 바꾼다.**
+5. **바퀴를 재발명하지 않는다.**
+   EXP035로 자체 E2E-VarNet 증축은 종료한다. 다음 구조는 정확한 upstream commit과 license를 고정하고 원본 smoke를 먼저 재현한 뒤, 데이터·mask·checkpoint·공식 harness 차이만 얇은 adapter로 처리한다.
+6. **한 번에 큰 변수 하나만 바꾼다.**
    architecture, optimizer/scheduler, loss, augmentation을 동시에 바꾸지 않는다. 그래야 이득과 회귀의 원인을 추적할 수 있다.
-6. **공식 리더와 fallback을 보호한다.**
+7. **공식 리더와 fallback을 보호한다.**
    실험 실패가 기존 제출 가능 상태를 훼손하면 안 된다. 체크포인트 hash, 명령, commit, 평가 범위를 항상 남긴다.
 
 ## 로컬 RTX 3090 24 GB 활용 원칙
@@ -90,6 +93,7 @@
 - epoch 30 LOCAL quality는 `0.9199788092310326`으로 EXP033R 기준보다 `+0.004296353336923686` 높다.
 - 승인된 공식 one-shot은 full `0.9234`, bbox `0.9177`, quality `0.92055`, total `0.92146109375`를 기록했다.
 - EXP035가 명확한 PASS이므로 c8/ch12/s8을 vanilla recipe baseline으로 보호하고, c9/c10/c12 unmodified scaling은 시작하지 않는다.
+- epoch 30은 global best이며 epoch 26→30 quality/full/bbox가 각각 `+0.0003553 / +0.0002619 / +0.0004488` 순증가했다. 단조 감소 loss가 아니라 이 component trajectory가 bounded continuation의 근거다.
 
 판정 기준:
 
@@ -114,10 +118,11 @@
 
 ### 3. 학습 recipe를 통제된 사다리로 비교
 
-1. 같은 seed·데이터·구조·epoch에서 Adam과 AdamW를 비교한다.
-2. AdamW가 이기면 warmup + cosine 또는 사전 등록한 decay schedule 하나만 추가 비교한다.
-3. accumulation과 clipping은 optimizer/schedule 승자가 정해진 뒤 따로 본다.
-4. 강한 gain(`>= 0.0005`), 네 보호 지표 건강성, 완전한 coverage, 두 번째 seed 또는 matched long run을 만족해야 VESSL로 올린다.
+1. LOCAL V10 AdamW-only 비교는 quality와 네 보호 지표가 정확히 동률이고 runtime이 `+7.50%`라서 종료한다. 상세 근거는 [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md)다.
+2. AdamW second seed, long run, scheduler rescue, VESSL/official 승격을 하지 않는다.
+3. 다음 LOCAL GPU 실험은 같은 EXP035 epoch-30 generation에서 Adam LR `0.001`과 `0.0003`을 epochs 31–35로 matched 비교한다. [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md)의 dry-run preflight를 먼저 통과한다.
+4. lower-LR arm이 fixed-LR control보다 `>= 0.0005` 높고 네 보호 지표가 건강할 때만 scheduler/continuation 방향을 승격한다. 두 arm이 비슷하면 extra-epoch 효과로 판정한다.
+5. accumulation과 clipping은 continuation 판단 뒤 따로 본다.
 
 ### 4. winner-style masked SSIM + L1을 별도 검증
 
@@ -129,17 +134,18 @@
 
 ### 5. 다음 모델 계열은 deployment-first feasibility race로 제한
 
-고정된 논문 순위를 먼저 정하지 않는다. **PromptMR+**는 upside와 공식 fastMRI 구현이 강하지만 license/integration risk가 있고, **Feature/FI-VarNet**은 현재 stack과 가까워 구현 위험이 낮다. PromptMR+ license 확인을 가장 먼저 끝낸 뒤 두 계열의 CPU shape/schema와 동일한 GTX 1080 최대입력 probe를 싸게 비교하여, direct-deploy·속도·구현 비용 gate를 먼저 통과한 계열을 학습한다. SDUM의 progressive cascade expansion과 sampling-aware DC는 근거 있는 후속 아이디어이지만 새 전체 stack을 바로 이식하지 않고 작은 ablation으로만 다룬다.
+고정된 논문 순위를 먼저 정하지 않는다. **Feature/FI-VarNet**은 MIT 공식 fastMRI commit `91f2df4711adbb6d643df1810f234e4abcf5881b`로 CPU 통합 준비가 가능하다. **PromptMR+** commit `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e`는 Rutgers Non-commercial Research License이므로 대회·제출 패키징에 대한 서면 확인 전에는 코드를 복사·설치·수정하지 않는다. 상세 audit은 [`upstream_model_feasibility.md`](upstream_model_feasibility.md)에 둔다.
 
-1. 논문/참조 구현 commit과 라이선스를 고정한다.
-2. CPU shape test와 checkpoint schema test를 만든다.
-3. 학습 전에 최대 입력 8 GB forward-only VRAM·runtime probe를 수행한다.
-4. direct-deploy가 되면 그 구조를 LOCAL에서 학습하고, 안 되면 C 단계의 무손실 메모리 제어까지 적용한다.
-5. vanilla baseline과 architecture만 다른 two-seed 1-epoch LOCAL screen을 한다.
-6. seed-robust 방향만 e5 → e15/e30 또는 VESSL로 승격한다.
-7. direct-deploy가 끝내 불가능하지만 큰 모델의 oracle gap이 `>= 0.001`이면 그때만 고정된 8 GB student로 증류한다.
+1. 논문/참조 구현 commit, 대표 config, 라이선스를 고정한다.
+2. upstream 설치·smoke test를 변경 없이 재현한다.
+3. 데이터, mask, checkpoint, evaluator 차이만 처리하는 thin adapter와 CPU shape/schema test를 만든다.
+4. 학습 전에 최대 입력 8 GB forward-only VRAM·runtime probe를 수행한다.
+5. direct-deploy가 되면 그 구조를 LOCAL에서 학습하고, 안 되면 C 단계의 무손실 메모리 제어까지 적용한다.
+6. vanilla baseline과 architecture만 다른 two-seed 1-epoch LOCAL screen을 한다.
+7. seed-robust 방향만 e5 → e15/e30 또는 VESSL로 승격한다.
+8. direct-deploy가 끝내 불가능하지만 큰 모델의 oracle gap이 `>= 0.001`이면 그때만 고정된 8 GB student로 증류한다.
 
-PromptMR+ 참조 구현은 non-commercial research license이므로 challenge 사용·파생 코드 배포 가능성을 확인하기 전에는 코드를 복사하거나 제출물에 포함하지 않는다.
+사용 가능한 upstream 참조 구현이 있으면 E2E-VarNet primitive부터 전체 stack을 다시 구현하지 않는다.
 
 정해진 screen 예산에서 확실한 신호가 없으면 rewrite를 중단하고 최선의 vanilla recipe로 복귀한다.
 
@@ -164,6 +170,8 @@ PromptMR+ 참조 구현은 non-commercial research license이므로 challenge �
 
 - 메모리 공학 없이 `chans > 12` 또는 c9/c10/c12을 추가로 시도하지 않는다.
 - c8이 실패하면 unmodified vanilla capacity track을 살리려 여러 변수를 동시에 바꾸지 않는다.
+- AdamW-only를 다른 seed, 더 긴 run, scheduler 결합으로 구조하지 않는다.
+- Feature/FI 또는 PromptMR-family 전체를 E2E-VarNet부터 다시 구현하지 않는다.
 - broad random mask augmentation, 4-way MoE, 약한 output ensemble은 근거가 생길 때까지 하지 않는다.
 - LOCAL checkpoint를 공식 후보로 취급하지 않는다.
 - 8 GB architecture preflight 없이 24 GB LOCAL 장기 teacher 학습을 시작하지 않는다.

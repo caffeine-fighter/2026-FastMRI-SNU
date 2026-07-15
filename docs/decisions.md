@@ -22,6 +22,10 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-11 | Use equal-acceleration local quality for promotion. | The fixed evaluator averages acc4 and acc8 equally; pooled local validation overweights acc4 because slice and box counts differ, biasing EXP031's diagnostic quality upward by 0.002026883539. |
 | 2026-07-11 | Stop broad training by August 11 and cap exploration at 720 GPU-hours. | This preserves nine days for confirmation, approval-gated official evaluation, immutable freeze, repeated timing, package verification, and upload. |
 | 2026-07-15 | End unmodified vanilla capacity scaling at EXP035 and protect epoch 30 as the one-shot official leader. | All 30 retained epochs passed strict coverage/provenance gates; epoch 30 scored 0.9199788092310326 locally and the approved official one-shot scored 0.92146109375 total, beating EXP033R by 0.00455984375. |
+| 2026-07-15 | Reject AdamW-only and keep Adam as the recipe baseline. | Matched LOCAL V10 tied equal-acc quality and all four protected components exactly while AdamW ran 7.50% slower. No AdamW second seed, long run, scheduler rescue, VESSL run, or official evaluation. |
+| 2026-07-15 | Test epoch-only versus lower-LR continuation as a matched pair. | EXP035 epoch 30 is the global winner and the epoch-26-to-30 quality/full/bbox net trend remains positive. Fork the same immutable epoch-30 state to Adam LR 1e-3 and 3e-4 for epochs 31–35 so extra epochs are not confounded with LR. |
+| 2026-07-15 | Use adapter-first upstream integration after EXP035. | A peer team reported losing time rebuilding upward from E2E-VarNet. Pin licensed upstream code and representative configs, preserve algorithm modules, and limit local changes to data/checkpoint/harness adapters plus measured ablations. |
+| 2026-07-15 | Clear Feature/FI for CPU integration; keep PromptMR+ license-gated. | Official fastMRI Feature/FI code is MIT at commit `91f2df47`. PromptMR+ commit `934eeda6` uses the Rutgers Non-commercial Research License; written confirmation is still needed for competition/submission packaging before copying code. |
 
 ## Current gate
 
