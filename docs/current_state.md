@@ -50,6 +50,8 @@ The VESSL R1 pair independently resumed the exact EXP035 epoch-30 generation and
 - Protected acc8 bbox changed by `-0.00037038215884455106`.
 - Both arms passed exact coverage, H5, checkpoint, history, source-hash, and finite-output gates.
 - Decision: `DO_NOT_PROMOTE`; no official evaluation or repeated timing was run.
+- Candidate epoch 34 is a research artifact only. Do not run a second seed, epoch-40 continuation, or c9/c10/c12 vanilla expansion.
+- The vanilla capacity/continuation track is closed. At the same time score, the `0.94` target remains `+0.01853890625` above EXP035, so marginal extra epochs are not the primary path.
 
 See the [complete matched continuation report](../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
 
@@ -62,7 +64,7 @@ See the [complete matched continuation report](../reports/local_comparisons/exp0
 ## Next actions
 
 1. Protect EXP035 epoch 30 as the one-shot official leader; do not rerun its one-shot.
-2. Keep the matched lower-LR continuation closed. Its `+0.0003468637` gain did not pass the `+0.0005` gate, so do not run another block or official evaluation.
+2. Keep the matched lower-LR continuation and the entire vanilla capacity/continuation track closed. Do not run another block, second seed, c9/c10/c12 expansion, or official evaluation; Candidate epoch 34 is research-only.
 3. AdamW-only is closed. Do not run a second seed, long rescue, scheduler combination, VESSL promotion, or official evaluation for AdamW.
 4. Do not launch c9/c10/c12 capacity rescue. Reuse the pinned MIT Feature/FI implementation through a thin adapter; PromptMR+ remains blocked on written competition/license confirmation. See [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
 5. Before any new family trains, run the maximum-input GTX 1080 FP32/no-grad deployment contract.

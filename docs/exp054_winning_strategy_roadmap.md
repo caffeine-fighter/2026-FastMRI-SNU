@@ -80,15 +80,15 @@
 
 ---
 
-### Task 2: Close EXP035 and preregister the matched continuation — completed/prepared
+### Task 2: Close EXP035 and the matched continuation — completed
 
-**Outcome:** c8/ch12 passed. Epoch 30 is the protected LOCAL and one-shot official leader. The next question is whether another five epochs help by themselves or specifically benefit from LR `3e-4`.
+**Outcome:** c8/ch12 passed and EXP035 epoch 30 remains the protected LOCAL and one-shot official leader. The matched continuation is complete: Control LR `1e-3` and Candidate LR `3e-4` both selected epoch 34, but Candidate-Control was only `+0.0003468637`, below `+0.0005`, with acc8 bbox `-0.0003703822`.
 
-**Prepared next comparison:**
-1. Source both LOCAL arms from generation `3e8af14268a64d67a308ebe30484ddf2`, SHA-256 `dc6e034f18df2a7872c416d4dccb4bb00e6e5b41fb89e438a86682db3097ffb7`.
-2. Compare Adam LR `1e-3` control against Adam LR `3e-4`, total epoch 35, with architecture/objective/data/batch/seed/RNG fixed.
-3. Run [`scripts/plan_exp035_continuations.py`](../scripts/plan_exp035_continuations.py) first. It is dry-run only and must not start CUDA.
-4. No GPU arm starts while another process owns the GPU; no official evaluation is automatic.
+**Final continuation decision:**
+1. Protect source generation `3e8af14268a64d67a308ebe30484ddf2`, SHA-256 `dc6e034f18df2a7872c416d4dccb4bb00e6e5b41fb89e438a86682db3097ffb7`.
+2. Reject the lower-LR Candidate; Candidate epoch 34 is a research artifact only.
+3. Do not run a second seed, epoch-40 continuation, c9/c10/c12 vanilla expansion, official evaluation, or repeated timing.
+4. Close the vanilla capacity/continuation track and move only to source/license/deployment-gated architecture feasibility.
 
 **Completed EXP035 gate:**
 - epoch 30 LOCAL quality `0.9199788092310326`; prior EXP033R reference `0.9156824558941089`; PASS by `+0.004296353336923686`.
@@ -99,11 +99,10 @@
 - A future candidate must beat EXP035 total `0.92146109375` using its own measured time.
 - Exact break-even formula: `required_quality = 0.92146109375 - time_score(actual_ms_per_slice)`.
 
-**Branching decision:**
-- **LR candidate beats fixed control by `>= 0.0005`:** retain Adam and promote lower-LR continuation for confirmation.
-- **Both improve similarly:** classify as extra-epoch gain and allow at most one more bounded five-epoch block on the better arm.
-- **Both plateau:** stop vanilla continuation and move GPU budget to the upstream feasibility winner.
-- **Any protected-component regression:** reject regardless of aggregate quality.
+**Closed branching decision:**
+- The Candidate did not clear the `+0.0005` matched gate and one protected component regressed.
+- `DO_NOT_PROMOTE`; no automatic continuation, second seed, official one-shot, or timing.
+- The `0.94` target is `+0.01853890625` above EXP035 at the same time score, so move to Feature/FI architecture feasibility rather than marginal vanilla epochs.
 
 ---
 

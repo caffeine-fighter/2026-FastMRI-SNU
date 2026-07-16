@@ -4,8 +4,8 @@ Window: 2026-07-11 through 2026-08-20.
 
 ## Operating rules
 
-1. Keep EXP031 and the verified EXP030 package immutable as fallbacks.
-2. Change one major variable at a time until a direction is validated.
+1. Target total `0.94`. EXP035 total `0.92146109375` leaves `+0.01853890625` at the same time score, so marginal vanilla continuation is not the primary route.
+2. Keep EXP035 and the verified EXP030 package immutable as leader and fallback.
 3. Use leaderboard-faithful local validation as the promotion gate: average acc4 and acc8 within each metric before averaging foreground and bbox. Keep pooled `overall` only as a diagnostic. Official `recon_eval` remains explicit-approval only.
 4. Do not run the final 30-repeat timing cohort until the model is frozen.
 5. Stop weak directions early after enough evidence; spend GPU time on confirmed improvements.
@@ -100,9 +100,9 @@ Post-training unstructured pruning and INT8 are last-resort research tracks, not
 
 Prioritize by measured gain per GPU-day:
 
-1. Protect completed EXP035 epoch 30 and close unmodified vanilla capacity scaling.
-2. When the LOCAL GPU is free, fork the same immutable epoch-30 state into matched Adam LR `1e-3` and `3e-4` epochs 31–35. This separates extra epochs from LR; no arm has started.
-3. Use MIT Feature/FI commit `91f2df47` for adapter-first CPU work. PromptMR+ commit `934eeda6` remains blocked until written competition/submission license confirmation.
+1. Protect completed EXP035 epoch 30 and keep unmodified vanilla capacity/continuation closed.
+2. Matched continuation R1 is complete: Candidate-Control `+0.0003468637 < +0.0005`, acc8 bbox `-0.0003703822`; no second seed, epoch 40, c9/c10/c12 expansion, or official evaluation.
+3. Use MIT Feature/FI commit `91f2df47` for adapter-first CPU schema and maximum-input 8 GB feasibility work. PromptMR+ commit `934eeda6` remains blocked until written competition/submission license confirmation.
 4. Train only an upstream candidate that passes CPU schema and GTX 1080 maximum-input feasibility; use activation checkpointing and accumulation only as LOCAL training controls.
 5. Test output-equivalent coil/sensitivity memory controls before any lossy compression. Treat `inference_mode` as an opt-in parity benchmark against the existing no-grad control. Treat FP16 as a memory experiment, not an assumed speed path on GTX 1080.
 6. If a non-deployable teacher clears the 0.001 oracle-gap gate, distill it into a preregistered 8 GB student; otherwise stop the compression track.
@@ -155,4 +155,4 @@ Every change starts with a short feasibility probe and gets abandoned when it fa
 
 ## Current action
 
-EXP035 is complete and protected. The next GPU work is the matched continuation pair, but it remains unlaunched while another process owns the GPU. CPU-only work uses [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md) and [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
+EXP035 epoch 30 is complete and protected, and the vanilla capacity/continuation track is formally closed. The next bounded work is the pinned MIT Feature/FI upstream import, thin-adapter schema check, and random-weight maximum-input FP32 8 GB feasibility probe. No e5/e15/e30 training or official evaluation starts automatically; PromptMR+ remains license-blocked.

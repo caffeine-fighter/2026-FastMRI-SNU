@@ -5,7 +5,7 @@
 
 ## 목표
 
-평가 환경의 8GB GPU 제약과 공식 평가 규칙을 지키면서 최종 점수를 올린다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다. 최종 서버의 CPU·RAM·GTX 1080·driver/runtime 계약과 합격 기준은 [`final_evaluation_server.md`](final_evaluation_server.md)를 단일 기준으로 사용한다.
+평가 환경의 8GB GPU 제약과 공식 평가 규칙을 지키면서 최종 총점 `0.94`를 목표로 한다. 현재 EXP035 total `0.92146109375`에서 같은 time score를 가정하면 `+0.01853890625`가 더 필요하므로, vanilla VarNet의 작은 추가-epoch 개선은 주 경로가 아니다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다. 최종 서버의 CPU·RAM·GTX 1080·driver/runtime 계약과 합격 기준은 [`final_evaluation_server.md`](final_evaluation_server.md)를 단일 기준으로 사용한다.
 로컬 **RTX 3090 24 GB**는 VESSL 8 GB 환경에서 오래 걸리거나 메모리 여유가 부족한 학습 screen·seed 검증·긴 recipe 실험을 빠르게 수행하는 주력 학습 환경으로 쓴다. 다만 최종 후보는 반드시 공식 8 GB 추론 계약과 시간을 별도로 통과해야 한다.
 
 ## 현재 기준선
@@ -23,8 +23,8 @@
 
 ## 핵심 판단
 
-1. **현재 vanilla VarNet의 용량 탐색은 EXP035로 끝낸다.**
-   `c8/ch12`가 장기 학습에서도 기준선을 이기면 이후 recipe 실험의 baseline으로 쓰고, 실패하면 채널·cascade를 더 키우는 탐색을 중단한다.
+1. **현재 vanilla VarNet의 용량·continuation 탐색은 종료한다.**
+   `c8/ch12/s8` EXP035 epoch 30을 보호 baseline으로 유지한다. Matched lower-LR Candidate는 Control 대비 `+0.0003468637 < +0.0005`이고 acc8 bbox가 하락해 기각됐다. second seed, epoch 40, c9/c10/c12 unmodified scaling, official 평가를 실행하지 않는다.
 2. **학습 VRAM과 추론 VRAM을 분리해서 판단한다.**
    24 GB 이상이 필요한 학습도 `eval` + no-grad + batch 1 추론에서는 8 GB에 그대로 들어갈 수 있다. 큰 모델을 압축하기 전에 무작위 초기화 상태로 최대 입력 8 GB forward preflight를 먼저 수행하고, 통과한 가장 큰 구조는 RTX 3090에서 그대로 학습해 무압축 배포를 우선한다.
 3. **압축보다 무손실 배포 최적화를 먼저 한다.**
@@ -120,9 +120,9 @@
 
 1. LOCAL V10 AdamW-only 비교는 quality와 네 보호 지표가 정확히 동률이고 runtime이 `+7.50%`라서 종료한다. 상세 근거는 [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md)다.
 2. AdamW second seed, long run, scheduler rescue, VESSL/official 승격을 하지 않는다.
-3. 다음 LOCAL GPU 실험은 같은 EXP035 epoch-30 generation에서 Adam LR `0.001`과 `0.0003`을 epochs 31–35로 matched 비교한다. [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md)의 dry-run preflight를 먼저 통과한다.
-4. lower-LR arm이 fixed-LR control보다 `>= 0.0005` 높고 네 보호 지표가 건강할 때만 scheduler/continuation 방향을 승격한다. 두 arm이 비슷하면 extra-epoch 효과로 판정한다.
-5. accumulation과 clipping은 continuation 판단 뒤 따로 본다.
+3. EXP035 matched continuation R1은 VESSL에서 완료됐다. fixed-LR Control best는 `0.9202459833`, lower-LR Candidate best는 `0.9205928470`으로 둘 다 epoch 34였다.
+4. Candidate-Control은 `+0.0003468637`로 `+0.0005` gate를 통과하지 못했고 acc8 bbox도 `-0.0003703822` 하락했다. Candidate epoch 34는 research artifact only다.
+5. second seed, epoch-40 continuation, c9/c10/c12 vanilla 확장, VESSL 재현, official 평가는 실행하지 않는다. accumulation과 clipping도 이 종료된 continuation을 구조하는 용도로 사용하지 않는다.
 
 ### 4. winner-style masked SSIM + L1을 별도 검증
 
