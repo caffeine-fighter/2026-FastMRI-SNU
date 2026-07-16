@@ -5,19 +5,19 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-15 18:22 KST (2026-07-15 09:22 UTC)_
+_Last update: 2026-07-16 19:22 KST (2026-07-16 10:22 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `EXP035_varnet_c8_ch12_s8_e30` (complete; terminal exit code `0`) |
-| Change | `final unmodified vanilla capacity comparison: cascades 6 to 8 with chans/sens/LR/epochs/seed fixed` |
-| Strict validation | epoch `30/30` won; equal-acc full `0.90666693657748`, bbox `0.9332906818845851`, quality `0.9199788092310326` |
-| Coverage | all 30 retained epochs; each `30 volumes / 791 slices / 161 boxes`; skips/unknown/non-finite `0` |
-| Official one-shot | full `0.9234`, bbox `0.9177`, quality `0.92055`, `250.7 ms/slice`, total `0.92146109375` |
-| Provenance | immutable generation `3e8af14268a64d67a308ebe30484ddf2`; checkpoint SHA-256 `dc6e034f…3097ffb7` |
-| Health | official wrapper exit code `0`; error matches `0`; GPU returned idle |
+| Run | EXP035 matched continuation R1 (Control and Candidate complete) |
+| Control | Adam LR `0.001`; epoch 34 won at local quality `0.9202459833` |
+| Candidate | Adam LR `0.0003`; epoch 34 won at local quality `0.9205928470` |
+| Matched result | Candidate gain `+0.0003468637`, below the required `+0.0005`; acc8 bbox `-0.0003703822` |
+| Coverage | every retained epoch passed `30 volumes / 791 slices / 161 boxes`; skips/unknown/non-finite `0` |
+| Decision | **DO NOT PROMOTE**; no official evaluation or repeated timing was run |
+| Health | both VESSL runs and strict sweeps passed; GTX 1080 returned idle |
 
-`EXP035_epoch30` is the new one-shot official leader. It improves total score over EXP033R by `+0.00455984375`. The required repeated timing cohort remains separately approval-gated and has not run.
+EXP035 epoch 30 remains the protected one-shot official leader at total `0.92146109375`. See the [matched continuation report](reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
 <!-- EXP031_STATUS_END -->
 
 ## Official result
@@ -39,9 +39,9 @@ Local promotion uses leaderboard-faithful equal-acceleration validation quality.
 
 EXP035 closed the current unmodified vanilla capacity track with a clear PASS. The strict retained sweep selected terminal epoch 30 at quality `0.9199788092310326`, `+0.004296353336923686` over the EXP033R LOCAL reference. The authorized one-shot confirmed the gain on the official path at total `0.92146109375`. See the [self-contained validation and official report](reports/phase2/EXP035_epoch30_official_20260715_090400/validation_summary.md). No c9/c10/c12 capacity run or 30-repeat timing cohort starts automatically.
 
-## Prepared next work
+## Latest matched continuation result
 
-The matched LOCAL AdamW V10 probe is closed after an exact quality/component tie and 7.50% slower runtime. When the LOCAL GPU is free, the only prepared vanilla follow-up is a dry-run-gated pair from the same immutable EXP035 epoch-30 state: Adam LR `1e-3` versus `3e-4`, epochs 31–35. No arm has started. In parallel, CPU-only model-family work is adapter-first: MIT Feature/FI commit `91f2df47` is source-pinned, while PromptMR+ remains blocked pending written competition/license confirmation. See [`docs/exp035_matched_continuation_runbook.md`](docs/exp035_matched_continuation_runbook.md) and [`docs/upstream_model_feasibility.md`](docs/upstream_model_feasibility.md).
+The VESSL EXP035 epoch-30 continuation pair is complete. Lowering Adam LR from `1e-3` to `3e-4` improved the Candidate over the independently continued Control by only `+0.0003468637`, below the preregistered `+0.0005` gate, while acc8 bbox decreased by `0.0003703822`. The lower-LR direction is therefore closed without official evaluation. CPU-only model-family work remains adapter-first: MIT Feature/FI commit `91f2df47` is source-pinned, while PromptMR+ remains blocked pending written competition/license confirmation. See the [matched continuation report](reports/local_comparisons/exp035_matched_continuation_r1_20260716.md) and [`docs/upstream_model_feasibility.md`](docs/upstream_model_feasibility.md).
 
 ## Common commands
 

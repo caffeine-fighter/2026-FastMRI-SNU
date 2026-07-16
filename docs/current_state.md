@@ -13,6 +13,7 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 | Prior one-shot leader | `EXP033R_varnet_c4_ch12_s8_lr3e4_e33`, epoch 32 | Preserved immutable fallback candidate |
 | Rejected score-aligned-loss direction | `EXP034_varnet_c4_ch12_s8_lr3e4_scorealigned_e33` | Official one-shot trailed the protected leader |
 | Rejected optimizer direction | LOCAL AdamW V10 | Exact quality/component tie versus Adam and 7.50% slower; closed |
+| Rejected lower-LR continuation | EXP035 matched continuation R1 | Candidate beat Control by only `+0.0003468637 < +0.0005`, with acc8 bbox regression; closed |
 
 ## Official reference results
 
@@ -39,6 +40,19 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 
 The completed gate used the leaderboard-faithful EXP033R LOCAL reference `0.9156824558941089`. New matched recipe candidates must now compare against EXP035 epoch 30 at `0.9199788092310326`.
 
+## Completed gate: matched LR continuation
+
+The VESSL R1 pair independently resumed the exact EXP035 epoch-30 generation and trained epochs 31–35 with only Adam LR changed.
+
+- Control LR `0.001`: epoch 34 won at quality `0.9202459832836087`.
+- Candidate LR `0.0003`: epoch 34 won at quality `0.9205928470035448`.
+- Candidate minus Control: `+0.0003468637199360858`, below the `+0.0005` promotion threshold.
+- Protected acc8 bbox changed by `-0.00037038215884455106`.
+- Both arms passed exact coverage, H5, checkpoint, history, source-hash, and finite-output gates.
+- Decision: `DO_NOT_PROMOTE`; no official evaluation or repeated timing was run.
+
+See the [complete matched continuation report](../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
+
 | EXP035 result | Decision |
 |---|---|
 | quality `<= 0.9156824558941089` | Reject c8 and stop unmodified vanilla depth scaling. |
@@ -47,8 +61,8 @@ The completed gate used the leaderboard-faithful EXP033R LOCAL reference `0.9156
 
 ## Next actions
 
-1. Protect EXP035 epoch 30 as the new one-shot official leader; do not rerun its one-shot.
-2. When the LOCAL GPU is free, run the preregistered matched continuation pair from the same epoch-30 generation: Adam LR `0.001` control versus Adam LR `0.0003`, epochs 31–35. The dry-run plan is [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md); no GPU job has started.
+1. Protect EXP035 epoch 30 as the one-shot official leader; do not rerun its one-shot.
+2. Keep the matched lower-LR continuation closed. Its `+0.0003468637` gain did not pass the `+0.0005` gate, so do not run another block or official evaluation.
 3. AdamW-only is closed. Do not run a second seed, long rescue, scheduler combination, VESSL promotion, or official evaluation for AdamW.
 4. Do not launch c9/c10/c12 capacity rescue. Reuse the pinned MIT Feature/FI implementation through a thin adapter; PromptMR+ remains blocked on written competition/license confirmation. See [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
 5. Before any new family trains, run the maximum-input GTX 1080 FP32/no-grad deployment contract.

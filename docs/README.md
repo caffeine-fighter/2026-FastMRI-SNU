@@ -29,6 +29,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 | Official candidate comparison | [`../reports/phase2/official_candidate_comparison.md`](../reports/phase2/official_candidate_comparison.md) |
 | Local probe results | [`../reports/local_comparisons/local_probe_summary.md`](../reports/local_comparisons/local_probe_summary.md) |
 | Matched Adam-vs-AdamW rejection | [`../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md`](../reports/local_comparisons/local_adamw_matched_e5_v10_20260714.md) |
+| EXP035 matched LR continuation rejection | [`../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md`](../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md) |
 
 ## Planning and archive
 

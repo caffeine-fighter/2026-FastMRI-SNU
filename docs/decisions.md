@@ -26,6 +26,7 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-15 | Test epoch-only versus lower-LR continuation as a matched pair. | EXP035 epoch 30 is the global winner and the epoch-26-to-30 quality/full/bbox net trend remains positive. Fork the same immutable epoch-30 state to Adam LR 1e-3 and 3e-4 for epochs 31–35 so extra epochs are not confounded with LR. |
 | 2026-07-15 | Use adapter-first upstream integration after EXP035. | A peer team reported losing time rebuilding upward from E2E-VarNet. Pin licensed upstream code and representative configs, preserve algorithm modules, and limit local changes to data/checkpoint/harness adapters plus measured ablations. |
 | 2026-07-15 | Clear Feature/FI for CPU integration; keep PromptMR+ license-gated. | Official fastMRI Feature/FI code is MIT at commit `91f2df47`. PromptMR+ commit `934eeda6` uses the Rutgers Non-commercial Research License; written confirmation is still needed for competition/submission packaging before copying code. |
+| 2026-07-16 | Reject the EXP035 lower-LR continuation and keep epoch 30 protected. | The exact VESSL matched pair selected epoch 34 for both arms, but Candidate improved over Control by only `+0.0003468637 < +0.0005` and regressed acc8 bbox by `-0.0003703822`; no official evaluation or repeated timing was run. |
 
 ## Current gate
 

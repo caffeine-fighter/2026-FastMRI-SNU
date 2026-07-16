@@ -1,6 +1,6 @@
 # EXP035 matched continuation runbook
 
-> Prepared on 2026-07-15 without starting or probing a GPU. Training remains separately approval-gated.
+> Prepared on 2026-07-15 and completed on VESSL on 2026-07-16. Both arms passed strict validation; the lower-LR Candidate did not pass the promotion gate.
 
 ## Question
 
@@ -52,3 +52,14 @@ Independently score epochs 31–35 for both arms with exact `30 volumes / 791 sl
 - A gain below `0.0005` is marginal and does not authorize an official run.
 
 No official evaluation or VESSL reproduction is automatic.
+
+## Completed R1 outcome
+
+The two arms ran sequentially on VESSL from separate, bit-identical private checkpoint copies after exact-resume hardening and independent launch-gate review.
+
+| Arm | Best epoch | Equal-acc full | Equal-acc bbox | Quality |
+|---|---:|---:|---:|---:|
+| Control, Adam LR `0.001` | 34 | 0.9065783303 | 0.9339136362 | 0.9202459833 |
+| Candidate, Adam LR `0.0003` | 34 | 0.9069293456 | 0.9342563484 | 0.9205928470 |
+
+Candidate minus Control quality was `+0.0003468637`, below the preregistered `+0.0005` threshold. Candidate acc8 bbox also decreased by `0.0003703822`. Both arms passed exact coverage and integrity checks, but the promotion decision is `DO_NOT_PROMOTE`. No official evaluation or repeated timing was run. See the [full result](../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
