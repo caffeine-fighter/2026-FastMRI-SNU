@@ -1,0 +1,56 @@
+{
+  "architecture": {
+    "adaptive_input": true,
+    "feature_dim": [72, 96, 120],
+    "learnable_prompt": false,
+    "len_prompt": [5, 5, 5],
+    "n_bottleneck_cab": 3,
+    "n_buffer": 4,
+    "n_dec_cab": [2, 2, 3],
+    "n_enc_cab": [2, 3, 3],
+    "n_feat0": 48,
+    "n_history": 11,
+    "n_skip_cab": [1, 1, 1],
+    "no_use_ca": false,
+    "num_adj_slices": 5,
+    "num_cascades": 12,
+    "prompt_dim": [24, 48, 72],
+    "prompt_size": [64, 32, 16],
+    "sens_feature_dim": [36, 48, 60],
+    "sens_n_feat0": 24,
+    "sens_prompt_dim": [12, 24, 36],
+    "use_sens_adj": true
+  },
+  "loss": {
+    "k1": 0.01,
+    "k2": 0.03,
+    "name": "SSIMLoss",
+    "win_size": 7
+  },
+  "optimizer": {
+    "lr": 0.0001,
+    "name": "AdamW",
+    "weight_decay": 0.01
+  },
+  "recipe_id": "promptmr_plus_fastmri_brain_934eeda6_v1",
+  "scheduler": {
+    "gamma": 0.1,
+    "name": "StepLR",
+    "step_size": 35
+  },
+  "source": {
+    "commit": "934eeda6d4d18cd39e406fa1eee9e1f70603cb5e",
+    "repository": "https://github.com/hellopipu/PromptMR-plus"
+  },
+  "training": {
+    "gradient_clip_val": 0.01,
+    "max_epochs": 45,
+    "precision": "32-true",
+    "train_crop": [384, 384],
+    "validation_crop": null
+  },
+  "runtime": {
+    "activation_checkpointing": true,
+    "compute_sens_per_coil": true
+  }
+}

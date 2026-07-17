@@ -21,7 +21,8 @@ import torch
 
 
 CHECKPOINT_FORMAT_VERSION = 1
-CHECKPOINT_MANIFEST_FORMAT_VERSION = 1
+CHECKPOINT_MANIFEST_FORMAT_VERSION = 2
+_LEGACY_CHECKPOINT_MANIFEST_FORMAT_VERSION = 1
 CHECKPOINT_MANIFEST_NAME = "checkpoint_manifest.json"
 _AT_EMPTY_PATH = 0x1000
 _AT_FDCWD = -100
@@ -115,6 +116,115 @@ def _open_regular_at(directory_fd, name, description):
         raise
 
 
+def _validate_checkpoint_manifest_payload(manifest, manifest_path):
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Invalid checkpoint publication manifest: {manifest_path}")
+    format_version = manifest.get("format_version")
+    if not isinstance(format_version, int) or isinstance(format_version, bool):
+        raise ValueError(f"Unsupported checkpoint publication manifest: {manifest_path}")
+    legacy_required = {"format_version", "generation", "model", "best"}
+    current_required = legacy_required | {"artifacts"}
+    if format_version == _LEGACY_CHECKPOINT_MANIFEST_FORMAT_VERSION:
+        valid_keys = (legacy_required, legacy_required | {"history"})
+    elif format_version == CHECKPOINT_MANIFEST_FORMAT_VERSION:
+        valid_keys = (
+            current_required,
+            current_required | {"history"},
+            current_required | {"retained_epochs"},
+            current_required | {"history", "retained_epochs"},
+        )
+    else:
+        raise ValueError(f"Unsupported checkpoint publication manifest: {manifest_path}")
+    if set(manifest) not in valid_keys:
+        raise ValueError(f"Invalid checkpoint publication manifest: {manifest_path}")
+    generation = manifest["generation"]
+    if not isinstance(generation, str) or _GENERATION_RE.fullmatch(generation) is None:
+        raise ValueError(f"Invalid checkpoint generation in manifest: {manifest_path}")
+    expected_model = f".checkpoint-generation-{generation}-model.pt"
+    if manifest["model"] != expected_model:
+        raise ValueError(f"Invalid model artifact in checkpoint manifest: {manifest_path}")
+    best_name = manifest["best"]
+    if best_name is not None:
+        best_match = re.fullmatch(
+            r"\.checkpoint-generation-([0-9a-f]{32})-(model|best)\.pt",
+            best_name if isinstance(best_name, str) else "",
+        )
+        if best_match is None:
+            raise ValueError(f"Invalid best artifact in checkpoint manifest: {manifest_path}")
+    if "history" in manifest:
+        expected_history = f".checkpoint-generation-{generation}-history.npy"
+        if manifest["history"] != expected_history:
+            raise ValueError(
+                f"Invalid history artifact in checkpoint manifest: {manifest_path}"
+            )
+    if format_version == _LEGACY_CHECKPOINT_MANIFEST_FORMAT_VERSION:
+        return manifest
+    artifact_names = {manifest["model"], manifest["best"]} - {None}
+    if "history" in manifest:
+        artifact_names.add(manifest["history"])
+    artifact_hashes = manifest["artifacts"]
+    if (
+        not isinstance(artifact_hashes, dict)
+        or set(artifact_hashes) != artifact_names
+        or any(
+            not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            for digest in artifact_hashes.values()
+        )
+    ):
+        raise ValueError(
+            f"Invalid artifact digests in checkpoint manifest: {manifest_path}"
+        )
+    if "retained_epochs" in manifest:
+        records = manifest["retained_epochs"]
+        if not isinstance(records, list) or not records:
+            raise ValueError(f"Invalid retained epoch ledger in manifest: {manifest_path}")
+        previous_epoch = 0
+        seen_generations = set()
+        for record in records:
+            if not isinstance(record, dict) or set(record) != {
+                "epoch", "generation", "digest"
+            }:
+                raise ValueError(
+                    f"Invalid retained epoch record in manifest: {manifest_path}"
+                )
+            epoch = record["epoch"]
+            record_generation = record["generation"]
+            digest = record["digest"]
+            if (
+                not isinstance(epoch, int)
+                or isinstance(epoch, bool)
+                or epoch <= previous_epoch
+                or not isinstance(record_generation, str)
+                or _GENERATION_RE.fullmatch(record_generation) is None
+                or record_generation in seen_generations
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise ValueError(
+                    f"Invalid retained epoch provenance in manifest: {manifest_path}"
+                )
+            previous_epoch = epoch
+            seen_generations.add(record_generation)
+        if records[-1]["generation"] != generation:
+            raise ValueError(
+                f"Retained epoch ledger does not end at manifest generation: {manifest_path}"
+            )
+    return manifest
+
+
+def _validate_retention_policy_transition(previous, retained_epoch_record):
+    """Keep an existing retained ledger contiguous across new generations."""
+    if (
+        previous is not None
+        and previous.get("retained_epochs")
+        and retained_epoch_record is None
+    ):
+        raise ValueError(
+            "cannot disable retained epoch publication after a retained ledger exists"
+        )
+
+
 def _read_checkpoint_manifest(directory, directory_fd=None):
     manifest_path = Path(directory) / CHECKPOINT_MANIFEST_NAME
     owns_directory_fd = directory_fd is None
@@ -138,33 +248,7 @@ def _read_checkpoint_manifest(directory, directory_fd=None):
     finally:
         if owns_directory_fd:
             os.close(directory_fd)
-    base_required = {"format_version", "generation", "model", "best"}
-    valid_keys = (base_required, base_required | {"history"})
-    if not isinstance(manifest, dict) or set(manifest) not in valid_keys:
-        raise ValueError(f"Invalid checkpoint publication manifest: {manifest_path}")
-    if manifest["format_version"] != CHECKPOINT_MANIFEST_FORMAT_VERSION:
-        raise ValueError(f"Unsupported checkpoint publication manifest: {manifest_path}")
-    generation = manifest["generation"]
-    if not isinstance(generation, str) or _GENERATION_RE.fullmatch(generation) is None:
-        raise ValueError(f"Invalid checkpoint generation in manifest: {manifest_path}")
-    expected_model = f".checkpoint-generation-{generation}-model.pt"
-    if manifest["model"] != expected_model:
-        raise ValueError(f"Invalid model artifact in checkpoint manifest: {manifest_path}")
-    best_name = manifest["best"]
-    if best_name is not None:
-        best_match = re.fullmatch(
-            r"\.checkpoint-generation-([0-9a-f]{32})-(model|best)\.pt",
-            best_name if isinstance(best_name, str) else "",
-        )
-        if best_match is None:
-            raise ValueError(f"Invalid best artifact in checkpoint manifest: {manifest_path}")
-    if "history" in manifest:
-        expected_history = f".checkpoint-generation-{generation}-history.npy"
-        if manifest["history"] != expected_history:
-            raise ValueError(
-                f"Invalid history artifact in checkpoint manifest: {manifest_path}"
-            )
-    return manifest
+    return _validate_checkpoint_manifest_payload(manifest, manifest_path)
 
 
 def _open_manifest_artifact(directory_fd, manifest, field):
@@ -174,19 +258,36 @@ def _open_manifest_artifact(directory_fd, manifest, field):
     return _open_regular_at(directory_fd, name, f"manifest {field} artifact")
 
 
+def _manifest_artifact_sha256(manifest, field):
+    artifact_hashes = manifest.get("artifacts")
+    if artifact_hashes is None:
+        return None
+    return artifact_hashes[manifest[field]]
+
+
+def _verify_manifest_artifact_handle(handle, manifest, field, description):
+    expected_sha256 = _manifest_artifact_sha256(manifest, field)
+    if expected_sha256 is not None:
+        _verify_open_handle_sha256(handle, expected_sha256, description)
+
+
+def _verify_open_handle_sha256(handle, expected_sha256, description):
+    handle.seek(0)
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+        digest.update(chunk)
+    actual_sha256 = digest.hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError(
+            f"{description} SHA-256 mismatch: "
+            f"expected={expected_sha256} actual={actual_sha256}"
+        )
+    handle.seek(0)
+
+
 def _load_checkpoint_from_handle(handle, expected_sha256=None):
     if expected_sha256 is not None:
-        handle.seek(0)
-        digest = hashlib.sha256()
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-        actual_sha256 = digest.hexdigest()
-        if actual_sha256 != expected_sha256:
-            raise ValueError(
-                "Checkpoint SHA-256 mismatch: "
-                f"expected={expected_sha256} actual={actual_sha256}"
-            )
-    handle.seek(0)
+        _verify_open_handle_sha256(handle, expected_sha256, "Checkpoint")
     return torch.load(handle, map_location="cpu", weights_only=True)
 
 
@@ -202,8 +303,25 @@ def _load_requested_checkpoint(checkpoint_path, expected_sha256=None):
         if manifest is None:
             with _open_regular_at(directory_fd, checkpoint_path.name, "checkpoint") as handle:
                 return _load_checkpoint_from_handle(handle, expected_sha256)
+        artifact_name = manifest[field]
+        if artifact_name is None:
+            raise FileNotFoundError(
+                "Authoritative checkpoint manifest contains no best artifact"
+            )
+        manifest_sha256 = _manifest_artifact_sha256(manifest, field)
+        if (
+            manifest_sha256 is not None
+            and expected_sha256 is not None
+            and expected_sha256 != manifest_sha256
+        ):
+            raise ValueError(
+                "Checkpoint SHA-256 mismatch: "
+                f"requested={expected_sha256} authoritative={manifest_sha256}"
+            )
         with _open_manifest_artifact(directory_fd, manifest, field) as handle:
-            return _load_checkpoint_from_handle(handle, expected_sha256)
+            return _load_checkpoint_from_handle(
+                handle, manifest_sha256 or expected_sha256
+            )
     finally:
         os.close(directory_fd)
 
@@ -258,12 +376,17 @@ def recover_checkpoint_publication(directory):
         if manifest is None:
             return False
         with _open_manifest_artifact(directory_fd, manifest, "model") as handle:
-            model_state = _load_checkpoint_from_handle(handle)
+            model_state = _load_checkpoint_from_handle(
+                handle, _manifest_artifact_sha256(manifest, "model")
+            )
         validate_training_checkpoint(model_state)
         if "history" in manifest:
             with _open_manifest_artifact(
                 directory_fd, manifest, "history"
             ) as history_handle:
+                _verify_manifest_artifact_handle(
+                    history_handle, manifest, "history", "Checkpoint history"
+                )
                 history_state = np.load(history_handle, allow_pickle=False)
             _validate_val_loss_history(
                 history_state,
@@ -272,7 +395,9 @@ def recover_checkpoint_publication(directory):
             )
         if manifest["best"] is not None:
             with _open_manifest_artifact(directory_fd, manifest, "best") as handle:
-                best_state = _load_checkpoint_from_handle(handle)
+                best_state = _load_checkpoint_from_handle(
+                    handle, _manifest_artifact_sha256(manifest, "best")
+                )
             validate_training_checkpoint(best_state)
             validate_checkpoint_pair(model_state, best_state)
             _replace_alias_from_artifact(
@@ -459,7 +584,15 @@ def _validate_rng_state(state):
         _validate_rng_tensor(cuda_state, "torch_cuda entry")
 
 
-def build_training_state(epoch, model, optimizer, best_val_loss):
+def build_training_state(
+    epoch,
+    model,
+    optimizer,
+    best_val_loss,
+    scheduler=None,
+    scaler=None,
+    model_contract=None,
+):
     """Build a safe, complete checkpoint for an exact training continuation."""
     state = {
         "format_version": CHECKPOINT_FORMAT_VERSION,
@@ -469,6 +602,12 @@ def build_training_state(epoch, model, optimizer, best_val_loss):
         "best_val_loss": float(best_val_loss),
         "rng_state": _capture_rng_state(),
     }
+    if scheduler is not None:
+        state["scheduler"] = scheduler.state_dict()
+    if scaler is not None:
+        state["scaler"] = scaler.state_dict()
+    if model_contract is not None:
+        state["model_contract"] = dict(model_contract)
     validate_training_checkpoint(state)
     return state
 
@@ -593,6 +732,13 @@ def validate_training_checkpoint(checkpoint):
     if not finite_best_loss:
         raise ValueError("Checkpoint best validation loss must be finite")
     _validate_rng_state(checkpoint["rng_state"])
+    for field in ("scheduler", "scaler", "model_contract"):
+        if field in checkpoint and not isinstance(checkpoint[field], Mapping):
+            raise ValueError(f"Checkpoint {field} state must be a mapping")
+    if "model_contract" in checkpoint:
+        for key, value in checkpoint["model_contract"].items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                raise ValueError("Checkpoint model contract must contain string pairs")
 
 
 def validate_checkpoint_pair(model_checkpoint, best_checkpoint):
@@ -619,6 +765,8 @@ def validate_checkpoint_pair(model_checkpoint, best_checkpoint):
         raise ValueError(
             "Model and best checkpoints must have the same optimizer topology"
         )
+    if model_checkpoint.get("model_contract") != best_checkpoint.get("model_contract"):
+        raise ValueError("Model and best checkpoints must have the same model contract")
 
 
 def _move_optimizer_state(optimizer, device):
@@ -673,10 +821,27 @@ def load_training_state(
     allow_inexact=False,
     learning_rate_override=None,
     expected_sha256=None,
+    scheduler=None,
+    scaler=None,
+    expected_model_contract=None,
 ):
     """Transactionally restore a complete checkpoint or leave live state untouched."""
     checkpoint = _load_requested_checkpoint(checkpoint_path, expected_sha256)
     validate_training_checkpoint(checkpoint)
+    checkpoint_contract = checkpoint.get("model_contract")
+    if expected_model_contract is not None:
+        expected_model_contract = dict(expected_model_contract)
+        legacy_varnet = expected_model_contract == {"model_family": "varnet"}
+        if not (checkpoint_contract is None and legacy_varnet):
+            if checkpoint_contract != expected_model_contract:
+                raise ValueError(
+                    "Checkpoint model family or PromptMR+ recipe is incompatible "
+                    "with this run"
+                )
+    if scheduler is not None and "scheduler" not in checkpoint:
+        raise ValueError("Checkpoint is missing scheduler state required for exact resume")
+    if scaler is not None and "scaler" not in checkpoint:
+        raise ValueError("Checkpoint is missing AMP scaler state required for exact resume")
     if checkpoint["rng_state"] is None and not allow_inexact:
         raise ValueError(
             "Checkpoint has no RNG state; pass --allow-inexact-resume to accept "
@@ -700,17 +865,23 @@ def load_training_state(
         checkpoint["optimizer"], optimizer.state_dict()
     )
 
-    # Exercise all model/optimizer restoration on an isolated object graph first.
-    # This catches loader and device-transfer failures before live state changes.
-    staged_model, staged_optimizer = copy.deepcopy((model, optimizer))
+    # Exercise restoration on an isolated object graph first. Copy the scheduler
+    # together with its optimizer so their internal reference remains coherent.
+    staged_model, staged_optimizer, staged_scheduler, staged_scaler = copy.deepcopy(
+        (model, optimizer, scheduler, scaler)
+    )
     try:
         staged_model.load_state_dict(checkpoint["model"])
         staged_optimizer.load_state_dict(checkpoint["optimizer"])
         _move_optimizer_state(staged_optimizer, device)
+        if staged_scheduler is not None:
+            staged_scheduler.load_state_dict(checkpoint["scheduler"])
+        if staged_scaler is not None:
+            staged_scaler.load_state_dict(checkpoint["scaler"])
         if learning_rate_override is not None:
             set_optimizer_learning_rate(staged_optimizer, learning_rate_override)
     except (RuntimeError, TypeError, ValueError) as exc:
-        raise ValueError("Checkpoint model or optimizer state is not restorable") from exc
+        raise ValueError("Checkpoint training state is not restorable") from exc
 
     applicable_cuda_index = (
         cuda_device_index
@@ -724,15 +895,25 @@ def load_training_state(
 
     model_before = copy.deepcopy(model.state_dict())
     optimizer_before = copy.deepcopy(optimizer.state_dict())
+    scheduler_before = copy.deepcopy(scheduler.state_dict()) if scheduler is not None else None
+    scaler_before = copy.deepcopy(scaler.state_dict()) if scaler is not None else None
     rng_before = _capture_live_rng_state(applicable_cuda_index)
     try:
         model.load_state_dict(staged_model.state_dict())
         optimizer.load_state_dict(staged_optimizer.state_dict())
+        if scheduler is not None:
+            scheduler.load_state_dict(staged_scheduler.state_dict())
+        if scaler is not None:
+            scaler.load_state_dict(staged_scaler.state_dict())
         if checkpoint["rng_state"] is not None:
             _restore_rng_state(checkpoint["rng_state"], applicable_cuda_index)
     except BaseException:
         model.load_state_dict(model_before)
         optimizer.load_state_dict(optimizer_before)
+        if scheduler is not None:
+            scheduler.load_state_dict(scheduler_before)
+        if scaler is not None:
+            scaler.load_state_dict(scaler_before)
         _restore_live_rng_state(rng_before, applicable_cuda_index)
         raise
 
@@ -794,6 +975,9 @@ def load_val_loss_history(checkpoint_path, start_epoch):
                 with _open_manifest_artifact(
                     directory_fd, manifest, "history"
                 ) as history_handle:
+                    _verify_manifest_artifact_handle(
+                        history_handle, manifest, "history", "Checkpoint history"
+                    )
                     history = np.load(history_handle, allow_pickle=False)
                 return _validate_val_loss_history(
                     history,
@@ -803,7 +987,7 @@ def load_val_loss_history(checkpoint_path, start_epoch):
         finally:
             os.close(directory_fd)
 
-    # Pre-manifest and version-1 manifests had only this compatibility file.
+    # Pre-manifest checkpoints had only this compatibility file.
     history_path = checkpoint_path.parent.parent / "val_loss_log.npy"
     history = np.load(history_path, allow_pickle=False)
     return _validate_val_loss_history(history, start_epoch, history_path)
@@ -868,11 +1052,16 @@ def preserve_best_checkpoint(checkpoint_path, destination_dir):
             with _open_manifest_artifact(
                 source_directory_fd, manifest, "model"
             ) as model_handle:
-                model_state = _load_checkpoint_from_handle(model_handle)
+                model_state = _load_checkpoint_from_handle(
+                    model_handle, _manifest_artifact_sha256(manifest, "model")
+                )
             if "history" in manifest:
                 with _open_manifest_artifact(
                     source_directory_fd, manifest, "history"
                 ) as history_handle:
+                    _verify_manifest_artifact_handle(
+                        history_handle, manifest, "history", "Checkpoint history"
+                    )
                     history_state = np.load(history_handle, allow_pickle=False)
                 _validate_val_loss_history(
                     history_state,
@@ -883,7 +1072,10 @@ def preserve_best_checkpoint(checkpoint_path, destination_dir):
                 source_directory_fd, manifest, "best"
             )
 
-        best_state = _load_checkpoint_from_handle(best_handle)
+        best_state = _load_checkpoint_from_handle(
+            best_handle,
+            None if manifest is None else _manifest_artifact_sha256(manifest, "best"),
+        )
         validate_checkpoint_pair(model_state, best_state)
 
         if manifest is not None:

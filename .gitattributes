@@ -1,0 +1,3 @@
+# Preserve pinned upstream PromptMR+ bytes exactly across platforms.
+vendor/promptmr_plus/** -text
+vendor/promptmr_plus/** whitespace=-trailing-space

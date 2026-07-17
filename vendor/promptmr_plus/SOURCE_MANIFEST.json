@@ -1,0 +1,47 @@
+{
+  "commit": "934eeda6d4d18cd39e406fa1eee9e1f70603cb5e",
+  "dependency_contract": {
+    "local_runtime_delta": [
+      "einops"
+    ],
+    "upstream_requirements_file": "requirements.txt",
+    "upstream_requirements_sha256": "b04b3994c646322d476896b2151ebc44f9dd00d559a951e361b4f3627e7176bc"
+  },
+  "license": {
+    "commercial_use": "restricted",
+    "file": "LICENSE.md",
+    "launch_gate": "Written confirmation that competition and submission use is noncommercial is required before training, packaging, or submission.",
+    "redistribution": "Permitted only for noncommercial purposes with notices and disclaimer retained.",
+    "sha256": "c0c4c7d85180b493cd7a213d4509155d3734de26562e4490589963e1c356db21",
+    "spdx_expression": "LicenseRef-RU-NCRL"
+  },
+  "local_files": {
+    "ADAPTERS.md": {
+      "purpose": "Local integration boundary and provenance notes",
+      "sha256": "35ade4c3910fe6e32c7dc2b9c2868c5c6a5f299cc61d15df08aa188f690774c1"
+    },
+    "data/__init__.py": {
+      "purpose": "Local package marker; contains no upstream implementation",
+      "sha256": "caa08b991d8d407412edbcafa9f64391452e2e44cff52e20aed190ca85f9b663"
+    }
+  },
+  "repository": "https://github.com/hellopipu/PromptMR-plus",
+  "upstream_files": {
+    "LICENSE.md": "c0c4c7d85180b493cd7a213d4509155d3734de26562e4490589963e1c356db21",
+    "configs/base.yaml": "cbdbebc95f6f0e508fdaacc0703d03f2bfa9b568b4301c2f8cd9b4d9e2fdd7d7",
+    "configs/model/pmr-plus.yaml": "ac883402084ccdf4d2790fd944c6e7c972b4d2c1a6d6b094007c8eb03e1d08d6",
+    "configs/train/pmr-plus/fm-brain.yaml": "7943bb98e8514fc028e1d3c9e1d59ce02d94d1c982356ee12a44937733650a31",
+    "data/subsample.py": "374afbb8924bc858a0da92609e721bcc356123d7c4a60535614ad8a335bae260",
+    "data/transforms.py": "c671015751f35945078244a4544e982f9f4e5a94255dd82ff902f29bca5cb9d0",
+    "models/__init__.py": "8d2d38f72f86d48a3a757f77f38832be6c1437f1d90008c8cce203c9aefedb1c",
+    "models/promptmr_v2.py": "6c6995a585ea0a5b589ee7ecb9d63de53ba940fe9f1f0df1f959daf51ef410ef",
+    "models/utils.py": "6676d37e2c02419e41e75ded7258e2872edb959602aa6f8297beceb51de935c9",
+    "mri_utils/__init__.py": "e158c76460bf5e4a097d41b5ba6d5aa76f9d2970fd7e8eb811fb486fa35d5d0b",
+    "mri_utils/coil_combine.py": "047e81ce2bffc4f22bfda3cd751e2b43e897fb481d2bd73b9f3ddb4b6fc97f83",
+    "mri_utils/fftc.py": "c6d4932114d5839fe8b8e8ddd304022535a376f0f91a1345a148969d9d55f7d0",
+    "mri_utils/losses.py": "afa1ff8f17a3778dbf0f81e58a377df05eb4e73aa27194ba641a2cbdb708de47",
+    "mri_utils/math.py": "7eb8f2e18ddd331a355945c48afbc8bf50b959a336e4c48d396bb993f384482f",
+    "mri_utils/utils.py": "ea9289ee86db8f0c636c80a71248ca27b5ad2d84bc782d09a1a28571bea0b6c8",
+    "requirements.txt": "b04b3994c646322d476896b2151ebc44f9dd00d559a951e361b4f3627e7176bc"
+  }
+}
