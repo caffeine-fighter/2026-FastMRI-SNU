@@ -1,0 +1,117 @@
+{
+  "schema": "promptmr-plus-inference-preflight-blocker/v2",
+  "created_at_utc": "2026-07-17T00:59:50Z",
+  "status": "BLOCKED_BY_PID_DOMAIN_ATTRIBUTION",
+  "scope": "VESSL GTX 1080 inference-only capability gate",
+  "execution": {
+    "cuda_canary_started": false,
+    "model_imported": false,
+    "h5_opened": false,
+    "training_started": false,
+    "exp036_directory_created": false,
+    "command": null,
+    "output_directory": null,
+    "reason": "No provider-supported authoritative bridge from the container PID domain to the NVIDIA driver/NVML PID domain is available in this workload. The telemetry gate was not weakened."
+  },
+  "independent_launch_review": {
+    "original_requested_review": "deleg_8fcc26a8",
+    "original_verdict": "BLOCK",
+    "original_findings_fixed_with_tdd": [
+      "duplicate NVIDIA process PID rows were not rejected",
+      "warm-up and harness maximum-slice outputs were not both shape-gated before release or D2H",
+      "non-finite JSON values were not rejected before publication"
+    ],
+    "latest_exact_byte_review": "deleg_4c53eb62",
+    "latest_verdict": "BLOCK",
+    "blocking_finding": "process_gpu_memory_mib requires container os.getpid() to equal the driver-visible nvidia-smi PID, but this VESSL Kubernetes workload exposes no authoritative host/container PID mapping",
+    "reviewed_hashes_match_current": true
+  },
+  "repository": {
+    "path": "/root/2026-FastMRI-SNU-promptmr-plus",
+    "commit": "fe00276e6a0a30cf02709df4c01546d680a5c942",
+    "branch": "feat/promptmr-plus-feasibility",
+    "dirty": true,
+    "default_branch_modified_or_pushed": false
+  },
+  "upstream": {
+    "repository": "https://github.com/hellopipu/PromptMR-plus",
+    "commit": "934eeda6d4d18cd39e406fa1eee9e1f70603cb5e",
+    "license": "Rutgers Non-commercial Research License",
+    "use_status": "NONCOMMERCIAL_COMPETITION_USE_ALLOWED",
+    "commercial_license_claimed": false
+  },
+  "sha256": {
+    "adapter": "e7ea03ff4beb19f5b2bf8a36a4dbacfe84d168a16f877b08909c824d1ac2f843",
+    "preflight_script": "918fe28b78c5545c07eea7dc95847efe0fa05404fbed129d7d6713638bb7c883",
+    "probe_tests": "9af98fc81fc5a7167c5b9fff97e4d3b01c89a4724caf4ecb644c21c495d98400",
+    "adapter_tests": "bd7fb8fd5fad16b4b74f2aa1a160ae97327b931c89afe004f3992a768c8d9383",
+    "source_manifest": "3d77c331b3d756ea855c12c08efe82d34755b30035eaef1c933c053bfa128876",
+    "license": "c0c4c7d85180b493cd7a213d4509155d3734de26562e4490589963e1c356db21",
+    "model_config": "ac883402084ccdf4d2790fd944c6e7c972b4d2c1a6d6b094007c8eb03e1d08d6",
+    "knee_train_config": "5241adee5cb34846a6569d37fbd4078877bb90ee3d00442e9175173bccf1be41",
+    "upstream_base_config": "cbdbebc95f6f0e508fdaacc0703d03f2bfa9b568b4301c2f8cd9b4d9e2fdd7d7",
+    "environment_requirements": "e6fcfe6a9040d90fcaa4ad18d4bfbae501f7477e1844d6399d52dbc111460f21",
+    "fixed_evaluator": "a93cf978b4938a060d4f5a204d3f7118fb8c17bf12408cbe44e6e7954ba5a135"
+  },
+  "environment": {
+    "python": "3.10.12",
+    "pytorch": "2.3.1+cu121",
+    "cuda_runtime_from_pytorch_build": "12.1",
+    "nvidia_driver": "550.90.12",
+    "gpu_name": "NVIDIA GeForce GTX 1080",
+    "gpu_uuid": "GPU-3073d3e5-383c-775f-faca-904c38057c94",
+    "gpu_total_mib": 8192,
+    "gpu_used_mib_at_inspection": 2,
+    "gpu_utilization_percent_at_inspection": 0,
+    "compute_process_rows_at_inspection": [],
+    "vessl_workload_id": "137439389349",
+    "vessl_workspace_id": "85899410676",
+    "hostname": "workspace-f8goig3juber-0"
+  },
+  "pid_domain_evidence": {
+    "container_init_pid": 1,
+    "container_init_name": "bash",
+    "pid_namespace_inode": "pid:[4026533191]",
+    "proc_self_nspid_field_count": 1,
+    "host_proc_mount_present": false,
+    "run_host_proc_mount_present": false,
+    "driver_visible_pid_mapping_present": false,
+    "nvidia_smi_compute_pid_rows_before_canary": [],
+    "nvml_mapping_probed_with_cuda": false
+  },
+  "provider_capability_review": {
+    "official_docs_checked": [
+      "https://docs.vessl.ai/reference/yaml/run-yaml",
+      "https://docs.cloud.vessl.ai/member/workspace/create"
+    ],
+    "documented_resource_controls": [
+      "GPU product/device type",
+      "region or node candidates",
+      "GPU quantity or resource preset"
+    ],
+    "documented_authoritative_pid_mapping": false,
+    "documented_process_pid_telemetry_identity_bridge": false,
+    "documented_host_pid_namespace_option": false,
+    "documented_exclusive_gpu_identity_attestation": false,
+    "privileged_or_host_filesystem_workaround_attempted": false
+  },
+  "gates": {
+    "exact_bytes_reviewed": true,
+    "independent_launch_review_pass": false,
+    "provider_supported_pid_attribution_available": false,
+    "telemetry_canary_verdict": "BLOCKED_BY_PID_DOMAIN_ATTRIBUTION",
+    "h5_preflight_permitted": false,
+    "independent_result_review_permitted": false
+  },
+  "final_feasibility_verdict": "BLOCKED_BY_PID_DOMAIN_ATTRIBUTION",
+  "claims_not_supported": [
+    "PromptMR+ GTX 1080 8GB inference feasibility",
+    "acc4 full-volume feasibility",
+    "acc8 feasibility",
+    "latency feasibility",
+    "quality or competition readiness",
+    "training feasibility",
+    "official evaluation approval",
+    "target total score 0.94"
+  ]
+}
