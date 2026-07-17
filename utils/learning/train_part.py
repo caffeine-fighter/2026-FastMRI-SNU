@@ -21,6 +21,7 @@ from utils.learning.resume import (
     CHECKPOINT_MANIFEST_FORMAT_VERSION,
     CHECKPOINT_MANIFEST_NAME,
     _load_checkpoint_from_handle,
+    _manifest_artifact_sha256,
     _open_anonymous_file,
     _open_checkpoint_directory,
     _open_manifest_artifact,
@@ -30,11 +31,14 @@ from utils.learning.resume import (
     _replace_alias_from_artifact,
     _replace_external_alias_from_artifact,
     _replace_from_open_descriptor,
+    _validate_checkpoint_manifest_payload,
+    _validate_retention_policy_transition,
     _validate_val_loss_history,
     build_training_state,
     load_training_state,
     load_val_loss_history,
     preserve_best_checkpoint,
+    recover_checkpoint_publication,
     validate_checkpoint_pair,
     validate_training_checkpoint,
 )
@@ -42,7 +46,7 @@ from utils.model.varnet import VarNet
 
 import os
 
-def train_epoch(args, epoch, model, data_loader, optimizer, loss_type):
+def train_epoch(args, epoch, model, data_loader, optimizer, loss_type, scaler=None):
     model.train()
     device = next(model.parameters()).device
     non_blocking = device.type == "cuda"
@@ -60,14 +64,32 @@ def train_epoch(args, epoch, model, data_loader, optimizer, loss_type):
         target = target.to(device=device, non_blocking=non_blocking)
         maximum = maximum.to(device=device, non_blocking=non_blocking)
 
+        is_promptmr = getattr(args, "model_family", "varnet") == "promptmr_plus"
+        if is_promptmr:
+            optimizer.zero_grad()
         output = model(kspace, mask)
+        if is_promptmr:
+            from utils.promptmr.data import align_promptmr_output_target
+
+            output, target = align_promptmr_output_target(output, target)
         if getattr(args, "score_aligned_loss", False):
             loss = loss_type(output, target, maximum, score_metadata)
         else:
             loss = loss_type(output, target, maximum)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        if is_promptmr:
+            if scaler is None:
+                raise RuntimeError("PromptMR+ training requires an AMP scaler state")
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(
+                model.parameters(), getattr(args, "gradient_clip_val", 0.01)
+            )
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
         total_loss += loss.item()
 
         if iter % args.report_interval == 0:
@@ -96,10 +118,15 @@ def validate(args, model, data_loader):
             kspace = kspace.to(device=device, non_blocking=non_blocking)
             mask = mask.to(device=device, non_blocking=non_blocking)
             output = model(kspace, mask)
+            if getattr(args, "model_family", "varnet") == "promptmr_plus":
+                from utils.promptmr.data import align_promptmr_output_target
+
+                target = target.to(device=device, non_blocking=non_blocking)
+                output, target = align_promptmr_output_target(output, target)
 
             for i in range(output.shape[0]):
                 reconstructions[fnames[i]][int(slices[i])] = output[i].cpu().numpy()
-                targets[fnames[i]][int(slices[i])] = target[i].numpy()
+                targets[fnames[i]][int(slices[i])] = target[i].cpu().numpy()
 
     for fname in reconstructions:
         reconstructions[fname] = np.stack(
@@ -132,6 +159,19 @@ def _publish_checkpoint_manifest(exp_dir, directory_fd, manifest):
             CHECKPOINT_MANIFEST_NAME,
             ".checkpoint-manifest-",
         )
+
+
+def _sha256_open_handle(handle):
+    position = handle.tell()
+    handle.seek(0)
+    digest = hashlib.sha256()
+    while True:
+        chunk = handle.read(1024 * 1024)
+        if not chunk:
+            break
+        digest.update(chunk)
+    handle.seek(position)
+    return digest.hexdigest()
 
 
 def save_val_loss_history(history_path, history):
@@ -171,10 +211,25 @@ def save_model(
     is_new_best,
     val_loss_history=None,
     history_path=None,
+    scheduler=None,
+    scaler=None,
+    model_contract=None,
+    generation=None,
+    retained_epoch_record=None,
+    staged_retained=None,
+    retained_destination=None,
 ):
     """Atomically commit immutable checkpoint artifacts through one manifest."""
     exp_dir = Path(exp_dir)
-    state = build_training_state(epoch, model, optimizer, best_val_loss)
+    state = build_training_state(
+        epoch,
+        model,
+        optimizer,
+        best_val_loss,
+        scheduler=scheduler,
+        scaler=scaler,
+        model_contract=model_contract,
+    )
     if val_loss_history is None:
         history = None
     else:
@@ -183,7 +238,15 @@ def save_model(
         )
     if history_path is not None and history is None:
         raise ValueError("history_path requires val_loss_history")
-    generation = uuid.uuid4().hex
+    generation = generation or uuid.uuid4().hex
+    if (
+        not isinstance(generation, str)
+        or len(generation) != 32
+        or any(character not in "0123456789abcdef" for character in generation)
+    ):
+        raise ValueError(
+            "Checkpoint generation must be 32 lowercase hexadecimal characters"
+        )
     artifact_name = f".checkpoint-generation-{generation}-model.pt"
     history_artifact = (
         f".checkpoint-generation-{generation}-history.npy"
@@ -199,7 +262,8 @@ def save_model(
                 directory_fd, previous, "model"
             ) as previous_model_handle:
                 previous_state = _load_checkpoint_from_handle(
-                    previous_model_handle
+                    previous_model_handle,
+                    _manifest_artifact_sha256(previous, "model"),
                 )
             validate_training_checkpoint(previous_state)
             if epoch <= previous_state["epoch"]:
@@ -207,6 +271,7 @@ def save_model(
                     f"Checkpoint commit requires a newer epoch: got {epoch}, "
                     f"current {previous_state['epoch']}"
                 )
+        _validate_retention_policy_transition(previous, retained_epoch_record)
         with _open_anonymous_file(directory_fd) as model_temporary:
             torch.save(state, model_temporary)
             model_temporary.flush()
@@ -260,8 +325,13 @@ def save_model(
             with _open_manifest_artifact(
                 directory_fd, {"best": best_artifact}, "best"
             ) as retained_best_handle:
+                expected_best_sha256 = (
+                    _manifest_artifact_sha256(previous, "best")
+                    if previous is not None and best_artifact == previous["best"]
+                    else None
+                )
                 retained_best_state = _load_checkpoint_from_handle(
-                    retained_best_handle
+                    retained_best_handle, expected_best_sha256
                 )
             validate_checkpoint_pair(state, retained_best_state)
         manifest = {
@@ -270,8 +340,86 @@ def save_model(
             "model": artifact_name,
             "best": best_artifact,
         }
+        retained_epochs = [] if previous is None else list(
+            previous.get("retained_epochs", [])
+        )
+        if retained_epoch_record is not None:
+            record = dict(retained_epoch_record)
+            if record.get("generation") != generation or record.get("epoch") != epoch:
+                raise ValueError(
+                    "Retained epoch provenance does not match checkpoint generation"
+                )
+            if any(
+                item.get("epoch") == epoch
+                or item.get("generation") == generation
+                for item in retained_epochs
+            ):
+                raise ValueError("Duplicate retained epoch generation")
+            retained_epochs.append(record)
+        if retained_epochs:
+            manifest["retained_epochs"] = retained_epochs
         if history_artifact is not None:
             manifest["history"] = history_artifact
+        artifact_hashes = {}
+        for name in {artifact_name, history_artifact, best_artifact} - {None}:
+            with _open_regular_at(
+                directory_fd, name, "checkpoint manifest artifact"
+            ) as artifact_handle:
+                artifact_hashes[name] = _sha256_open_handle(artifact_handle)
+        manifest["artifacts"] = artifact_hashes
+
+        if (staged_retained is None) != (retained_destination is None):
+            raise ValueError(
+                "Retained staging handle and destination must be supplied together"
+            )
+        if staged_retained is not None:
+            if retained_epoch_record is None:
+                raise ValueError("Prepared retained publication requires provenance")
+            parent_bytes = (
+                json.dumps(
+                    previous,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8")
+                if previous is not None
+                else b""
+            )
+            publication = {
+                "format_version": 1,
+                "generation": generation,
+                "epoch": epoch,
+                "parent_generation": (
+                    None if previous is None else previous["generation"]
+                ),
+                "parent_manifest_sha256": hashlib.sha256(parent_bytes).hexdigest(),
+                "manifest": manifest,
+                "artifacts": artifact_hashes,
+                "retained": {
+                    "name": Path(retained_destination).name,
+                    "digest": staged_retained.sealed_digest,
+                },
+            }
+            publication_name = (
+                f".checkpoint-generation-{generation}-publication.json"
+            )
+            with _open_anonymous_file(directory_fd, "w+") as publication_handle:
+                json.dump(
+                    publication,
+                    publication_handle,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+                publication_handle.write("\n")
+                publication_handle.flush()
+                os.fsync(publication_handle.fileno())
+                _publish_fd_without_overwrite(
+                    publication_handle, directory_fd, publication_name
+                )
+            os.fsync(directory_fd)
+            _publish_retained_epoch(staged_retained, retained_destination)
+
         _publish_checkpoint_manifest(exp_dir, directory_fd, manifest)
         os.fsync(directory_fd)
 
@@ -321,6 +469,8 @@ class _StagedDirectory:
     directory_fd: int
     identity: tuple
     sealed_digest: Optional[str] = None
+    generation: Optional[str] = None
+    epoch: Optional[int] = None
     published: bool = False
     closed: bool = False
 
@@ -598,12 +748,23 @@ def _staged_directory_descriptor_path(staged):
     return Path(f"/proc/self/fd/{staged.directory_fd}")
 
 
-def _stage_retained_reconstructions(reconstructions, retained_root, epoch):
+def _stage_retained_reconstructions(
+    reconstructions, retained_root, epoch, generation=None
+):
     _validate_retained_reconstruction_names(reconstructions)
+    generation = generation or uuid.uuid4().hex
+    if len(generation) != 32 or any(
+        character not in "0123456789abcdef" for character in generation
+    ):
+        raise ValueError(
+            "Retained generation must be 32 lowercase hexadecimal characters"
+        )
     final_dir = Path(os.path.abspath(os.fspath(
         Path(retained_root) / f"epoch_{epoch:04d}"
     )))
     staged = _create_staged_directory(final_dir, "Retained epoch")
+    staged.generation = generation
+    staged.epoch = epoch
     try:
         save_reconstructions(
             reconstructions, _staged_directory_descriptor_path(staged)
@@ -707,7 +868,285 @@ def _publish_retained_epoch(staged, final_dir):
     _publish_staged_directory_no_replace(staged, final_dir, "Retained epoch")
 
 
+
+def _collect_retained_epoch_records(retained_root):
+    retained_root = Path(retained_root)
+    if not retained_root.exists():
+        return [], []
+    if not retained_root.is_dir() or retained_root.is_symlink():
+        raise RuntimeError(f"Retained root is not a real directory: {retained_root}")
+    records = []
+    partial = []
+    for entry in sorted(retained_root.iterdir(), key=lambda path: path.name):
+        if "-unpublished-orphan-" in entry.name:
+            partial.append(entry.name)
+            continue
+        if not entry.name.startswith("epoch_") or not entry.is_dir() or entry.is_symlink():
+            partial.append(entry.name)
+            continue
+        try:
+            epoch = int(entry.name.removeprefix("epoch_"))
+        except ValueError:
+            partial.append(entry.name)
+            continue
+        if entry.name != f"epoch_{epoch:04d}":
+            partial.append(entry.name)
+            continue
+        directory_fd = os.open(entry, _directory_open_flags())
+        try:
+            digest = _tree_digest(directory_fd)
+        finally:
+            os.close(directory_fd)
+        records.append({"epoch": epoch, "digest": digest})
+    return records, partial
+
+
+def reconcile_retained_checkpoint_state(exp_dir, retained_root, history_path=None):
+    exp_dir = Path(exp_dir)
+    records, partial = _collect_retained_epoch_records(retained_root)
+    ambiguous_entries = [
+        name for name in partial if "-unpublished-orphan-" not in name
+    ]
+    if ambiguous_entries:
+        raise RuntimeError(
+            "Ambiguous partial retained publication: "
+            + ", ".join(sorted(ambiguous_entries))
+        )
+    if not exp_dir.is_dir():
+        if records:
+            raise RuntimeError("Retained output exists without a checkpoint directory")
+        return False
+
+    directory_fd = _open_checkpoint_directory(exp_dir)
+    try:
+        fcntl.flock(directory_fd, fcntl.LOCK_EX)
+        manifest = _read_checkpoint_manifest(exp_dir, directory_fd)
+        expected = [] if manifest is None else list(manifest.get("retained_epochs", []))
+        expected_by_epoch = {item["epoch"]: item for item in expected}
+        actual_by_epoch = {item["epoch"]: item for item in records}
+        missing = sorted(set(expected_by_epoch) - set(actual_by_epoch))
+        changed = sorted(
+            epoch
+            for epoch in set(expected_by_epoch) & set(actual_by_epoch)
+            if expected_by_epoch[epoch]["digest"]
+            != actual_by_epoch[epoch]["digest"]
+        )
+        extra = sorted(set(actual_by_epoch) - set(expected_by_epoch))
+        if missing or changed or len(extra) > 1:
+            raise RuntimeError(
+                "Retained/checkpoint publication is ambiguous: "
+                f"missing={missing}, changed={changed}, extra={extra}"
+            )
+        if not extra:
+            return manifest is not None
+
+        epoch = extra[0]
+        if expected:
+            expected_next_epoch = expected[-1]["epoch"] + 1
+            if epoch != expected_next_epoch:
+                raise RuntimeError(
+                    f"Prepared retained epoch must be {expected_next_epoch}, got {epoch}"
+                )
+        elif epoch <= 0:
+            raise RuntimeError(f"Prepared retained epoch must be positive, got {epoch}")
+        parent_bytes = (
+            json.dumps(
+                manifest,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+            if manifest is not None
+            else b""
+        )
+        parent_hash = hashlib.sha256(parent_bytes).hexdigest()
+        parent_generation = None if manifest is None else manifest["generation"]
+        candidates = []
+        with os.scandir(directory_fd) as entries:
+            names = sorted(entry.name for entry in entries)
+        for name in names:
+            if not (
+                name.startswith(".checkpoint-generation-")
+                and name.endswith("-publication.json")
+            ):
+                continue
+            with _open_regular_at(
+                directory_fd, name, "checkpoint publication provenance"
+            ) as handle:
+                try:
+                    publication = json.load(handle)
+                except (TypeError, ValueError) as exc:
+                    raise RuntimeError(
+                        f"Invalid checkpoint publication: {name}"
+                    ) from exc
+            if not isinstance(publication, dict) or set(publication) != {
+                "format_version", "generation", "epoch", "parent_generation",
+                "parent_manifest_sha256", "manifest", "artifacts", "retained",
+            }:
+                raise RuntimeError(f"Invalid checkpoint publication schema: {name}")
+            publication_version = publication["format_version"]
+            publication_epoch = publication["epoch"]
+            if (
+                not isinstance(publication_version, int)
+                or isinstance(publication_version, bool)
+                or publication_version != 1
+                or not isinstance(publication_epoch, int)
+                or isinstance(publication_epoch, bool)
+                or publication_epoch <= 0
+            ):
+                raise RuntimeError(
+                    f"Invalid checkpoint publication provenance values: {name}"
+                )
+            retained = publication.get("retained", {})
+            if not isinstance(retained, dict) or set(retained) != {"name", "digest"}:
+                raise RuntimeError(f"Invalid retained provenance schema: {name}")
+            if (
+                publication.get("format_version") == 1
+                and publication.get("epoch") == epoch
+                and publication.get("parent_generation") == parent_generation
+                and publication.get("parent_manifest_sha256") == parent_hash
+                and retained.get("name") == f"epoch_{epoch:04d}"
+                and retained.get("digest") == actual_by_epoch[epoch]["digest"]
+            ):
+                candidates.append((name, publication))
+        if len(candidates) != 1:
+            raise RuntimeError(
+                "Prepared retained publication requires exactly one provenance "
+                f"candidate, found {[name for name, _ in candidates]}"
+            )
+        publication_name, publication = candidates[0]
+        candidate_manifest = publication.get("manifest")
+        generation = publication.get("generation")
+        if (
+            not isinstance(candidate_manifest, dict)
+            or candidate_manifest.get("format_version")
+            != CHECKPOINT_MANIFEST_FORMAT_VERSION
+            or not isinstance(generation, str)
+            or len(generation) != 32
+            or any(character not in "0123456789abcdef" for character in generation)
+            or publication_name
+            != f".checkpoint-generation-{generation}-publication.json"
+            or candidate_manifest.get("model")
+            != f".checkpoint-generation-{generation}-model.pt"
+            or candidate_manifest.get("history")
+            != f".checkpoint-generation-{generation}-history.npy"
+            or set(candidate_manifest)
+            != {
+                "format_version", "generation", "model", "best",
+                "history", "retained_epochs", "artifacts",
+            }
+        ):
+            raise RuntimeError("Prepared publication schema mismatch")
+        try:
+            _validate_checkpoint_manifest_payload(candidate_manifest, publication_name)
+        except ValueError as exc:
+            raise RuntimeError("Prepared publication manifest is invalid") from exc
+        ledger = candidate_manifest.get("retained_epochs", [])
+        expected_ledger = expected + [{
+            "epoch": epoch,
+            "generation": generation,
+            "digest": actual_by_epoch[epoch]["digest"],
+        }]
+        if (
+            ledger != expected_ledger
+            or candidate_manifest.get("generation") != generation
+        ):
+            raise RuntimeError("Prepared publication manifest ledger mismatch")
+        artifact_hashes = publication.get("artifacts")
+        expected_artifacts = {
+            candidate_manifest.get("model"),
+            candidate_manifest.get("history"),
+            candidate_manifest.get("best"),
+        } - {None}
+        if (
+            not isinstance(artifact_hashes, dict)
+            or artifact_hashes != candidate_manifest.get("artifacts")
+            or set(artifact_hashes) != expected_artifacts
+            or any(
+                not isinstance(value, str)
+                or len(value) != 64
+                or any(
+                    character not in "0123456789abcdef" for character in value
+                )
+                for value in artifact_hashes.values()
+            )
+        ):
+            raise RuntimeError("Prepared publication artifact set mismatch")
+        for artifact_name, expected_hash in artifact_hashes.items():
+            with _open_regular_at(
+                directory_fd, artifact_name, "prepared checkpoint artifact"
+            ) as handle:
+                if _sha256_open_handle(handle) != expected_hash:
+                    raise RuntimeError(
+                        "Prepared publication artifact digest mismatch: "
+                        f"{artifact_name}"
+                    )
+        with _open_regular_at(
+            directory_fd,
+            candidate_manifest["model"],
+            "prepared model artifact",
+        ) as handle:
+            state = _load_checkpoint_from_handle(handle)
+        validate_training_checkpoint(state)
+        if state["epoch"] != epoch:
+            raise RuntimeError("Prepared publication model epoch mismatch")
+        with _open_regular_at(
+            directory_fd,
+            candidate_manifest["history"],
+            "prepared history artifact",
+        ) as handle:
+            history = np.load(handle, allow_pickle=False)
+        _validate_val_loss_history(history, epoch, candidate_manifest["history"])
+        best_artifact = candidate_manifest.get("best")
+        if best_artifact is not None:
+            with _open_regular_at(
+                directory_fd, best_artifact, "prepared best artifact"
+            ) as handle:
+                best_state = _load_checkpoint_from_handle(handle)
+            validate_checkpoint_pair(state, best_state)
+
+        _publish_checkpoint_manifest(exp_dir, directory_fd, candidate_manifest)
+        os.fsync(directory_fd)
+        history_artifact = candidate_manifest.get("history")
+        if history_artifact is not None and history_path is not None:
+            _publish_history_alias(
+                exp_dir, directory_fd, history_artifact, Path(history_path)
+            )
+        best_artifact = candidate_manifest.get("best")
+        if best_artifact is not None:
+            _publish_stable_alias(
+                exp_dir, directory_fd, best_artifact, "best_model.pt"
+            )
+        _publish_stable_alias(
+            exp_dir,
+            directory_fd,
+            candidate_manifest["model"],
+            "model.pt",
+        )
+        os.fsync(directory_fd)
+        return True
+    finally:
+        os.close(directory_fd)
+
+
 def train(args):
+    reconciled = False
+    if (
+        getattr(args, "model_family", "varnet") == "promptmr_plus"
+        and getattr(args, "retain_val_epochs", False)
+    ):
+        reconciled = reconcile_retained_checkpoint_state(
+            args.exp_dir,
+            args.val_epochs_dir,
+            Path(args.val_loss_dir) / "val_loss_log.npy",
+        )
+        if reconciled:
+            if not recover_checkpoint_publication(args.exp_dir):
+                raise RuntimeError(
+                    "Reconciled PromptMR+ checkpoint has no authoritative manifest"
+                )
+            args.resume_checkpoint = Path(args.exp_dir) / "model.pt"
+            args.resume_checkpoint_sha256 = None
     required_cuda_name = getattr(args, "require_cuda_device_name", None)
     if required_cuda_name is not None:
         if not torch.cuda.is_available():
@@ -727,16 +1166,39 @@ def train(args):
         device = torch.device('cpu')
         print('Current device: cpu')
 
-    model = VarNet(num_cascades=args.cascade, 
-                   chans=args.chans, 
-                   sens_chans=args.sens_chans)
-    model.to(device=device)
+    if getattr(args, "model_family", "varnet") == "promptmr_plus":
+        from utils.promptmr.runtime import (
+            build_promptmr_plus_loss,
+            build_promptmr_plus_model,
+        )
 
-    if getattr(args, "score_aligned_loss", False):
-        loss_type = ScoreAlignedLoss().to(device=device)
+        model = build_promptmr_plus_model()
+        model.to(device=device)
+        loss_type = build_promptmr_plus_loss().to(device=device)
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=args.lr,
+            weight_decay=1e-2,
+        )
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=35,
+            gamma=0.1,
+        )
+        scaler = torch.amp.GradScaler("cuda", enabled=False)
+        checkpoint_contract = args.model_contract
     else:
-        loss_type = SSIMLoss().to(device=device)
-    optimizer = torch.optim.Adam(model.parameters(), args.lr)
+        model = VarNet(num_cascades=args.cascade,
+                       chans=args.chans,
+                       sens_chans=args.sens_chans)
+        model.to(device=device)
+
+        if getattr(args, "score_aligned_loss", False):
+            loss_type = ScoreAlignedLoss().to(device=device)
+        else:
+            loss_type = SSIMLoss().to(device=device)
+        optimizer = torch.optim.Adam(model.parameters(), args.lr)
+        scheduler = scaler = checkpoint_contract = None
 
     if args.resume_checkpoint is None:
         best_val_loss = 1.
@@ -751,8 +1213,19 @@ def train(args):
             allow_inexact=args.allow_inexact_resume,
             learning_rate_override=args.resume_lr,
             expected_sha256=getattr(args, "resume_checkpoint_sha256", None),
+            scheduler=scheduler,
+            scaler=scaler,
+            expected_model_contract=getattr(
+                args, "model_contract", {"model_family": "varnet"}
+            ),
         )
         if start_epoch >= args.num_epochs:
+            if reconciled and start_epoch == args.num_epochs:
+                print(
+                    "Recovered final committed PromptMR+ epoch; "
+                    "requested training is already complete"
+                )
+                return
             raise ValueError(
                 f"Checkpoint epoch {start_epoch} must be less than "
                 f"the requested total epochs {args.num_epochs}"
@@ -765,26 +1238,44 @@ def train(args):
         )
 
     
-    train_loader = create_data_loaders(
-        data_path=args.data_path_train,
-        args=args,
-        shuffle=True,
-        score_aligned=getattr(args, "score_aligned_loss", False),
-    )
-    val_loader = create_data_loaders(data_path = args.data_path_val, args = args)
+    if getattr(args, "model_family", "varnet") == "promptmr_plus":
+        from utils.promptmr.data import create_promptmr_data_loaders
+
+        train_loader, val_loader = create_promptmr_data_loaders(args)
+    else:
+        train_loader = create_data_loaders(
+            data_path=args.data_path_train,
+            args=args,
+            shuffle=True,
+            score_aligned=getattr(args, "score_aligned_loss", False),
+        )
+        val_loader = create_data_loaders(data_path=args.data_path_val, args=args)
     
     for epoch in range(start_epoch, args.num_epochs):
         print(f'Epoch #{epoch:2d} ............... {args.net_name} ...............')
         
-        train_loss, train_time = train_epoch(args, epoch, model, train_loader, optimizer, loss_type)
+        train_loss, train_time = train_epoch(
+            args, epoch, model, train_loader, optimizer, loss_type, scaler=scaler
+        )
         val_loss, num_subjects, reconstructions, targets, inputs, val_time = validate(args, model, val_loader)
-        staged_epoch_dir = retained_epoch_dir = None
+        if scheduler is not None:
+            scheduler.step()
+        generation = uuid.uuid4().hex
+        staged_epoch_dir = retained_epoch_dir = retained_epoch_record = None
         if getattr(args, "retain_val_epochs", False):
             staged_epoch_dir, retained_epoch_dir = (
                 _stage_retained_reconstructions(
-                    reconstructions, args.val_epochs_dir, epoch + 1
+                    reconstructions,
+                    args.val_epochs_dir,
+                    epoch + 1,
+                    generation=generation,
                 )
             )
+            retained_epoch_record = {
+                "epoch": epoch + 1,
+                "generation": generation,
+                "digest": staged_epoch_dir.sealed_digest,
+            }
         
         val_loss_log = np.append(val_loss_log, np.array([[epoch, val_loss]]), axis=0)
         file_path = Path(args.val_loss_dir) / "val_loss_log.npy"
@@ -799,9 +1290,6 @@ def train(args):
         best_val_loss = min(best_val_loss, val_loss)
 
         try:
-            if staged_epoch_dir is not None:
-                _publish_retained_epoch(staged_epoch_dir, retained_epoch_dir)
-                staged_epoch_dir = None
             save_model(
                 args.exp_dir,
                 epoch + 1,
@@ -811,7 +1299,15 @@ def train(args):
                 is_new_best,
                 val_loss_history=val_loss_log,
                 history_path=file_path,
+                scheduler=scheduler,
+                scaler=scaler,
+                model_contract=checkpoint_contract,
+                generation=generation,
+                retained_epoch_record=retained_epoch_record,
+                staged_retained=staged_epoch_dir,
+                retained_destination=retained_epoch_dir,
             )
+            staged_epoch_dir = None
         finally:
             if staged_epoch_dir is not None:
                 _cleanup_staged_directory(staged_epoch_dir)

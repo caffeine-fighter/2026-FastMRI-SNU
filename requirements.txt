@@ -1,4 +1,4 @@
-torch
+torch>=2.3
 numpy
 requests
 tqdm
@@ -8,3 +8,4 @@ pyyaml
 opencv-python
 matplotlib
 packaging
+einops
