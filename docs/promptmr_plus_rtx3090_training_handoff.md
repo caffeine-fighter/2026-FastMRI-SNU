@@ -103,6 +103,90 @@ The minimum local wrapper must adapt the SNU challenge data without reimplementi
 8. Use one shared model/checkpoint for acc4 and acc8. Routing is a data/mask contract, not an architecture/config switch. This expectation still requires actual inference-preflight evidence before it can be claimed as deployed compatibility.
 9. Preserve the full-resolution inference adapter separately from the upstream 384×384 training preprocessing.
 
+## Proposed local command/config — design only
+
+The repository does not yet contain `scripts/train_promptmr_plus.py`; the command below is the exact proposed interface for a future reviewed wrapper, not a runnable command in the current bytes. Do not execute it until that wrapper and its tests exist.
+
+```bash
+: "${PROMPTMR_DATA_ROOT:?set the read-only paired SNU dataset root}"
+CUDA_VISIBLE_DEVICES=0 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. \
+python -B scripts/train_promptmr_plus.py \
+  --mode one-step-smoke \
+  --source-manifest third_party/promptmr_plus/SOURCE_MANIFEST.json \
+  --model-config third_party/promptmr_plus/configs/model/pmr-plus.yaml \
+  --training-config third_party/promptmr_plus/configs/train/pmr-plus/fm-knee.yaml \
+  --data-root "$PROMPTMR_DATA_ROOT" \
+  --output /root/result/FEATURE_PROMPTMR_PLUS_RTX3090_SMOKE_20260717_V1 \
+  --seed 430 \
+  --batch-size 1 \
+  --precision fp32 \
+  --optimizer adamw \
+  --learning-rate 1e-4 \
+  --weight-decay 1e-2 \
+  --scheduler step-lr \
+  --lr-step-size 35 \
+  --lr-gamma 0.1 \
+  --gradient-clip-norm 0.01 \
+  --ssim-window-size 7 \
+  --ssim-k1 0.01 \
+  --ssim-k2 0.03 \
+  --num-cascades 12 \
+  --num-adjacent-slices 5 \
+  --uniform-resolution 384 384 \
+  --use-checkpoint \
+  --compute-sens-per-coil \
+  --max-optimizer-steps 1 \
+  --no-register-experiment
+```
+
+Exact proposed config overlay:
+
+```yaml
+identity:
+  reserved_experiment: EXP036_promptmr_plus_default_e5_seed430
+  registration: forbidden_during_smoke
+objective: maximize_validated_expected_official_total
+seed: 430
+precision: fp32
+batch_size: 1
+architecture:
+  model: PromptMR+ v2
+  num_cascades: 12
+  num_adj_slices: 5
+optimizer:
+  name: AdamW
+  lr: 1.0e-4
+  weight_decay: 1.0e-2
+scheduler:
+  name: StepLR
+  step_size: 35
+  gamma: 0.1
+loss:
+  name: SSIMLoss
+  window_size: 7
+  k1: 0.01
+  k2: 0.03
+gradient_clip_norm: 0.01
+memory_controls:
+  use_checkpoint: true
+  compute_sens_per_coil: true
+preprocessing:
+  uniform_resolution: [384, 384]
+limits:
+  max_optimizer_steps: 1
+  fp16: forbidden
+  bf16: forbidden
+  architecture_reduction: forbidden
+```
+
+Estimated smoke reservation, not a measured training result:
+
+- GPU: exactly one RTX 3090 with 24 GiB VRAM; reserve the full device.
+- Expected VRAM band: 17–24 GiB from the pinned upstream minimum; stop on OOM rather than changing the recipe.
+- Host RAM: at least 32 GiB.
+- Scratch: at least 50 GiB excluding the source dataset.
+- One-step wall-time limit: 30 minutes. Do not estimate or schedule e5 until measured one-step throughput and peak VRAM are available.
+
 ## Local one-step smoke gate
 
 Implement the thinnest training integration around pinned upstream components before issuing a runnable command. The current VESSL repository's `train.py` is VarNet-oriented and does not yet provide the required PromptMR+ CLI contract.
@@ -152,10 +236,13 @@ After exit code 0, run local strict validation only across all five epochs:
 
 Do not run official evaluation, leaderboard submission, repeated timing, e15/e30 extension, second seed, optimizer/loss/scheduler sweep, or automatic merge.
 
-## VESSL inference dependency
+## VESSL inference evidence
 
-The VESSL launch gate is currently `BLOCKED_BY_PID_DOMAIN_ATTRIBUTION`. See:
+PID-level attribution remains `UNAVAILABLE`; it was not solved. Under the explicit bounded device-level policy override, the exact random-weight synthetic acc4 maximum-slice and full-volume probe passed on the GTX 1080 with evidence labeled `DEVICE_LEVEL_UNATTRIBUTED`:
 
-`reports/promptmr_plus/PROMPTMR_PLUS_INFERENCE_PREFLIGHT_8GB_V2_BLOCKED_20260717.json`
+- CUDA canary: `/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/cuda_device_canary.json`
+- PromptMR+ probe: `/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/promptmr_plus_acc4_synthetic_fp32.json`
+- Peak reserved device memory: `7492 MiB`
+- External post-process state: `2/8192 MiB`, utilization `0%`, compute rows `0`
 
-This handoff is architecture/training design evidence only. It does not establish GTX 1080 inference feasibility, training feasibility, quality, competition readiness, official-evaluation approval, or progress toward total score 0.94.
+This establishes bounded random-weight synthetic inference feasibility only. It does not establish training feasibility, learned reconstruction quality, competition readiness, expected score improvement, or official-evaluation approval. The optimization objective is to maximize validated expected official total score; `0.94` is not a launch, promotion, failure, or stopping threshold.

@@ -1,0 +1,2 @@
+# Preserve pinned PromptMR+ upstream bytes exactly as hashed in SOURCE_MANIFEST.json.
+third_party/promptmr_plus/** whitespace=-trailing-space
