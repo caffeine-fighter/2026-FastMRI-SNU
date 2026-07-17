@@ -4,7 +4,7 @@
 
 **Goal:** EXP054의 검증된 capacity signal과 `winningstrategies.txt`의 2025년 상위권 공통점을 이용해, 현재 vanilla VarNet 탐색을 빠르게 판정하고 8 GB 제약 안에서 더 높은 품질을 낼 수 있는 학습 레시피와 차세대 모델로 전환한다.
 
-**Architecture:** 완료된 `EXP035` epoch 30을 보호 baseline으로 두고 두 트랙을 병행한다. 첫째, 같은 immutable state에서 Adam LR `1e-3` 대 `3e-4`의 bounded matched continuation을 준비한다. 둘째, LOCAL/CPU에서 메모리 절감과 upstream Feature/FI-VarNet feasibility를 adapter-first로 준비한다. AdamW-only는 종료됐고 PromptMR+는 license confirmation 전까지 코드 사용을 중단한다. 모든 방향은 `LOCAL short screen -> matched longer run -> second-seed confirmation -> separately approved VESSL run -> separately approved official run` 순서로만 승격한다.
+**Architecture:** 완료된 `EXP035` epoch 30을 보호 baseline으로 두고 vanilla capacity/continuation을 종료했다. 다음 우선 후보는 공식 `hellopipu/PromptMR-plus@934eeda6d4d18cd39e406fa1eee9e1f70603cb5e`이고, RU-NCRL 상태는 이 비상업 연구·대회 workflow에서 `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`다. 저작권·조건·disclaimer를 보존하고 commercial rights를 주장하지 않는다. FI-VarNet은 measured fallback이다. 모든 방향은 `source/license -> CPU schema -> maximum-input 8 GB inference -> separately approved learning screen -> separately approved official run` 순서로만 승격한다.
 
 **Tech Stack:** PyTorch, repository VarNet pipeline, strict equal-acc evaluator, final Intel i7-8700K 6C/12T + 16 GB RAM + GTX 1080 8192 MiB + driver 550.127.08, desktop RTX 4070 Ti SUPER/RTX 3090 for training, GitHub worktrees/PRs, Python `unittest`. Exact target Python/PyTorch/CUDA-runtime versions remain an environment-capture gate; see [`final_evaluation_server.md`](final_evaluation_server.md).
 
@@ -196,11 +196,11 @@
 **Objective:** Find better quality per VRAM than vanilla E2E VarNet before spending a multi-day VESSL run.
 
 **Selection order for this repository/deadline:**
-1. Pin the MIT Feature/FI implementation at `facebookresearch/fastMRI@91f2df4711adbb6d643df1810f234e4abcf5881b` and reproduce its CPU smoke before adapting it.
-2. Keep PromptMR+ at `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e` blocked until written competition/submission confirmation under the Rutgers Non-commercial Research License.
-3. Preserve upstream algorithm modules and build only thin repository data/mask/checkpoint/harness adapters and CPU schema tests.
-4. Run the same largest-input GTX 1080 probe and estimate integration cost for every cleared family. Select by deployment fit and measured cost, not a fixed paper ranking.
-5. No adjacent slices, historical features, or four-way experts in the first architecture comparison.
+1. Prioritize official PromptMR+ at `hellopipu/PromptMR-plus@934eeda6d4d18cd39e406fa1eee9e1f70603cb5e` under RU-NCRL status `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`; preserve notices/disclaimer and do not imply commercial rights.
+2. Keep the measured MIT Feature/FI implementation at `facebookresearch/fastMRI@91f2df4711adbb6d643df1810f234e4abcf5881b` as fallback.
+3. Preserve upstream algorithm modules and build only thin repository data/mask/adjacent-slice/checkpoint/crop/packaging adapters and CPU schema tests.
+4. Run the same largest-input GTX 1080 probe and estimate integration cost for every cleared family. Select by deployment fit and measured cost, not competition precedent alone.
+5. PromptMR+'s documented five adjacent slices and historical features are part of the pinned architecture; do not silently remove them during feasibility. Do not add unrequested experts or other simultaneous architecture changes.
 
 **Likely files:**
 - Create: `utils/model/feature_varnet.py`
@@ -272,7 +272,7 @@
 
 - **Jul 15–16:** publish EXP035/AdamW consolidation, preserve the leader, and finish CPU-only continuation/source preflight. No GPU use while another process owns it.
 - **Jul 16–20:** when separately cleared, run the matched fixed-LR versus LR `3e-4` continuation; in parallel reproduce the pinned Feature/FI CPU smoke in the existing LOCAL PyTorch environment.
-- **Jul 20–24:** run the first cleared upstream adapter/schema and GTX 1080 feasibility gate; PromptMR+ remains blocked without written license confirmation.
+- **Jul 20–24:** complete the pinned PromptMR+ adapter/schema and GTX 1080 feasibility gate under `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`; keep FI-VarNet as fallback.
 - **Jul 22–31:** one matched longer run for the best recipe or next model family; no broad matrix.
 - **Aug 1–8:** one winner-style loss/augmentation follow-up and, only if oracle evidence supports it, one acceleration-specialist probe; seed confirmation.
 - **Aug 8–13:** no-cost averaging, finalist comparison, inference optimization, 8 GB proof, code/checkpoint freeze.

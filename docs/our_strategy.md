@@ -134,7 +134,7 @@
 
 ### 5. 다음 모델 계열은 deployment-first feasibility race로 제한
 
-고정된 논문 순위를 먼저 정하지 않는다. **Feature/FI-VarNet**은 MIT 공식 fastMRI commit `91f2df4711adbb6d643df1810f234e4abcf5881b`로 CPU 통합 준비가 가능하다. **PromptMR+** commit `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e`는 Rutgers Non-commercial Research License이므로 대회·제출 패키징에 대한 서면 확인 전에는 코드를 복사·설치·수정하지 않는다. 상세 audit은 [`upstream_model_feasibility.md`](upstream_model_feasibility.md)에 둔다.
+고정된 논문 순위만으로 결정하지 않는다. **PromptMR+**를 다음 우선 구조 후보로 두고, 공식 `hellopipu/PromptMR-plus` commit `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e`와 Rutgers Non-commercial Research License를 고정한다. 이 비상업 연구·대회 workflow의 상태는 `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`이며 저작권·조건·disclaimer를 보존한다. Commercial use에는 별도 권리가 필요하다. 과거 대회 사용 전례는 통합 가능성의 근거일 뿐 올해 성능·8 GB 적합성·공식 호환성 증명이 아니다. **Feature/FI-VarNet** MIT commit `91f2df4711adbb6d643df1810f234e4abcf5881b`는 measured fallback으로 유지한다. 상세 audit은 [`upstream_model_feasibility.md`](upstream_model_feasibility.md)에 둔다.
 
 1. 논문/참조 구현 commit, 대표 config, 라이선스를 고정한다.
 2. upstream 설치·smoke test를 변경 없이 재현한다.

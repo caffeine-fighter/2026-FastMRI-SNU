@@ -66,7 +66,7 @@ See the [complete matched continuation report](../reports/local_comparisons/exp0
 1. Protect EXP035 epoch 30 as the one-shot official leader; do not rerun its one-shot.
 2. Keep the matched lower-LR continuation and the entire vanilla capacity/continuation track closed. Do not run another block, second seed, c9/c10/c12 expansion, or official evaluation; Candidate epoch 34 is research-only.
 3. AdamW-only is closed. Do not run a second seed, long rescue, scheduler combination, VESSL promotion, or official evaluation for AdamW.
-4. Do not launch c9/c10/c12 capacity rescue. Reuse the pinned MIT Feature/FI implementation through a thin adapter; PromptMR+ remains blocked on written competition/license confirmation. See [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
+4. Do not launch c9/c10/c12 capacity rescue. PromptMR+ is the primary structural feasibility candidate at exact commit `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e` under RU-NCRL status `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`; preserve all notices and do not imply commercial rights. Keep the measured MIT FI-VarNet integration as the safe fallback. Architecture feasibility and competition quality are not yet established. See [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
 5. Before any new family trains, run the maximum-input GTX 1080 FP32/no-grad deployment contract.
 6. After explicit final freeze approval, run the 30-repeat timing cohort, fresh-clone package verification, and upload.
 

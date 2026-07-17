@@ -1,0 +1,160 @@
+{
+  "schema": "promptmr_plus_device_level_8gb_feasibility/v1",
+  "status": "DEVICE_LEVEL_8GB_INFERENCE_PASS_24GB_TRAINING_HANDOFF_READY",
+  "completed_at_utc": "2026-07-17T05:40:14Z",
+  "objective": "maximize_validated_expected_official_total",
+  "threshold_policy": "0.94 is not a launch, promotion, failure, or stopping threshold",
+  "policy_override": {
+    "classification": "PID_LEVEL_ATTRIBUTION_UNAVAILABLE_NONBLOCKING_FOR_BOUNDED_DEVICE_LEVEL_FEASIBILITY",
+    "evidence_label": "DEVICE_LEVEL_UNATTRIBUTED",
+    "pid_attribution_status": "UNAVAILABLE",
+    "pid_attribution_solved": false,
+    "process_level_claims_permitted": false
+  },
+  "prior_evidence_reuse": {
+    "result": "NOT_REUSED",
+    "reason": "The only prior PromptMR+ artifact was a partial FAIL_MEMORY_EVIDENCE result without full-volume completion or current governed-byte anchors.",
+    "new_probe_run": true
+  },
+  "preserved_evidence": {
+    "blocker_manifest": {
+      "path": "reports/promptmr_plus/PROMPTMR_PLUS_INFERENCE_PREFLIGHT_8GB_V2_BLOCKED_20260717.json",
+      "sha256": "3d40ff3ed76de128cd83e096466b05fe429b75e06fc7446f82b53bb4403336d7",
+      "modified": false
+    },
+    "pid_diagnosis": {
+      "path": "reports/promptmr_plus/PID_DOMAIN_DIAGNOSIS_20260717T050532Z.json",
+      "sha256": "6b244693bb99480de9a5b100aed356dddb9a3831b14e9ead83feda084dc15740",
+      "modified": false
+    },
+    "reprovision_document": {
+      "path": "docs/vessl_pid_domain_reprovision_requirements.md",
+      "sha256": "841f1304752d59e43913b98e8386063cccd1876d0710dd15f4e3f13f790943a6",
+      "modified": false
+    }
+  },
+  "governed_hashes": {
+    "probe": "435e5b5bdb4f4bf67fbaeb70ce3210eed8f32589559e955ba3c92bb3e2e97963",
+    "adapter": "e7ea03ff4beb19f5b2bf8a36a4dbacfe84d168a16f877b08909c824d1ac2f843",
+    "probe_tests": "e5054bf43d0381e97891a1d3a8bb5d858e439eb8539f795460f9580d1d2638f9",
+    "adapter_tests": "bd7fb8fd5fad16b4b74f2aa1a160ae97327b931c89afe004f3992a768c8d9383",
+    "source_manifest": "3d77c331b3d756ea855c12c08efe82d34755b30035eaef1c933c053bfa128876",
+    "model_config": "ac883402084ccdf4d2790fd944c6e7c972b4d2c1a6d6b094007c8eb03e1d08d6",
+    "knee_training_config": "5241adee5cb34846a6569d37fbd4078877bb90ee3d00442e9175173bccf1be41",
+    "requirements": "e6fcfe6a9040d90fcaa4ad18d4bfbae501f7477e1844d6399d52dbc111460f21",
+    "upstream_commit": "934eeda6d4d18cd39e406fa1eee9e1f70603cb5e"
+  },
+  "canonical_cpu_gate": {
+    "probe_suite": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX=<fresh-temp> PYTHONPATH=. CUDA_VISIBLE_DEVICES='' python -B -m unittest tests.test_promptmr_plus_probe -v",
+      "passed": 21,
+      "failed": 0
+    },
+    "adapter_and_routing_suite": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX=<fresh-temp> PYTHONPATH=. CUDA_VISIBLE_DEVICES='' python -B -m unittest tests.test_promptmr_plus_adapter -v",
+      "passed": 15,
+      "failed": 0
+    },
+    "total": {
+      "passed": 36,
+      "failed": 0
+    },
+    "py_compile_changed_python_files": {
+      "passed": 15,
+      "failed": 0
+    },
+    "submission_checker": "PASS",
+    "git_diff_check": "PASS",
+    "strict_json_and_hash_checks": "PASS",
+    "forbidden_training_command_scan": "PASS",
+    "secret_and_large_artifact_scan": "PASS",
+    "exp036_absence": "PASS"
+  },
+  "cuda_device_canary": {
+    "status": "PASS",
+    "path": "/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/cuda_device_canary.json",
+    "sha256": "632878c00a2f6b894f48d9eec5486ea3689b958fa8f4f0af956cf44d363995ca",
+    "tensor_dtype": "float32",
+    "tensor_bytes": 67108864,
+    "runtime_seconds": 2.106947890948504,
+    "memory_used_mib_pre_during_post": [2.0, 299.0, 2.0],
+    "compute_rows_pre_during_post": [0, 1, 0],
+    "post_utilization_percent": 0.0
+  },
+  "promptmr_plus_probe": {
+    "status": "PASS",
+    "path": "/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/promptmr_plus_acc4_synthetic_fp32.json",
+    "sha256": "80e4df1036f2914ef7303a9b90a98d75a3ccbdf7573e924e388b5dbe08b3e6d3",
+    "weights": "random_untrained",
+    "input_source": "synthetic",
+    "h5_accessed": false,
+    "dtype": "float32",
+    "num_cascades": 12,
+    "num_adjacent_slices": 5,
+    "parameter_count": 92859005,
+    "maximum_slice": {
+      "raw_input_shape": [1, 15, 640, 480, 2],
+      "effective_model_input_shape": [1, 75, 640, 480, 2],
+      "output_shape": [1, 640, 480],
+      "finite": true,
+      "peak_allocated_mib": 3978.09716796875,
+      "peak_reserved_mib": 6162.0,
+      "aggregate_device_memory_used_mib": 6307.0,
+      "adapter_forward_mean_ms": 2285.856312684094,
+      "compute_row_count": 1
+    },
+    "full_volume": {
+      "input_shape_slices_coils_height_width": [38, 15, 640, 480],
+      "output_shape_slices_height_width": [38, 640, 480],
+      "finite": true,
+      "peak_allocated_mib": 4023.12841796875,
+      "peak_reserved_mib": 7492.0,
+      "aggregate_device_memory_used_mib": 7637.0,
+      "adapter_forward_mean_ms_per_slice": 2290.3780245749085,
+      "adapter_forward_max_ms_per_slice": 2296.0665649734437,
+      "retention_path_mean_ms_per_slice": 2446.0458111593894,
+      "compute_row_count": 1
+    },
+    "memory_dominance_scope": "acc4 has the larger maximum width and larger retained full-volume output element count than acc8; the shared model and adapter route both accelerations in canonical CPU tests",
+    "in_process_cleanup": {
+      "gc_called": true,
+      "cuda_empty_cache_called": true,
+      "allocated_mib_before_process_exit": 8.12548828125,
+      "reserved_mib_before_process_exit": 178.0
+    },
+    "external_post_process_cleanup": {
+      "observed_at_utc": "2026-07-17T05:40:14Z",
+      "gpu_index": 0,
+      "gpu_uuid": "GPU-3073d3e5-383c-775f-faca-904c38057c94",
+      "driver_version": "550.90.12",
+      "memory_total_mib": 8192.0,
+      "memory_used_mib": 2.0,
+      "utilization_percent": 0.0,
+      "compute_row_count": 0
+    }
+  },
+  "prohibited_actions": {
+    "training_executed": false,
+    "backward_executed": false,
+    "optimizer_step_executed": false,
+    "official_evaluation_executed": false,
+    "submission_executed": false,
+    "exp036_registered": false,
+    "exp036_output_created": false,
+    "mixed_precision_used": false,
+    "architecture_reduced": false
+  },
+  "exp036_state": "RESERVED_NOT_LAUNCHED",
+  "training_handoff": {
+    "status": "PLAN_ONLY_NOT_LAUNCHED",
+    "path": "docs/promptmr_plus_rtx3090_training_handoff.md",
+    "sha256": "da860776b22272cb8c01a0f7c0444145fa9a6edfbbcb682b2665d630444e973b",
+    "minimum_target_vram_gib": 24
+  },
+  "interpretation_limits": [
+    "This is bounded random-weight synthetic inference feasibility, not reconstruction quality evidence.",
+    "Aggregate telemetry is unattributed at PID level.",
+    "The single observed during-probe compute row is not claimed to belong to the probe by authoritative PID mapping.",
+    "No official evaluation or score-improvement claim is authorized by this evidence."
+  ]
+}

@@ -102,7 +102,7 @@ Prioritize by measured gain per GPU-day:
 
 1. Protect completed EXP035 epoch 30 and keep unmodified vanilla capacity/continuation closed.
 2. Matched continuation R1 is complete: Candidate-Control `+0.0003468637 < +0.0005`, acc8 bbox `-0.0003703822`; no second seed, epoch 40, c9/c10/c12 expansion, or official evaluation.
-3. Use MIT Feature/FI commit `91f2df47` for adapter-first CPU schema and maximum-input 8 GB feasibility work. PromptMR+ commit `934eeda6` remains blocked until written competition/submission license confirmation.
+3. Prioritize RU-NCRL PromptMR+ commit `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e` for pinned thin-adapter CPU schema and maximum-input 8 GB feasibility work; its status for this workflow is `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`, with notices/disclaimer preserved and no commercial-rights claim. Keep measured MIT Feature/FI commit `91f2df47` as the fallback.
 4. Train only an upstream candidate that passes CPU schema and GTX 1080 maximum-input feasibility; use activation checkpointing and accumulation only as LOCAL training controls.
 5. Test output-equivalent coil/sensitivity memory controls before any lossy compression. Treat `inference_mode` as an opt-in parity benchmark against the existing no-grad control. Treat FP16 as a memory experiment, not an assumed speed path on GTX 1080.
 6. If a non-deployable teacher clears the 0.001 oracle-gap gate, distill it into a preregistered 8 GB student; otherwise stop the compression track.
@@ -155,4 +155,4 @@ Every change starts with a short feasibility probe and gets abandoned when it fa
 
 ## Current action
 
-EXP035 epoch 30 is complete and protected, and the vanilla capacity/continuation track is formally closed. The next bounded work is the pinned MIT Feature/FI upstream import, thin-adapter schema check, and random-weight maximum-input FP32 8 GB feasibility probe. No e5/e15/e30 training or official evaluation starts automatically; PromptMR+ remains license-blocked.
+EXP035 epoch 30 is complete and protected, and the vanilla capacity/continuation track is formally closed. PromptMR+ is now the priority structural feasibility candidate at exact commit `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e` under RU-NCRL status `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`; FI-VarNet remains the measured fallback. The bounded task is exact-source verification, thin-adapter CPU schema tests, and no-training maximum-input FP32 8 GB feasibility. No e5/e15/e30 training or official evaluation starts automatically.

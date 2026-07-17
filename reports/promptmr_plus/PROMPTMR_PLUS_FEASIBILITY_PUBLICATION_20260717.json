@@ -1,0 +1,173 @@
+{
+  "schema": "promptmr_plus_feasibility_publication/v1",
+  "status": "FEASIBILITY_EVIDENCE_PASS_LOCAL_BRANCH_NOT_PUBLISHED",
+  "created_at_utc": "2026-07-17T06:00:00Z",
+  "objective": "maximize_validated_expected_official_total",
+  "threshold_policy": "0.94 is not a pass/fail, launch, promotion, or stopping threshold",
+  "evidence_classification": {
+    "label": "DEVICE_LEVEL_UNATTRIBUTED",
+    "pid_attribution": "UNAVAILABLE",
+    "pid_ownership_claimed": false,
+    "scope": "bounded random-weight synthetic inference feasibility only",
+    "quality_or_score_claimed": false
+  },
+  "gpu_binding": {
+    "index": 0,
+    "uuid": "GPU-3073d3e5-383c-775f-faca-904c38057c94",
+    "model": "NVIDIA GeForce GTX 1080",
+    "driver": "550.90.12",
+    "total_memory_mib": 8192,
+    "final_memory_used_mib": 2,
+    "final_utilization_percent": 0,
+    "final_compute_row_count": 0
+  },
+  "architecture": {
+    "upstream_repository": "https://github.com/hellopipu/PromptMR-plus",
+    "upstream_commit": "934eeda6d4d18cd39e406fa1eee9e1f70603cb5e",
+    "name": "PromptMR+ v2",
+    "num_cascades": 12,
+    "num_adjacent_slices": 5,
+    "precision": "FP32",
+    "parameters": 92859005,
+    "weights": "random_untrained"
+  },
+  "vendored_byte_policy": {
+    "attributes_file": ".gitattributes",
+    "pattern": "third_party/promptmr_plus/**",
+    "whitespace_rule": "-trailing-space",
+    "reason": "Preserve pinned upstream bytes exactly; normalizing CRLF or trailing whitespace would invalidate SOURCE_MANIFEST.json and immutable GPU-evidence closure."
+  },
+  "hash_closure": {
+    "source_manifest": "3d77c331b3d756ea855c12c08efe82d34755b30035eaef1c933c053bfa128876",
+    "license": "c0c4c7d85180b493cd7a213d4509155d3734de26562e4490589963e1c356db21",
+    "model_config": "ac883402084ccdf4d2790fd944c6e7c972b4d2c1a6d6b094007c8eb03e1d08d6",
+    "training_config": "5241adee5cb34846a6569d37fbd4078877bb90ee3d00442e9175173bccf1be41",
+    "adapter": "e7ea03ff4beb19f5b2bf8a36a4dbacfe84d168a16f877b08909c824d1ac2f843",
+    "probe": "435e5b5bdb4f4bf67fbaeb70ce3210eed8f32589559e955ba3c92bb3e2e97963",
+    "probe_tests": "e5054bf43d0381e97891a1d3a8bb5d858e439eb8539f795460f9580d1d2638f9",
+    "adapter_tests": "bd7fb8fd5fad16b4b74f2aa1a160ae97327b931c89afe004f3992a768c8d9383",
+    "blocker_manifest": "3d40ff3ed76de128cd83e096466b05fe429b75e06fc7446f82b53bb4403336d7",
+    "pid_diagnosis": "6b244693bb99480de9a5b100aed356dddb9a3831b14e9ead83feda084dc15740",
+    "reprovision_document": "841f1304752d59e43913b98e8386063cccd1876d0710dd15f4e3f13f790943a6",
+    "immutable_feasibility_summary": "aee45d1f673dc7333e0574d98c8c2f9972d1cf9b11304e3f34b8cf38ec1e2025",
+    "training_integration_handoff": "f06d50efda1d5d0c591c065cf7ad6a6029fa4fd5f1ba1a994067fb025e40779b",
+    "cuda_canary_external": "632878c00a2f6b894f48d9eec5486ea3689b958fa8f4f0af956cf44d363995ca",
+    "promptmr_inference_external": "80e4df1036f2914ef7303a9b90a98d75a3ccbdf7573e924e388b5dbe08b3e6d3"
+  },
+  "artifact_binding": {
+    "cuda_canary": {
+      "path": "/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/cuda_device_canary.json",
+      "committed": false,
+      "status": "PASS"
+    },
+    "maximum_slice_and_full_volume": {
+      "path": "/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/promptmr_plus_acc4_synthetic_fp32.json",
+      "committed": false,
+      "status": "PASS",
+      "maximum_slice_shape": [1, 640, 480],
+      "full_volume_shape": [38, 640, 480],
+      "full_volume_device_used_mib": 7637,
+      "observed_headroom_mib": 555,
+      "headroom_interpretation": "TIGHT_NOT_COMFORTABLY_SAFE",
+      "adapter_forward_mean_ms_per_slice": 2290.3780245749085,
+      "maximum_slice_harness_ms_per_slice": 2934.2695579398423,
+      "latency_is_official_timing_score": false
+    }
+  },
+  "canonical_cpu_verification": {
+    "probe_tests": {
+      "passed": 21,
+      "failed": 0,
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX=<fresh-temp> PYTHONPATH=. CUDA_VISIBLE_DEVICES='' python -B -m unittest tests.test_promptmr_plus_probe -v"
+    },
+    "adapter_tests": {
+      "passed": 15,
+      "failed": 0,
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX=<fresh-temp> PYTHONPATH=. CUDA_VISIBLE_DEVICES='' python -B -m unittest tests.test_promptmr_plus_adapter -v"
+    },
+    "total_passed": 36,
+    "total_failed": 0,
+    "changed_python_py_compile_passed": 15,
+    "submission_checker": "PASS",
+    "git_diff_check": "PASS",
+    "strict_json_duplicate_nonfinite_check": "PASS_48_FILES",
+    "forbidden_action_scan": "PASS",
+    "secret_large_generated_scan": "PASS_38_FILES",
+    "markdown_local_links": "PASS_27_LINKS",
+    "exp036_absence": "PASS"
+  },
+  "training_integration": {
+    "requested_remote_branch": "agent/promptmr-training-integration",
+    "origin_ref_found": false,
+    "draft_pr_verified": false,
+    "status": "LOCAL_TRAINING_BRANCH_NOT_PUBLISHED",
+    "standalone_scripts_train_promptmr_plus_py_permitted": false,
+    "handoff_path": "reports/promptmr_plus/PROMPTMR_PLUS_TRAINING_INTEGRATION_HANDOFF_20260717.json",
+    "minimum_training_gpu_memory_gib": 17,
+    "recommended_training_gpu_memory_gib": 24,
+    "gtx1080_training_permitted": false
+  },
+  "actions_not_performed_this_turn": [
+    "CUDA initialization",
+    "model forward",
+    "H5 access",
+    "dataset loading",
+    "training",
+    "backward",
+    "optimizer step",
+    "checkpoint creation",
+    "official evaluation",
+    "leaderboard submission",
+    "EXP036 registration",
+    "EXP036 output creation"
+  ],
+  "exp036_state": "RESERVED_NOT_LAUNCHED",
+  "stage_allowlist": [
+    ".gitattributes",
+    "README.md",
+    "docs/current_state.md",
+    "docs/decisions.md",
+    "docs/exp054_winning_strategy_roadmap.md",
+    "docs/our_strategy.md",
+    "docs/promptmr_plus_rtx3090_training_handoff.md",
+    "docs/score_optimization_40_day_roadmap.md",
+    "docs/upstream_model_feasibility.md",
+    "docs/vessl_pid_domain_reprovision_requirements.md",
+    "requirements.txt",
+    "scripts/probe_promptmr_plus_8gb.py",
+    "tests/test_promptmr_plus_adapter.py",
+    "tests/test_promptmr_plus_probe.py",
+    "third_party/promptmr_plus/LICENSE.md",
+    "third_party/promptmr_plus/README.md",
+    "third_party/promptmr_plus/SOURCE_MANIFEST.json",
+    "third_party/promptmr_plus/configs/inference/pmr-plus/fm-brain.yaml",
+    "third_party/promptmr_plus/configs/inference/pmr-plus/fm-knee.yaml",
+    "third_party/promptmr_plus/configs/model/pmr-plus.yaml",
+    "third_party/promptmr_plus/configs/train/pmr-plus/fm-brain.yaml",
+    "third_party/promptmr_plus/configs/train/pmr-plus/fm-knee.yaml",
+    "third_party/promptmr_plus/upstream/data/subsample.py",
+    "third_party/promptmr_plus/upstream/data/transforms.py",
+    "third_party/promptmr_plus/upstream/models/__init__.py",
+    "third_party/promptmr_plus/upstream/models/promptmr_v2.py",
+    "third_party/promptmr_plus/upstream/models/utils.py",
+    "third_party/promptmr_plus/upstream/mri_utils/__init__.py",
+    "third_party/promptmr_plus/upstream/mri_utils/coil_combine.py",
+    "third_party/promptmr_plus/upstream/mri_utils/fftc.py",
+    "third_party/promptmr_plus/upstream/mri_utils/losses.py",
+    "third_party/promptmr_plus/upstream/mri_utils/math.py",
+    "third_party/promptmr_plus/upstream/mri_utils/utils.py",
+    "utils/model/promptmr_plus_adapter.py",
+    "reports/promptmr_plus/PID_DOMAIN_DIAGNOSIS_20260717T050532Z.json",
+    "reports/promptmr_plus/PROMPTMR_PLUS_DEVICE_LEVEL_8GB_FEASIBILITY_20260717.json",
+    "reports/promptmr_plus/PROMPTMR_PLUS_TRAINING_INTEGRATION_HANDOFF_20260717.json",
+    "reports/promptmr_plus/PROMPTMR_PLUS_FEASIBILITY_PUBLICATION_20260717.json"
+  ],
+  "excluded_from_commit": [
+    "/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/cuda_device_canary.json",
+    "/root/result/FEATURE_PROMPTMR_PLUS_DEVICE_LEVEL_20260717_V1/promptmr_plus_acc4_synthetic_fp32.json",
+    "checkpoints",
+    "H5 data",
+    "cache files",
+    "raw credentials"
+  ]
+}

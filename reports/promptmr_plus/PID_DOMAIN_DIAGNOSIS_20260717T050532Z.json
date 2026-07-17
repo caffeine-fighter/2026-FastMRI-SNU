@@ -1,0 +1,121 @@
+{
+  "schema": "pid-domain-diagnosis/v1",
+  "collector_started_at": "2026-07-17T05:05:32.759625Z",
+  "collector_ended_at": "2026-07-17T05:05:32.792833Z",
+  "collector_exit_code": 0,
+  "scope": "CPU/procfs and nvidia-smi diagnosis only",
+  "forbidden_actions": {
+    "torch_imported": false,
+    "cuda_initialized": false,
+    "h5_opened": false,
+    "model_imported": false,
+    "dataset_imported": false,
+    "training_started": false,
+    "inference_started": false,
+    "official_evaluation_started": false
+  },
+  "application_process": {
+    "pid": 1083108,
+    "ppid": 1083106,
+    "nspid": [1083108],
+    "nspid_levels": 1,
+    "pid_namespace_inode": "pid:[4026533191]",
+    "process_name_sha256_16": "11a4a60b518bf249",
+    "status_read_started_at": "2026-07-17T05:05:32.759643Z",
+    "status_read_ended_at": "2026-07-17T05:05:32.759834Z",
+    "status_read_exit_code": 0
+  },
+  "namespace_init": {
+    "pid": 1,
+    "ppid": 0,
+    "nspid": [1],
+    "nspid_levels": 1,
+    "pid_namespace_inode": "pid:[4026533191]",
+    "process_name_sha256_16": "37d2b12d5d9abc2a",
+    "status_read_started_at": "2026-07-17T05:05:32.759872Z",
+    "status_read_ended_at": "2026-07-17T05:05:32.759953Z",
+    "status_read_exit_code": 0
+  },
+  "cgroup": {
+    "raw_text_recorded": false,
+    "sha256": "e57fd7b21104f091de366ace1464596378a498b0a5e63f1b21147a8998c20107",
+    "line_count": 1,
+    "nonempty": true,
+    "read_exit_code": 0
+  },
+  "procfs": {
+    "primary_mount": {
+      "root": "/",
+      "mount_point": "/proc",
+      "filesystem": "proc",
+      "mount_options": ["rw", "nosuid", "nodev", "noexec", "relatime"],
+      "super_options": ["rw"]
+    },
+    "host_proc_present": false,
+    "run_host_proc_present": false,
+    "proc_1_root_proc_present": true,
+    "proc_1_root_proc_same_device_as_proc": true,
+    "proc_1_root_proc_device": 219,
+    "proc_1_root_proc_inode": 1
+  },
+  "gpu_query": {
+    "command": [
+      "nvidia-smi",
+      "--query-gpu=index,uuid,driver_version,memory.total,memory.used,utilization.gpu",
+      "--format=csv,noheader,nounits"
+    ],
+    "started_at": "2026-07-17T05:05:32.760451Z",
+    "ended_at": "2026-07-17T05:05:32.776209Z",
+    "exit_code": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "parsed": {
+      "index": 0,
+      "uuid": "GPU-3073d3e5-383c-775f-faca-904c38057c94",
+      "driver": "550.90.12",
+      "memory_total_mib": 8192.0,
+      "memory_used_mib": 2.0,
+      "utilization_percent": 0.0
+    }
+  },
+  "compute_process_query": {
+    "command": [
+      "nvidia-smi",
+      "--query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory",
+      "--format=csv,noheader,nounits"
+    ],
+    "started_at": "2026-07-17T05:05:32.776400Z",
+    "ended_at": "2026-07-17T05:05:32.792795Z",
+    "exit_code": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "row_count": 0,
+    "parsed_rows": []
+  },
+  "strict_validation": {
+    "nspid_well_formed": true,
+    "positive_application_pid": true,
+    "duplicate_nspid_values": false,
+    "gpu_row_well_formed": true,
+    "gpu_uuid_well_formed": true,
+    "gpu_index_nonnegative": true,
+    "driver_well_formed": true,
+    "gpu_memory_finite_nonnegative": true,
+    "gpu_memory_within_total": true,
+    "gpu_utilization_finite_in_range": true,
+    "compute_rows_well_formed": true,
+    "duplicate_compute_pid_rows": false,
+    "disappearing_visible_compute_process": false
+  },
+  "mapping_assessment": {
+    "complete_nspid_vector_available": false,
+    "authoritative_host_proc_bridge_available": false,
+    "trusted_provider_pid_mapping_available": false,
+    "host_pid_candidate": null,
+    "application_pid": 1083108,
+    "mapping_method": null,
+    "trustworthy_attribution_supported": false,
+    "reason": "The container-mounted procfs exposes one NSpid level and no reviewed host-proc or trusted provider telemetry bridge is present. An outer NVIDIA PID cannot be derived from these bytes."
+  },
+  "verdict": "BLOCKED_NEEDS_VESSL_REPROVISION",
+  "canary_permitted": false,
+  "h5_preflight_permitted": false
+}

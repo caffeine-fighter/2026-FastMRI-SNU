@@ -1,6 +1,6 @@
 # Upstream model-family feasibility record
 
-> Source and license audit performed on 2026-07-15. No PromptMR+ source code was copied, installed, or executed. No GPU was queried or used.
+> Source and license audit refreshed on 2026-07-16. PromptMR+ is pinned and vendored only through the exact files listed in `third_party/promptmr_plus/SOURCE_MANIFEST.json`; no long training or official evaluation is authorized.
 
 ## Decision
 
@@ -19,21 +19,26 @@ The upstream README claims a separate `fastmri_examples/feature_varnet/requireme
 
 A detached, unmodified audit clone was created outside this repository at `upstream-fastMRI-91f2df47`. Import/forward smoke was attempted with `CUDA_VISIBLE_DEVICES` empty, but the available Hermes Windows Python has no PyTorch installation. The CPU forward is therefore **blocked by the local interpreter**, not failed by the model. Do not install CUDA or a GPU PyTorch build merely to clear this documentation gate; rerun in the existing LOCAL training environment when it is available.
 
-## PromptMR+ — license confirmation still required
+## PromptMR+ — noncommercial competition use allowed; feasibility pending
 
 - Upstream: `hellopipu/PromptMR-plus`
 - Pinned commit: `934eeda6d4d18cd39e406fa1eee9e1f70603cb5e`
 - License: Rutgers Non-commercial Research License, Rutgers docket `#2025-032`
+- Status: `NONCOMMERCIAL_COMPETITION_USE_ALLOWED`
+- License SHA-256: `c0c4c7d85180b493cd7a213d4509155d3734de26562e4490589963e1c356db21`
 
-The license text permits source/binary use and redistribution for noncommercial purposes, including research at a for-profit company, subject to retaining notices and disclaimers. It does not itself decide whether this competition, a resulting submission package, or later organizer use is noncommercial. Obtain written organizer/team confirmation before copying, installing, adapting, or packaging PromptMR+ code. If confirmation is unavailable, terminate this path and use the MIT Feature/FI implementation.
+For this noncommercial research/competition workflow, the RU-NCRL permits use, modification, and redistribution provided that the copyright notice, license conditions, and disclaimer are preserved. Commercial use requires separate rights and is not implied. Prior SNU FastMRI competition use is useful integration precedent, but it does not prove this year's quality, 8 GB deployment feasibility, checkpoint compatibility, or official harness acceptance.
 
-## Next CPU-only checks
+The exact upstream implementation and representative FastMRI brain/knee configs are preserved byte-for-byte under `third_party/promptmr_plus/`; the manifest verifies every vendored source/config/license hash before import. The local layer is restricted to data, mask, adjacent-slice, checkpoint-namespace, crop/output, and packaging adapters. Architecture feasibility and competition quality remain separate gates.
 
-1. In the existing LOCAL PyTorch environment, reproduce a tiny CPU forward from the pinned Feature/FI source with CUDA hidden.
-2. Record tensor schema: k-space `[batch, coils, height, width, 2]`, boolean mask, low-frequency count, crop size, and output image.
-3. Compare upstream FFT, normalization, sensitivity-map, mask-center, crop, and scale semantics against this repository without changing either implementation.
-4. Design a thin adapter and checkpoint namespace; keep upstream algorithm modules intact.
-5. Only after CPU schema parity, schedule the largest-input GTX 1080 forward preflight. No GPU preflight was run in this change.
+Official checkpoint metadata is pinned to Hugging Face revision `fd1642e375e29ee515696d802179c099ee08d737`. The brain PromptMR+ checkpoint (`step=1591830`, SHA-256 `42722018604944c567c598ddf5c488d135793ef337359a1da03ad3d4301e177e`) and knee checkpoint (`step=781695`, SHA-256 `3f931e9fd5eed3f755c580760de04bf7b870bc5d0a9b39c5164955359f385a86`) were both trained jointly for acc4/acc8 with `combine_train_val: false`. The brain source config contains a stale filename for the same renamed LFS object. The knee checkpoint's metadata says legacy `promptmr` even though its state shapes strictly load into v2; do not claim semantic identity or force its use. Checkpoints are initialization/namespace evidence only, not independent quality evidence.
+
+## Current feasibility gate
+
+1. Exact source/config/license hash verification, five-adjacent-slice schema, bool-mask layout, acceleration-token routing, crop/output contract, strict checkpoint namespace, and real CPU FP32 forward are implemented and tested.
+2. The pinned v2 source has a missing `PromptMRBlock.n_buffer` attribute; the adapter mirrors the already-configured `cascade.model.n_buffer` at runtime without editing upstream algorithm bytes.
+3. The next gate is the independently reviewed, no-training maximum-input GTX 1080 FP32 probe. If default inference OOMs, apply only the documented `compute_sens_per_coil` control before considering any other mode.
+4. No e5/e15/e30 training, official evaluation, repeated timing cohort, or leaderboard submission is authorized by a feasibility PASS.
 
 ## Sources
 

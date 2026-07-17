@@ -1,0 +1,174 @@
+{
+  "schema": "promptmr_plus_training_integration_handoff/v1",
+  "status": "LOCAL_TRAINING_BRANCH_NOT_PUBLISHED",
+  "created_at_utc": "2026-07-17T05:58:13Z",
+  "objective": "maximize_validated_expected_official_total",
+  "threshold_policy": "0.94 is not a pass/fail, launch, promotion, or stopping threshold",
+  "remote_lookup": {
+    "remote": "origin",
+    "repository": "caffeine-fighter/2026-FastMRI-SNU",
+    "requested_branch": "agent/promptmr-training-integration",
+    "origin_ref_found": false,
+    "github_api_result": "UNAVAILABLE_HTTP_404_WITHOUT_GH_AUTH",
+    "draft_pr_verified": false,
+    "interpretation": "The local training branch was not published to the origin remote. A draft PR from an inaccessible private or fork ref could not be proven."
+  },
+  "integration_direction": {
+    "use_existing_local_training_integration": true,
+    "create_standalone_scripts_train_promptmr_plus_py": false,
+    "legacy_plan_only_command_is_runnable": false,
+    "required_surface": [
+      "train.py",
+      "model-family routing",
+      "dataset adapter",
+      "checkpoint and resume",
+      "scheduler and scaler",
+      "planner",
+      "provenance"
+    ],
+    "merge_or_cherry_pick_performed": false,
+    "training_branch_modified": false
+  },
+  "feasibility_contract": {
+    "status": "DEVICE_LEVEL_8GB_INFERENCE_PASS_24GB_TRAINING_HANDOFF_READY",
+    "evidence_label": "DEVICE_LEVEL_UNATTRIBUTED",
+    "pid_attribution_status": "UNAVAILABLE",
+    "upstream_repository": "https://github.com/hellopipu/PromptMR-plus",
+    "upstream_commit": "934eeda6d4d18cd39e406fa1eee9e1f70603cb5e",
+    "architecture": {
+      "name": "PromptMR+ v2",
+      "num_cascades": 12,
+      "num_adjacent_slices": 5,
+      "parameters": 92859005,
+      "precision": "FP32",
+      "batch_size": 1,
+      "architecture_reduction_permitted": false,
+      "fp16_or_bf16_fallback_permitted": false
+    },
+    "gtx1080_inference": {
+      "status": "PASS_BOUNDED_RANDOM_WEIGHT_SYNTHETIC",
+      "memory_used_full_volume_mib": 7637.0,
+      "observed_headroom_mib": 555.0,
+      "headroom_interpretation": "TIGHT_NOT_COMFORTABLY_SAFE",
+      "adapter_forward_mean_ms_per_slice": 2290.3780245749085,
+      "maximum_slice_harness_ms_per_slice": 2934.2695579398423,
+      "full_volume_retention_mean_ms_per_slice": 2446.0458111593894,
+      "latency_scope": "local synchronized adapter and harness measurements; not an official timing score"
+    },
+    "training_resources": {
+      "pinned_upstream_minimum_gpu_memory_gib": 17,
+      "recommended_gpu_memory_gib": 24,
+      "gtx1080_training_permitted": false,
+      "use_checkpoint": true,
+      "compute_sens_per_coil": true,
+      "precision": "FP32"
+    },
+    "unproven": [
+      "real-H5 inference",
+      "learned reconstruction quality",
+      "24GB one-step training feasibility",
+      "official evaluation compatibility",
+      "official score improvement"
+    ]
+  },
+  "exact_file_symbol_mapping": [
+    {
+      "feasibility_file": "utils/model/promptmr_plus_adapter.py",
+      "symbols": [
+        "verify_promptmr_plus_source",
+        "build_promptmr_plus",
+        "PromptMRPlusAdapter",
+        "prepare_promptmr_input",
+        "load_promptmr_plus_checkpoint",
+        "acceleration_from_filename"
+      ],
+      "training_integration_target": "reuse these contracts from train.py model-family routing and the existing local dataset/checkpoint integration; do not duplicate the adapter"
+    },
+    {
+      "feasibility_file": "third_party/promptmr_plus/SOURCE_MANIFEST.json",
+      "symbols": ["repository", "commit", "files", "model_config", "checkpoints", "license"],
+      "training_integration_target": "fail closed on the same source, config, checkpoint, and license anchors before data access"
+    },
+    {
+      "feasibility_file": "third_party/promptmr_plus/configs/model/pmr-plus.yaml",
+      "symbols": ["model architecture fields"],
+      "training_integration_target": "model-family construction must match all exact v2 fields and 12-cascade/five-adjacent-slice routing"
+    },
+    {
+      "feasibility_file": "third_party/promptmr_plus/configs/train/pmr-plus/fm-knee.yaml",
+      "symbols": ["uniform_resolution", "batch_size", "lr", "lr_step_size", "use_checkpoint", "compute_sens_per_coil"],
+      "training_integration_target": "map to the existing train.py CLI/config without introducing a second standalone training entrypoint"
+    },
+    {
+      "feasibility_file": "scripts/probe_promptmr_plus_8gb.py",
+      "symbols": ["EXPECTED_SLICE_SHAPES", "EXPECTED_VOLUME_SHAPES", "validate_output_shape"],
+      "training_integration_target": "preserve full-resolution deployment contracts separately from upstream 384x384 training preprocessing"
+    }
+  ],
+  "required_training_recipe": {
+    "seed": 430,
+    "batch_size": 1,
+    "precision": "FP32",
+    "optimizer": "AdamW",
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "scheduler": "StepLR",
+    "scheduler_step_size": 35,
+    "scheduler_gamma": 0.1,
+    "gradient_clip_norm": 0.01,
+    "loss": "SSIMLoss",
+    "ssim_window": 7,
+    "ssim_k1": 0.01,
+    "ssim_k2": 0.03,
+    "use_checkpoint": true,
+    "compute_sens_per_coil": true,
+    "uniform_resolution": [384, 384]
+  },
+  "checkpoint_and_dataset_contract": {
+    "checkpoint_namespace": "strict promptmr. namespace stripping with exact state_dict load",
+    "resume": "preserve optimizer, scheduler, scaler, RNG, source/config/split/seed provenance",
+    "acceleration_routing": "exactly one underscore-delimited acc4 or acc8 filename token",
+    "adjacent_slices": "five slices from one volume with edge replication and no cross-volume access",
+    "raw_input": "[B,C,H,W,2] complex-pair representation before adjacent concatenation",
+    "effective_input": "[B,5*C,H,W,2]",
+    "mask": "boolean [B,1,1,W,1]",
+    "training_preprocessing": "upstream 384x384",
+    "deployment_preflight": "full-resolution 640x480/400 remains a separate contract"
+  },
+  "future_inference_engineering": {
+    "may_evaluate_later": [
+      "stream outputs to CPU instead of retaining all outputs on GPU",
+      "reduce harness overhead"
+    ],
+    "must_preserve": [
+      "architecture",
+      "FP32 precision",
+      "exact output shape",
+      "finite outputs",
+      "official-path parity"
+    ]
+  },
+  "automatic_actions_forbidden": [
+    "training launch",
+    "official evaluation",
+    "leaderboard submission",
+    "EXP036 registration",
+    "EXP036 output creation",
+    "merge",
+    "auto-merge"
+  ],
+  "exp036_state": "RESERVED_NOT_LAUNCHED",
+  "hashes": {
+    "source_manifest": "3d77c331b3d756ea855c12c08efe82d34755b30035eaef1c933c053bfa128876",
+    "license": "c0c4c7d85180b493cd7a213d4509155d3734de26562e4490589963e1c356db21",
+    "model_config": "ac883402084ccdf4d2790fd944c6e7c972b4d2c1a6d6b094007c8eb03e1d08d6",
+    "training_config": "5241adee5cb34846a6569d37fbd4078877bb90ee3d00442e9175173bccf1be41",
+    "adapter": "e7ea03ff4beb19f5b2bf8a36a4dbacfe84d168a16f877b08909c824d1ac2f843",
+    "probe": "435e5b5bdb4f4bf67fbaeb70ce3210eed8f32589559e955ba3c92bb3e2e97963",
+    "probe_tests": "e5054bf43d0381e97891a1d3a8bb5d858e439eb8539f795460f9580d1d2638f9",
+    "adapter_tests": "bd7fb8fd5fad16b4b74f2aa1a160ae97327b931c89afe004f3992a768c8d9383",
+    "feasibility_summary": "aee45d1f673dc7333e0574d98c8c2f9972d1cf9b11304e3f34b8cf38ec1e2025",
+    "cuda_canary_external": "632878c00a2f6b894f48d9eec5486ea3689b958fa8f4f0af956cf44d363995ca",
+    "promptmr_probe_external": "80e4df1036f2914ef7303a9b90a98d75a3ccbdf7573e924e388b5dbe08b3e6d3"
+  }
+}
