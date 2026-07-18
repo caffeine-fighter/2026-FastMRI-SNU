@@ -5,18 +5,20 @@ VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Chall
 <!-- EXP031_STATUS_START -->
 ## Live VESSL status
 
-_Last update: 2026-07-16 19:18 KST (2026-07-16 10:18 UTC)_
+_Last update: 2026-07-19 00:16 KST (2026-07-18 15:16 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | `LOCAL_EXP035_E30_TO_E35_ADAM_LR1E3_SEED430_R1` (running) |
-| Design | exact epoch-30 continuation; Adam LR `0.001` Control; c8/ch12/s8; seed `430` |
-| Progress | epoch `34/35`, iteration `4500/4651`, continuation `99.4%`; latest loss `0.09342` |
-| Completed continuation epochs | `5/5`; retained reconstruction directories `5/5` |
-| Best validation loss | epoch `33`: `3.130437840` |
-| Health | error matches `0`; checkpoint generations `5`; PID `917599` |
+| Experiment | `EXP037` — matched standard Control |
+| Run | `EXP037_MATCHED_STANDARD_CONTROL_E30_TO_E35_R1` (running) |
+| Manifest status | `CLAIMED_BEFORE_GPU_START` |
+| Design | epoch-30→35 exact continuation; Adam LR `0.001`; c8/ch12/s8; batch 1; seed `430` |
+| Progress | epoch `30/35`, iteration `0/4651`, continuation `0.0%`; latest loss `pending/preflight` |
+| Completed epochs | `0/5`; retained epoch checkpoints observed `0` |
+| Best validation loss | source epoch `30`; continuation metric pending |
+| Provenance health | sampler epoch-state records `0/5`; error matches `0` |
 
-EXP035 epoch 30 remains the protected official leader. Candidate LR `0.0003` will not start until this Control exits `0` and passes the strict retained-epoch sweep. No official evaluation or timing cohort starts automatically.
+The Candidate remains blocked until the matched standard Control is `TRAINING_COMPLETE` and its final manifest SHA, effective LR, dataset identity, source generation, and epochs 31–35 sampler states pass the fail-closed gate. Strict validation and official evaluation are not launched by this publisher.
 <!-- EXP031_STATUS_END -->
 
 ## Official result
