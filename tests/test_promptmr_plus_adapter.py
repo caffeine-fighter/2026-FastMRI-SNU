@@ -1,7 +1,11 @@
 import hashlib
 import json
+import os
 import shutil
+import subprocess
+import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -122,6 +126,42 @@ class PromptMRPlusAdapterTests(unittest.TestCase):
             load_promptmr_plus_checkpoint(
                 model, {"state_dict": {"wrong.weight": torch.ones(2, 2)}}
             )
+
+    def test_rejects_preloaded_transitive_promptmr_modules(self):
+        repository = Path(__file__).resolve().parents[1]
+        code = textwrap.dedent(
+            """
+            import sys
+            import types
+
+            fake_mri = types.ModuleType("mri_utils")
+            fake_data = types.ModuleType("data")
+            fake_transforms = types.ModuleType("data.transforms")
+            fake_data.transforms = fake_transforms
+            sys.modules["mri_utils"] = fake_mri
+            sys.modules["data"] = fake_data
+            sys.modules["data.transforms"] = fake_transforms
+
+            from utils.model.promptmr_plus_adapter import import_promptmr_plus_module
+            try:
+                import_promptmr_plus_module("models.promptmr_v2")
+            except RuntimeError as exc:
+                if "conflicting controlled module" in str(exc):
+                    raise SystemExit(0)
+                raise
+            raise SystemExit("unverified transitive module was accepted")
+            """
+        )
+        environment = dict(os.environ, PYTHONPATH=str(repository))
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", code],
+            cwd=repository,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_builds_exact_upstream_promptmr_plus_config(self):
         model = build_promptmr_plus()

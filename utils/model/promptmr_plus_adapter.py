@@ -3,8 +3,12 @@
 from dataclasses import dataclass
 import hashlib
 import importlib
+import importlib.abc
+import importlib.util
 import json
+import os
 from pathlib import Path
+import stat
 import sys
 
 import numpy as np
@@ -33,6 +37,15 @@ class PromptMRNonFiniteError(RuntimeError):
 def verify_promptmr_plus_source(root=PROMPTMR_PLUS_ROOT):
     """Verify every vendored upstream/config/license byte before import or use."""
     root = Path(root)
+    if not root.is_dir() or root.is_symlink():
+        raise ValueError("PromptMR+ source root is missing or unsafe")
+    unsafe_symlinks = sorted(
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if path.is_symlink()
+    )
+    if unsafe_symlinks:
+        raise ValueError(f"PromptMR+ vendored tree contains symlinks: {unsafe_symlinks}")
     manifest_path = root / "SOURCE_MANIFEST.json"
     if not manifest_path.is_file() or manifest_path.is_symlink():
         raise ValueError("PromptMR+ source manifest is missing or unsafe")
@@ -140,26 +153,116 @@ def prepare_promptmr_input(
     )
 
 
-def _promptmr_class():
-    verify_promptmr_plus_source()
-    upstream_root = PROMPTMR_PLUS_ROOT / "upstream"
-    for module_name in ("models", "mri_utils", "data"):
-        module = sys.modules.get(module_name)
-        if module is not None:
-            origins = [Path(path).resolve() for path in getattr(module, "__path__", [])]
-            if origins and not all(
-                origin == upstream_root.resolve() or upstream_root.resolve() in origin.parents
-                for origin in origins
-            ):
-                raise RuntimeError(f"conflicting top-level module already loaded: {module_name}")
-    sys.path.insert(0, str(upstream_root))
+_CONTROLLED_TOP_LEVEL = frozenset({"models", "mri_utils", "data"})
+_VERIFIED_MODULES = {}
+
+
+class _PinnedSourceLoader(importlib.abc.Loader):
+    def __init__(self, fullname, source, origin, is_package):
+        self.fullname = fullname
+        self.source = source
+        self.origin = origin
+        self.is_package = is_package
+
+    def create_module(self, spec):
+        return None
+
+    def exec_module(self, module):
+        module.__file__ = self.origin
+        exec(compile(self.source, self.origin, "exec"), module.__dict__)
+        _VERIFIED_MODULES[self.fullname] = module
+
+
+class _PinnedSourceFinder(importlib.abc.MetaPathFinder):
+    def __init__(self, sources):
+        self.sources = sources
+
+    def find_spec(self, fullname, path=None, target=None):
+        entry = self.sources.get(fullname)
+        if entry is None:
+            return None
+        source, origin, is_package = entry
+        loader = _PinnedSourceLoader(fullname, source, origin, is_package)
+        return importlib.util.spec_from_loader(
+            fullname, loader, origin=origin, is_package=is_package
+        )
+
+
+def _capture_pinned_module_sources(manifest):
+    sources = {}
+    for relative_path, expected_hash in manifest["files"].items():
+        if not relative_path.startswith("upstream/") or not relative_path.endswith(
+            ".py"
+        ):
+            continue
+        path = PROMPTMR_PLUS_ROOT / relative_path
+        flags = os.O_RDONLY | os.O_CLOEXEC
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        fd = os.open(path, flags)
+        try:
+            before = os.fstat(fd)
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError(f"PromptMR+ source is not regular: {relative_path}")
+            chunks = []
+            while True:
+                chunk = os.read(fd, 1024 * 1024)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            after = os.fstat(fd)
+        finally:
+            os.close(fd)
+        source = b"".join(chunks)
+        if (
+            (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+            or hashlib.sha256(source).hexdigest() != expected_hash
+        ):
+            raise ValueError(f"PromptMR+ source changed while captured: {relative_path}")
+        parts = Path(relative_path).parts[1:]
+        is_package = parts[-1] == "__init__.py"
+        module_parts = parts[:-1] if is_package else (*parts[:-1], Path(parts[-1]).stem)
+        fullname = ".".join(module_parts)
+        sources[fullname] = (source, str(path), is_package)
+    data_root = PROMPTMR_PLUS_ROOT / "upstream" / "data"
+    sources.setdefault("data", (b"", str(data_root), True))
+    return sources
+
+
+def _reject_unverified_controlled_modules():
+    for name, module in tuple(sys.modules.items()):
+        if name.split(".", 1)[0] not in _CONTROLLED_TOP_LEVEL:
+            continue
+        if _VERIFIED_MODULES.get(name) is not module:
+            raise RuntimeError(f"conflicting controlled module already loaded: {name}")
+
+
+def import_promptmr_plus_module(module_name):
+    """Import one pinned module solely from manifest-verified captured bytes."""
+    before = verify_promptmr_plus_source()
+    sources = _capture_pinned_module_sources(before)
+    _reject_unverified_controlled_modules()
+    finder = _PinnedSourceFinder(sources)
+    sys.meta_path.insert(0, finder)
     previous_dont_write_bytecode = sys.dont_write_bytecode
     sys.dont_write_bytecode = True
     try:
-        return importlib.import_module("models.promptmr_v2").PromptMR
+        imported = importlib.import_module(module_name)
     finally:
         sys.dont_write_bytecode = previous_dont_write_bytecode
-        sys.path.remove(str(upstream_root))
+        sys.meta_path.remove(finder)
+    _reject_unverified_controlled_modules()
+    after = verify_promptmr_plus_source()
+    if before != after:
+        raise RuntimeError("PromptMR+ vendored source changed during import")
+    if _VERIFIED_MODULES.get(module_name) is not imported:
+        raise RuntimeError("PromptMR+ requested module was not loaded from captured bytes")
+    return imported
+
+
+def _promptmr_class():
+    return import_promptmr_plus_module("models.promptmr_v2").PromptMR
 
 
 def build_promptmr_plus():

@@ -39,6 +39,11 @@ from utils.learning.resume import (
     validate_training_checkpoint,
 )
 from utils.model.varnet import VarNet
+from utils.learning.promptmr_plus_training import (
+    load_promptmr_training_recipe,
+    preflight_promptmr_gpu,
+    run_promptmr_one_step_smoke,
+)
 
 import os
 
@@ -708,9 +713,20 @@ def _publish_retained_epoch(staged, final_dir):
 
 
 def train(args):
+    is_promptmr_plus = getattr(args, "model_family", "varnet") == "promptmr-plus"
+    if is_promptmr_plus:
+        load_promptmr_training_recipe()
+    cuda_available = torch.cuda.is_available()
+    promptmr_preflight = None
+    if is_promptmr_plus and cuda_available:
+        if args.GPU_NUM != 0 or torch.cuda.device_count() != 1:
+            raise RuntimeError(
+                "PromptMR+ smoke requires exactly one visible CUDA device at index 0"
+            )
+        promptmr_preflight = preflight_promptmr_gpu()
     required_cuda_name = getattr(args, "require_cuda_device_name", None)
     if required_cuda_name is not None:
-        if not torch.cuda.is_available():
+        if not cuda_available:
             raise RuntimeError(
                 f"Required CUDA device {required_cuda_name!r} is unavailable"
             )
@@ -719,13 +735,21 @@ def train(args):
             raise RuntimeError(
                 f"Required CUDA device {required_cuda_name!r}, found {actual_cuda_name!r}"
             )
-    if torch.cuda.is_available():
+    if cuda_available:
         device = torch.device(f'cuda:{args.GPU_NUM}')
         torch.cuda.set_device(device)
         print('Current cuda device: ', torch.cuda.current_device())
     else:
         device = torch.device('cpu')
         print('Current device: cpu')
+
+    if is_promptmr_plus:
+        if not getattr(args, "one_step_smoke", False):
+            raise ValueError(
+                "PromptMR+ full training remains gated until the one-step smoke passes"
+            )
+        args.promptmr_gpu_preflight = promptmr_preflight
+        return run_promptmr_one_step_smoke(args, device)
 
     model = VarNet(num_cascades=args.cascade, 
                    chans=args.chans, 

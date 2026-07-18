@@ -1,6 +1,6 @@
 # PromptMR+ local RTX 3090 training handoff
 
-Status: DESIGN-ONLY HANDOFF — NOT LAUNCHED
+Status: FEATURE-BRANCH IMPLEMENTATION — GPU LAUNCH BLOCKED BY STORED-MASK/384 MAPPING REVIEW
 
 This handoff separates the approved environments:
 
@@ -103,43 +103,51 @@ The minimum local wrapper must adapt the SNU challenge data without reimplementi
 8. Use one shared model/checkpoint for acc4 and acc8. Routing is a data/mask contract, not an architecture/config switch. This expectation still requires actual inference-preflight evidence before it can be claimed as deployed compatibility.
 9. Preserve the full-resolution inference adapter separately from the upstream 384×384 training preprocessing.
 
-## Proposed local command/config — design only
+## Implemented local command/config — do not launch before branch review
 
-The repository does not yet contain `scripts/train_promptmr_plus.py`; the command below is the exact proposed interface for a future reviewed wrapper, not a runnable command in the current bytes. Do not execute it until that wrapper and its tests exist.
+The feature branch routes the bounded smoke through the repository's existing
+`train.py` entry point. It has no parallel training executable. The CLI fixes
+the pinned recipe internally and rejects mutable batch-size, learning-rate,
+loss, precision, resume, registration, device-identity, and output-collision
+paths.
+
+The command below is not authorized yet. It becomes runnable only after an
+approved policy defines how the challenge's stored masks at widths 480, 400,
+and 368 map through upstream 384×384 image-domain preprocessing, and after the
+updated bytes pass independent review:
 
 ```bash
-: "${PROMPTMR_DATA_ROOT:?set the read-only paired SNU dataset root}"
+: "${PROMPTMR_DATA_ROOT:?set the read-only paired SNU training split root}"
 CUDA_VISIBLE_DEVICES=0 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. \
-python -B scripts/train_promptmr_plus.py \
-  --mode one-step-smoke \
-  --source-manifest third_party/promptmr_plus/SOURCE_MANIFEST.json \
-  --model-config third_party/promptmr_plus/configs/model/pmr-plus.yaml \
-  --training-config third_party/promptmr_plus/configs/train/pmr-plus/fm-knee.yaml \
-  --data-root "$PROMPTMR_DATA_ROOT" \
-  --output /root/result/FEATURE_PROMPTMR_PLUS_RTX3090_SMOKE_20260717_V1 \
+python -B train.py \
+  --model-family promptmr-plus \
+  --one-step-smoke \
+  --no-register-experiment \
+  --require-cuda-device-name "NVIDIA GeForce RTX 3090" \
+  --GPU-NUM 0 \
+  --data-path-train "$PROMPTMR_DATA_ROOT" \
+  --net-name FEATURE_PROMPTMR_PLUS_RTX3090_SMOKE_20260718_V1 \
   --seed 430 \
   --batch-size 1 \
-  --precision fp32 \
-  --optimizer adamw \
-  --learning-rate 1e-4 \
-  --weight-decay 1e-2 \
-  --scheduler step-lr \
-  --lr-step-size 35 \
-  --lr-gamma 0.1 \
-  --gradient-clip-norm 0.01 \
-  --ssim-window-size 7 \
-  --ssim-k1 0.01 \
-  --ssim-k2 0.03 \
-  --num-cascades 12 \
-  --num-adjacent-slices 5 \
-  --uniform-resolution 384 384 \
-  --use-checkpoint \
-  --compute-sens-per-coil \
-  --max-optimizer-steps 1 \
-  --no-register-experiment
+  --precision fp32
 ```
 
-Exact proposed config overlay:
+The guarded runner creates
+`../result/FEATURE_PROMPTMR_PLUS_RTX3090_SMOKE_20260718_V1` exactly once. It
+verifies the pinned source before data access, refuses an existing output,
+checks the exact RTX 3090 identity and 24 GiB capacity, requires idle/exclusive
+GPU preflight, applies the stored binary mask to the returned `masked_kspace`,
+performs exactly one real-batch optimizer step, and publishes a round-tripped
+checkpoint plus JSON history/report from the reloaded state. Until the
+stored-mask policy is approved, the dataset adapter intentionally rejects every
+non-384×384 volume before any optimizer step; it does not crop or pad masks
+independently. A failed attempt retains a durable `RUN_INCOMPLETE.json` marker
+and cannot be retried under the same name; success publishes `RUN_COMPLETE.json`
+and removes the incomplete marker. After any failure, release the process and
+obtain fresh external idle evidence before choosing a new FEATURE run name. An
+OOM or unavailable process-level VRAM evidence is also a hard failure.
+
+Exact fixed config overlay:
 
 ```yaml
 identity:
@@ -189,7 +197,7 @@ Estimated smoke reservation, not a measured training result:
 
 ## Local one-step smoke gate
 
-Implement the thinnest training integration around pinned upstream components before issuing a runnable command. The current VESSL repository's `train.py` is VarNet-oriented and does not yet provide the required PromptMR+ CLI contract.
+The feature branch now provides the thinnest smoke-only training integration around pinned upstream components through `train.py`. Full PromptMR+ e5 training remains fail-closed until the one-step smoke passes and a separate reviewed change enables the conditional gate.
 
 The first local RTX 3090 action must be exactly one bounded real-batch optimizer step with a fresh non-EXP output:
 
