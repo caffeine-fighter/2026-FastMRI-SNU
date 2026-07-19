@@ -1,6 +1,35 @@
 # Final Submission Checklist
 
-## Selected candidate
+> The EXP030 entries below preserve the completed fallback delivery record. EXP030 is no longer the current one-shot leader. EXP035 epoch 30 leads at total `0.92146109375`, and the final prize candidate is not frozen yet.
+
+## Final prize-candidate replacement gate
+
+- [ ] Every submitted model component was trained end-to-end on VESSL from an allowed, code-reproducible initialization.
+- [ ] No external data, externally supplied/file-loaded initialization weight, or LOCAL/RunPod learned state entered the final training lineage.
+- [ ] The exact source, recipe, seed, dataset, checkpoint-generation, and environment manifests are frozen and reviewed.
+- [ ] Any augmentation/remasking is train/validation-only, physics-consistent, deterministic, and covered by provenance.
+- [ ] Any ensemble/TTA uses only eligible VESSL components and performs all reconstruction work inside timed `recon_slice()`.
+- [ ] Official evaluator bytes, expected files, slice counts, shapes, dtypes, finite outputs, and archive integrity pass.
+- [ ] The final 30-repeat timing cohort is complete for the frozen candidate.
+- [ ] Submission receipt, artifact SHA-256, returned score, Git commit, and timestamp are recorded.
+
+## Active selected candidate
+
+- Experiment: `TBD — not frozen`
+- Protected one-shot leader: `EXP035_varnet_c8_ch12_s8_e30`, epoch 30, total `0.92146109375`
+- Verified fallback: `EXP030_varnet_c4_ch12_s8_e20`
+- Final package and upload: not authorized by candidate selection until every replacement gate above passes
+
+## Active final handoff
+
+- [ ] Freeze one final candidate and one rollback candidate.
+- [ ] Record the exact repository commit, checkpoint generation/SHA-256, model contract, environment, and evaluator hashes.
+- [ ] Verify a fresh clone and separately supplied checkpoint reproduce the official path.
+- [ ] Copy the organizer-required repository, model description, loss graph, and model weight through the official channel.
+- [ ] Verify the organizer-received commit and checkpoint SHA-256.
+- [ ] Record the submission identifier and receipt.
+
+## Historical EXP030 fallback record
 
 - Experiment: `EXP030_varnet_c4_ch12_s8_e20`
 - Architecture: VarNet, cascade `4`, channels `12`, sensitivity channels `8`
@@ -8,7 +37,7 @@
 - Official minimum timing: `173.4 ms/slice` over 30 runs
 - Checkpoint SHA-256: `ef74bec4243e7aa39d5aa8dae031e1bb83e771c26be00c4e5330e17b60a66085`
 
-## Current delivery status
+### Delivery status
 
 - GitHub repository delivery: complete
 - Default branch: `baseline/2026-baby-varnet`
@@ -16,7 +45,7 @@
 - Fresh-clone verification: passed
 - External organizer upload: pending
 
-## Organizer-required items
+### Organizer items prepared
 
 - [x] GitHub repository with detailed execution instructions in `README.md`
 - [x] Loss graph: `reports/figures/EXP030_varnet_c4_ch12_s8_e20_val_loss.png`
@@ -25,7 +54,7 @@
 
 The model weight is submitted separately and must never be committed to Git.
 
-## Reproduction gate
+### Reproduction record
 
 - [x] `recon_eval.py` is unchanged
 - [x] `recon_eval.sh` defaults to cascade `4`, channels `12`, sensitivity channels `8`
@@ -52,7 +81,7 @@ Confirm that none of the following are tracked or staged:
 - `result/`, `results/`, `runs/`, `checkpoints/`, or `checkpoints_phase2/`
 - `.env`, `*.env`, secrets, credentials, or private keys
 
-## Final handoff
+## Historical EXP030 handoff record
 
 - [x] Merge the verified submission implementation into the GitHub default branch
 - [x] Verify the GitHub default and feature branches contain commit `fbbddf6`

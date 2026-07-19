@@ -29,7 +29,7 @@ Before any official run:
 2. The candidate checkpoint and architecture are fixed.
 3. Mounted leaderboard data is present and read-only.
 4. `scripts/phase2_preflight.sh` passes.
-5. The user has approved the run.
+5. The standing authorization record is valid for this exact run and the candidate passes all eligibility gates.
 
 ## Candidate flow
 
@@ -37,8 +37,8 @@ Before any official run:
 2. Evaluate validation reconstructions with `scripts/evaluate_val.py`.
 3. Compare `SSIM_full`, `SSIM_bbox`, quality, and expected runtime.
 4. Set the candidate with `scripts/set_phase2_candidate.sh`.
-5. Run one approved official evaluation.
-6. Repeat 30 times only for the selected candidate and only when approved.
+5. Run one authorized official evaluation for an eligible VESSL end-to-end candidate.
+6. Repeat 30 times only after the final candidate is frozen.
 7. Record the selected score in `reports/phase2/`.
 
 ## Fixed rules
@@ -48,6 +48,8 @@ Before any official run:
 - Do not use image fields, bounding-box annotations, or provided GRAPPA during inference.
 - Do not modify mounted `Data`.
 - Do not use `LOCAL_` checkpoints as official candidates.
+- Do not import LOCAL/RunPod model, optimizer, scheduler, scaler, EMA/SWA, RNG, teacher-output, or reconstruction-cache state into a final candidate.
+- If ensemble/TTA is used, every component must be independently VESSL end-to-end eligible and all reconstruction computation must occur inside timed `recon_slice()`.
 - Do not run official evaluation during training.
 
 ## Helper scripts

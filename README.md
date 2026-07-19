@@ -3,22 +3,36 @@
 VarNet experiments and Phase 2 submission tooling for the 2026 SNU FastMRI Challenge. VESSL is the source of truth for all `EXP###` runs and official evaluation.
 
 <!-- EXP031_STATUS_START -->
-## Live VESSL status
+## Live VESSL publisher status
 
-_Last update: 2026-07-16 19:22 KST (2026-07-16 10:22 UTC)_
+_Last publisher update: 2026-07-19 08:22 KST (2026-07-18 23:22 UTC)_
 
 | Check | Value |
 |---|---|
-| Run | EXP035 matched continuation R1 (Control and Candidate complete) |
-| Control | Adam LR `0.001`; epoch 34 won at local quality `0.9202459833` |
-| Candidate | Adam LR `0.0003`; epoch 34 won at local quality `0.9205928470` |
-| Matched result | Candidate gain `+0.0003468637`, below the required `+0.0005`; acc8 bbox `-0.0003703822` |
-| Coverage | every retained epoch passed `30 volumes / 791 slices / 161 boxes`; skips/unknown/non-finite `0` |
-| Decision | **DO NOT PROMOTE**; no official evaluation or repeated timing was run |
-| Health | both VESSL runs and strict sweeps passed; GTX 1080 returned idle |
+| Experiment | `EXP037` — matched standard Control |
+| Run | `EXP037_MATCHED_STANDARD_CONTROL_E30_TO_E35_R1` (not running) |
+| Manifest status | `TRAINING_COMPLETE` |
+| Design | epoch-30→35 exact continuation; Adam LR `0.001`; c8/ch12/s8; batch 1; seed `430` |
+| Progress | epoch `34/35`, iteration `4500/4651`, continuation `99.4%`; latest loss `0.09342` |
+| Completed epochs | `5/5`; retained epoch checkpoints observed `0` |
+| Best validation loss | epoch `33`: `3.130437840` |
+| Provenance health | sampler epoch-state records `5/5`; error matches `0` |
 
-EXP035 epoch 30 remains the protected one-shot official leader at total `0.92146109375`. See the [matched continuation report](reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
+The Control publisher manifest is terminal, but the Candidate remains blocked until the final manifest SHA, effective LR, dataset identity, source generation, and epochs 31–35 sampler states pass the fail-closed gate. Strict validation and official evaluation are not launched by this publisher.
 <!-- EXP031_STATUS_END -->
+
+## Prize-first research queue
+
+_Operational snapshot: 2026-07-19 14:47 KST._
+
+- EXP035 epoch 30 remains the protected official leader at total `0.92146109375`.
+- R1 ended naturally and is disabled. R4.1 owns durable monitoring, but its dispatcher is `ACTIVE_SAFE_IDLE` because there is no valid reviewed launch manifest.
+- The local RTX 3090 is compute-idle; the RunPod A6000 remains occupied by a protected SNU AI Challenge job; the VESSL workspace control plane is running, the EXP037 Control publisher is terminal, and Candidate progress is unavailable from the local observer.
+- Annotation-aware V1 is `SOURCE_DIVERGED / REVIEW_INVALIDATED`, not launchable. PromptMR requires a finite diagnostic before any new scratch production run.
+- Organizer Issues [#408](https://github.com/LISTatSNU/FastMRI_challenge/issues/408#issuecomment-5013509585) and [#409](https://github.com/LISTatSNU/FastMRI_challenge/issues/409#issuecomment-5013857396) now fix the external-weight and external-compute/augmentation/ensemble/cloud rules.
+- Midnight is a snapshot, not a shutdown or dispatch cutoff.
+
+See [`docs/prize_first_r4_status.md`](docs/prize_first_r4_status.md) for the current queue and [`docs/official_rule_clarifications_20260719.md`](docs/official_rule_clarifications_20260719.md) for the rule contract.
 
 ## Official result
 
@@ -85,10 +99,10 @@ bash recon_eval.sh
 ## Non-negotiable rules
 
 - Do not modify `recon_eval.py`.
-- Do not run official evaluation while training is active or without approval.
+- Do not run official evaluation while training is active. Standing authorization permits eligible evaluation and submission only after exact candidate, evaluator, provenance, coverage, archive, and hardware gates pass.
 - Treat mounted `Data` directories as read-only.
 - Never commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
-- Keep `LOCAL_` probes exploratory; only VESSL `EXP###` runs can become official candidates.
+- Keep LOCAL/RunPod probes exploratory; only end-to-end VESSL scratch runs can become official candidates, and learned state must not cross that boundary.
 
 ## Documentation
 
@@ -96,6 +110,8 @@ Start with [`docs/README.md`](docs/README.md). The most useful pages are:
 
 - [`docs/our_strategy.md`](docs/our_strategy.md): current execution strategy, RTX 3090 training role, and promotion gates
 - [`docs/current_state.md`](docs/current_state.md): current candidate, active work, and next actions
+- [`docs/prize_first_r4_status.md`](docs/prize_first_r4_status.md): R4.1 continuity, live research gates, and compute-lane ownership
+- [`docs/official_rule_clarifications_20260719.md`](docs/official_rule_clarifications_20260719.md): organizer answers for weights, external screening, augmentation/remasking, ensemble/TTA, and cloud processing
 - [`docs/score_optimization_40_day_roadmap.md`](docs/score_optimization_40_day_roadmap.md): experiment portfolio through final freeze
 - [`docs/final_evaluation_server.md`](docs/final_evaluation_server.md): final GTX 1080/16 GB server and deployment acceptance contract
 - [`docs/vessl_workflow.md`](docs/vessl_workflow.md): training and validation commands

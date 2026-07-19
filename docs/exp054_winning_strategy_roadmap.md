@@ -1,5 +1,7 @@
 # EXP054 이후 우승 전략 반영 Implementation Plan
 
+> Historical roadmap. The 2026-07-19 rule resolution and R4.1 queue supersede its approval and external-compute assumptions. Use [`our_strategy.md`](our_strategy.md), [`current_state.md`](current_state.md), and [`prize_first_r4_status.md`](prize_first_r4_status.md) for current execution.
+
 > **For Hermes:** Execute this plan phase-by-phase under the `controlled-ml-experiment-operations`, `reproducible-experiment-operations`, test-driven-development, and exact-byte review workflows. LOCAL training, VESSL training, official evaluation, Git publication, and branch deletion are separate approval scopes.
 
 **Goal:** EXP054의 검증된 capacity signal과 `winningstrategies.txt`의 2025년 상위권 공통점을 이용해, 현재 vanilla VarNet 탐색을 빠르게 판정하고 8 GB 제약 안에서 더 높은 품질을 낼 수 있는 학습 레시피와 차세대 모델로 전환한다.

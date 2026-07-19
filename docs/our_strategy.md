@@ -1,12 +1,23 @@
 # FastMRI 우승 전략 요약
 
-> 기준일: 2026-07-15 KST
-> 이 문서는 현재 기본 브랜치의 기록과 `EXP054` 전략 로드맵을 한 장으로 정리한 실행 기준이다. 실험·공식 평가·Git 병합은 각각 별도 승인 범위로 취급한다.
+> 기준일: 2026-07-19 KST
+> 이 문서는 현재 기본 브랜치의 기록과 prize-first R4.1 운영을 한 장으로 정리한 실행 기준이다. 공식 평가·제출·additive Git publication에는 standing authorization이 있으나, candidate별 exact eligibility gate는 그대로 유지한다.
 
 ## 목표
 
 평가 환경의 8GB GPU 제약과 공식 평가 규칙을 지키면서 최종 총점 `0.94`를 목표로 한다. 현재 EXP035 total `0.92146109375`에서 같은 time score를 가정하면 `+0.01853890625`가 더 필요하므로, vanilla VarNet의 작은 추가-epoch 개선은 주 경로가 아니다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다. 최종 서버의 CPU·RAM·GTX 1080·driver/runtime 계약과 합격 기준은 [`final_evaluation_server.md`](final_evaluation_server.md)를 단일 기준으로 사용한다.
 로컬 **RTX 3090 24 GB**는 VESSL 8 GB 환경에서 오래 걸리거나 메모리 여유가 부족한 학습 screen·seed 검증·긴 recipe 실험을 빠르게 수행하는 주력 학습 환경으로 쓴다. 다만 최종 후보는 반드시 공식 8 GB 추론 계약과 시간을 별도로 통과해야 한다.
+
+## 2026-07-19 prize-first override
+
+- LOCAL/RunPod에서는 주최 측 허용 데이터로 architecture와 scalar recipe를 screen할 수 있다. 그러나 checkpoint, optimizer/scheduler/scaler, EMA/SWA, RNG state, teacher output, reconstruction cache 등 learned state를 최종 학습으로 넘기지 않는다.
+- 최종 제출 component는 모두 VESSL에서 허용된 initialization부터 end-to-end로 학습한다.
+- organizer train/validation k-space의 geometric augmentation과 physics-correct remasking, 일반 ensemble/TTA, private external-cloud 연구 처리는 허용됐다. DSA, 비재배포, 비식별, physics parity, inference no-leakage, timed `recon_slice()` 계약을 지킨다.
+- 외부 데이터와 외부에서 공급되거나 파일로 불러오는 initialization weight는 계속 금지한다. 공개 PromptMR+ knee checkpoint를 다운로드·로드·미세조정·ensemble·distillation source로 사용하지 않는다. PromptMR+ scratch source의 최종 승격은 별도 license clearance 전까지 허용하지 않는다.
+- 자정은 snapshot일 뿐 cutoff가 아니다. branch-local failure는 다음 reviewed queue item으로 넘어가며, GPU를 채우기 위한 filler run은 하지 않는다.
+- 현재 annotation-aware V1은 source divergence로 review가 무효화됐고, EXP036 PromptMR+는 NaN/no-checkpoint로 quarantine됐다. 둘 다 새 exact evidence 없이 재실행하지 않는다.
+
+근거는 [`official_rule_clarifications_20260719.md`](official_rule_clarifications_20260719.md)와 [`prize_first_r4_status.md`](prize_first_r4_status.md)에 기록한다.
 
 ## 현재 기준선
 
@@ -19,7 +30,7 @@
 - LOCAL 평가는 방향을 찾는 증거일 뿐, 공식 후보 체크포인트로 승격하지 않는다.
 - LOCAL 승격 기준은 acc4와 acc8을 동등하게 평균내는 leaderboard-faithful quality다. 완료된 EXP035 gate는 EXP033R `0.9156824558941089`를 사용했으며, 새 matched recipe의 보호 기준은 EXP035 epoch 30 `0.9199788092310326`이다.
 - EXP035 공식 `SSIM_full=0.9234`, `SSIM_bbox=0.9177`의 차이는 `0.0057`이다. bbox는 유력한 병목이지만 LOCAL에서는 bbox가 full보다 높으므로 절대 gap만 보고 loss를 고르지 않고 모델 간 component delta로 판단한다.
-- 공식 평가는 자동 실행하지 않는다. 독립 검증과 별도 승인을 통과한 후보만 one-shot 평가한다.
+- standing authorization은 있으나 공식 평가는 reviewed exact manifest, VESSL scratch provenance, evaluator integrity, coverage와 archive gate를 모두 통과한 후보에만 실행한다.
 
 ## 핵심 판단
 
@@ -28,7 +39,7 @@
 2. **학습 VRAM과 추론 VRAM을 분리해서 판단한다.**
    24 GB 이상이 필요한 학습도 `eval` + no-grad + batch 1 추론에서는 8 GB에 그대로 들어갈 수 있다. 큰 모델을 압축하기 전에 무작위 초기화 상태로 최대 입력 8 GB forward preflight를 먼저 수행하고, 통과한 가장 큰 구조는 RTX 3090에서 그대로 학습해 무압축 배포를 우선한다.
 3. **압축보다 무손실 배포 최적화를 먼저 한다.**
-   직접 추론이 실패할 때만 per-coil sensitivity, coil chunking, tensor lifetime 정리 같은 출력 동등 메모리 제어를 적용한다. 선택적 FP16은 parity를 통과한 뒤에만 허용하고, 지식 증류·구조적 pruning은 그 뒤의 손실 가능 fallback이다.
+   직접 추론이 실패할 때만 per-coil sensitivity, coil chunking, tensor lifetime 정리 같은 출력 동등 메모리 제어를 적용한다. 선택적 FP16은 parity를 통과한 뒤에만 허용한다. LOCAL/RunPod teacher state나 output을 VESSL로 옮기는 증류는 #409 허용 범위가 아니므로 현재 경로에서 제외한다.
 4. **VRAM당 품질을 먼저 개선한다.**
    8 GB에서 기존 stack은 여유가 거의 없으므로, vanilla 폭을 무작정 키우기보다 PromptMR+의 정보 흐름·memory-efficient sensitivity와 같은 효율적인 구조를 먼저 screen한다.
 5. **바퀴를 재발명하지 않는다.**
@@ -188,8 +199,9 @@
 
 - `recon_eval.py`, mounted `Data`를 수정하지 않는다.
 - data, H5, checkpoint, result directory, `.env`, credential을 Git에 넣지 않는다.
-- VESSL training, official evaluation, Git 병합/정리는 각각 명시적으로 승인받는다.
+- VESSL final training은 exact scratch manifest가 필요하다. Official evaluation, eligible submission, additive Git publication은 standing authorization을 사용하되 integrity·eligibility·secret gate를 생략하지 않는다.
 - 활성 GPU 작업의 terminal evidence를 확인하고, branch 이동이나 PID만으로 완료를 판단하지 않는다.
+- 한 branch가 막혀도 다른 competition lane과 CPU package 작업은 계속하며, 자정을 이유로 healthy run을 중단하지 않는다.
 
 ## 한 문장 전략
 

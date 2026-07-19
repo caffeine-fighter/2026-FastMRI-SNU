@@ -1,5 +1,7 @@
 # 40-day FastMRI score-optimization roadmap
 
+> Historical portfolio plan. For current standing authorization, VESSL-scratch eligibility, rule resolution, and R4.1 fail-soft operation, use [`our_strategy.md`](our_strategy.md), [`current_state.md`](current_state.md), and [`prize_first_r4_status.md`](prize_first_r4_status.md).
+
 Window: 2026-07-11 through 2026-08-20.
 
 ## Operating rules

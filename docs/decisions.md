@@ -27,13 +27,21 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-15 | Use adapter-first upstream integration after EXP035. | A peer team reported losing time rebuilding upward from E2E-VarNet. Pin licensed upstream code and representative configs, preserve algorithm modules, and limit local changes to data/checkpoint/harness adapters plus measured ablations. |
 | 2026-07-15 | Clear Feature/FI for CPU integration; keep PromptMR+ license-gated. | Official fastMRI Feature/FI code is MIT at commit `91f2df47`. PromptMR+ commit `934eeda6` uses the Rutgers Non-commercial Research License; written confirmation is still needed for competition/submission packaging before copying code. |
 | 2026-07-16 | Reject the EXP035 lower-LR continuation and close the vanilla capacity/continuation track. | The exact VESSL matched pair selected epoch 34 for both arms, but Candidate improved over Control by only `+0.0003468637 < +0.0005` and regressed acc8 bbox by `-0.0003703822`. Candidate epoch 34 is research-only; no second seed, epoch-40 continuation, c9/c10/c12 expansion, official evaluation, or repeated timing is authorized. EXP035 epoch 30 remains protected. |
+| 2026-07-19 | Permit LOCAL/RunPod architecture and scalar-recipe screening, but require VESSL end-to-end final training with no learned-state transfer. | Organizer Issue #409 explicitly allows external hyperparameter/architecture search under this boundary; Issue #408 separately prohibits external-data-derived or externally supplied/file-loaded initialization weights. |
+| 2026-07-19 | Permit organizer-data augmentation/remasking, ensemble/TTA, and private external-cloud research under the declared contracts. | Issue #409 resolves the prior rule unknowns; DSA, non-redistribution, non-identification, physics consistency, no inference leakage, and timed `recon_slice()` still apply. |
+| 2026-07-19 | Use fail-soft, no-cutoff compute continuity. | A NaN, OOM, shape failure, or review failure quarantines that branch and advances the next reviewed item. Midnight is a snapshot only; filler runs remain forbidden. |
+| 2026-07-19 | Quarantine the unchanged EXP036 PromptMR+ restart. | The prior scratch candidate reached NaN at iteration 590 and produced no e1/e5 checkpoint. A finite diagnostic and new exact manifest are required before another production run. |
+| 2026-07-19 | Invalidate annotation-aware V1 launch authority until exact bytes are restored and re-reviewed. | The first review found the zero-reconstruction-weight P1. Although a v2 manifest passed 131 tests, seven of eighteen frozen paths later diverged in the live research worktree. |
+| 2026-07-19 | Grant standing authorization for eligible official evaluation, score submission, and additive Git publication. | Authorization removes repeated user-confirmation waits but never replaces candidate, evaluator, provenance, coverage, archive, hardware, quota, license, or secret-safety gates. |
 
 ## Current gate
 
-EXP035 epoch 30 is the protected one-shot official leader at total `0.92146109375`. Do not repeat its one-shot. Promote only independently verified challengers, and run the 30-repeat timing cohort only after separate final-freeze approval.
+EXP035 epoch 30 is the protected one-shot official leader at total `0.92146109375`. Do not repeat its one-shot. The next promotable challenger must have a reviewed exact manifest and must be trained end-to-end on VESSL without imported learned state. Standing authorization exists for eligible evaluation and submission; the final 30-repeat timing cohort still waits for a frozen finalist.
 
 ## Permanent constraints
 
 - Do not modify `recon_eval.py`.
 - Do not commit checkpoints, data, H5 files, result directories, `.env` files, or credentials.
-- Do not run training or official evaluation without checking GPU/process state and approval scope.
+- Do not run training or official evaluation without checking GPU/process identity, exact authorization, and candidate eligibility.
+- Do not use external data, externally supplied/file-loaded initialization weights, or learned state transferred from LOCAL/RunPod screening.
+- Do not use inference annotations, labels, targets, filenames, or leaderboard outcomes as model inputs or routing signals.
