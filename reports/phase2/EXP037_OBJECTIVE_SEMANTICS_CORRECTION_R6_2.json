@@ -1,0 +1,85 @@
+{
+  "actual_immutable_objective": {
+    "canonical_recipe_expression": "(1-SSIM_foreground)+lambda_l1*mean(abs(output-target)/data_range)",
+    "expression": "(1 - foreground SSIM) + 1.0309823159913825 * normalized L1",
+    "lambda_l1": 1.0309823159913825,
+    "loss_family": "foreground_ssim_l1",
+    "loss_source_path": "utils/common/loss_function.py",
+    "loss_source_sha256": "0062e08d59ad93b9e129ae8a5b1162fac639e4b80e78f02bd86256b622447936",
+    "metrics_source_sha256": "1872a0e431ab8fb88c1030d8642e24a5e934a823e0ebd3ffd454a451dbeffb81",
+    "normalized_l1_definition": "mean(abs(output-target)/data_range)",
+    "recipe_digest_sha256": "f51cac9e89ba515e852055ce241c4458a158cc07a906749bc1bd53a915b7322d",
+    "recipe_schema": "foreground_ssim_l1_recipe_v1",
+    "recipe_source_path": "utils/learning/loss_recipe.py",
+    "recipe_source_sha256": "98c2da2d4cf62351cb872b087f482ceb7a7c577c322cf20973e52a95c926805b",
+    "training_source_sha256": {
+      "train.py": "ad7ba24d99c217e2bebd0a3a122ffa2f0520e4d38cc51e56c00b3465be98e80d",
+      "utils/common/loss_function.py": "0062e08d59ad93b9e129ae8a5b1162fac639e4b80e78f02bd86256b622447936",
+      "utils/data/load_data.py": "e1670cff46cf2402aceec08dd9f2fbbc20449a157fc219d8a162e1c316f27b47",
+      "utils/data/transforms.py": "2543fb1df0758d3a44c048a1d56aa0b057385656ce42c8ec17a3d88829e9134f",
+      "utils/learning/loss_recipe.py": "98c2da2d4cf62351cb872b087f482ceb7a7c577c322cf20973e52a95c926805b",
+      "utils/learning/resume.py": "de5d6e1b5f3fc5d395f167526df679971c13fcd591a0b41f815b5aa0c78143c8",
+      "utils/learning/train_part.py": "01867a6cd8b268229f556f5829d31122dc7ae5dcbb673e2976dfe5f9ff460852"
+    }
+  },
+  "additive_correction": true,
+  "created_at_kst": "2026-07-19T21:54:18.162643+09:00",
+  "evidence_chain": {
+    "decision": {
+      "path": "/root/result/EXP037_DECISION_R6_1.json",
+      "sha256": "55c59c96668216b3951dcf3c21c376d643a9061203bb10a83c0828cf0f0de5b5"
+    },
+    "paired_bootstrap": {
+      "path": "/root/result/EXP037_VALIDATION_R6_1/paired_volume_bootstrap.json",
+      "sha256": "a69471f1a9646be776e934bf8bdeb39cd2e849524e9f92acf21422a6158bb984"
+    },
+    "reconciliation": {
+      "path": "/root/result/EXP037_TERMINAL_REVIEW_RECONCILIATION_R6_1.json",
+      "sha256": "d8d44129b266cc885b2ff3076ed1462cd4e69810139be4e7e8ef22535eb2ee6f"
+    },
+    "run_manifest": {
+      "path": "/root/result/EXP037_FOREGROUND_SSIM_L1_E30_TO_E35_R1/run_manifest.json",
+      "sha256": "4aaaddf00b0fe3adcf58380a7729ae09f77fe89e2c930cac59cb0f4637a9c5cb"
+    },
+    "terminal_gate": {
+      "path": "/root/result/EXP037_CANDIDATE_TERMINAL_GATE_R6_1.json",
+      "sha256": "da10565df5307367a28ae5af7f712264482bf3d2b85d86b8c888065885b4140b"
+    },
+    "validation_summary": {
+      "path": "/root/result/EXP037_VALIDATION_R6_1/summary.json",
+      "sha256": "9fa87849f827d1b4de374ff88970932c7acb95e8e2e22be59e210f1b1805d5da"
+    }
+  },
+  "immutable_evidence_modified": false,
+  "official_evaluation_authorized": false,
+  "schema": "exp037_objective_semantics_correction_r6_2_v1",
+  "scope_of_negative_result": "Only the exact c8/ch12/s8 architecture, coefficient 1.0309823159913825, recipe digest f51cac9e89ba515e852055ce241c4458a158cc07a906749bc1bd53a915b7322d, seed 430, and matched continuation contract are rejected; do not generalize to all normalized-L1 objectives.",
+  "strategy": {
+    "fixed_score_stop_gate": false,
+    "plus_0_0005_scope": "EXP037 matched-branch preregistered promotion gate only",
+    "primary_objective": "eligible_final_rank_5_or_better_and_prize",
+    "stretch_objective": "rank_1",
+    "target_score": null
+  },
+  "submission_authorized": false,
+  "superseded_statements": [
+    "EXP037 is a normalized-L1-free EXP034/ScoreAlignedLoss robustness replication",
+    "EXP037 uses foreground SSIM without normalized L1",
+    "EXP037 proves that the normalized-L1 objective family as a whole fails"
+  ],
+  "terminal_facts": {
+    "acc8_full_delta": -2.7963e-06,
+    "candidate_best_quality_delta_vs_exp035": 7.55733e-05,
+    "candidate_win_fraction": 0.0466,
+    "epoch35_paired_ci_95": [
+      -0.0002093725,
+      -3.15047e-05
+    ],
+    "final_decision": "EXP037_RESEARCH_ONLY_REJECT",
+    "four_protected_cell_non_regression": "FAIL",
+    "reconciliation_sha256": "d8d44129b266cc885b2ff3076ed1462cd4e69810139be4e7e8ef22535eb2ee6f",
+    "terminal_gate": "PASS",
+    "terminal_gate_sha256": "da10565df5307367a28ae5af7f712264482bf3d2b85d86b8c888065885b4140b"
+  },
+  "verdict": "EXP037_RESEARCH_ONLY_REJECT"
+}

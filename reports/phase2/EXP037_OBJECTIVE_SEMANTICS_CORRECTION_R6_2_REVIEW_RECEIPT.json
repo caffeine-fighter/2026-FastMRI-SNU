@@ -1,0 +1,29 @@
+{
+  "coefficient_recomputed": 1.0309823159913825,
+  "correction_path": "/root/result/EXP037_OBJECTIVE_SEMANTICS_CORRECTION_R6_2.json",
+  "correction_sha256": "a4ae15feed8fa10be8a5923fa1a8169496f9de04b3519cb4682da0e35d13254f",
+  "delegation_id": "deleg_617018f9",
+  "first_blocker": null,
+  "narrow_non_generalization_verified": true,
+  "objective_verified": "(1 - foreground SSIM) + 1.0309823159913825 * normalized L1",
+  "official_evaluation_authorized": false,
+  "receipt_kind": "delegation_result_receipt",
+  "recipe_digest_recomputed": "f51cac9e89ba515e852055ce241c4458a158cc07a906749bc1bd53a915b7322d",
+  "recorded_at_kst": "2026-07-19T22:23:12.926606+09:00",
+  "recorded_at_utc": "2026-07-19T13:23:12.926547+00:00",
+  "review_mode": "independent_read_only_exact_byte_audit",
+  "review_side_effects": {
+    "cuda": false,
+    "evaluation": false,
+    "files_modified": 0,
+    "git": false,
+    "h5": false,
+    "training": false
+  },
+  "schema": "exp037_objective_semantics_correction_r6_2_independent_review_receipt_v1",
+  "submission_authorized": false,
+  "target_score": null,
+  "terminal_facts_verified": true,
+  "verdict": "PASS",
+  "verified_sha_bindings_count": 19
+}
