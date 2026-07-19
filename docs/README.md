@@ -12,7 +12,7 @@ Use the root [`README.md`](../README.md) for live VESSL progress. Use this page 
 | Official external-compute and weight clarifications | [`official_rule_clarifications_20260719.md`](official_rule_clarifications_20260719.md) |
 | EXP035 matched continuation preflight | [`exp035_matched_continuation_runbook.md`](exp035_matched_continuation_runbook.md) |
 | Upstream Feature/FI and PromptMR+ source/license audit | [`upstream_model_feasibility.md`](upstream_model_feasibility.md) |
-| Forty-day score-optimization program | [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md) |
+| Historical forty-day portfolio plan (fixed-score assumptions superseded) | [`score_optimization_40_day_roadmap.md`](score_optimization_40_day_roadmap.md) |
 | Final GTX 1080 hardware and runtime contract | [`final_evaluation_server.md`](final_evaluation_server.md) |
 | Train or validate on VESSL | [`vessl_workflow.md`](vessl_workflow.md) |
 | Scoring and official-evaluation rules | [`phase2_plan.md`](phase2_plan.md) |

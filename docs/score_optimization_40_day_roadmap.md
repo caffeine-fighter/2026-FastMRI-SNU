@@ -1,12 +1,12 @@
 # 40-day FastMRI score-optimization roadmap
 
-> Historical portfolio plan. For current standing authorization, VESSL-scratch eligibility, rule resolution, and R4.1 fail-soft operation, use [`our_strategy.md`](our_strategy.md), [`current_state.md`](current_state.md), and [`prize_first_r4_status.md`](prize_first_r4_status.md).
+> Historical portfolio plan; all fixed-score assumptions are superseded. For the current rank-based objective, standing authorization, VESSL-scratch eligibility, rule resolution, and R4.1 fail-soft operation, use [`our_strategy.md`](our_strategy.md), [`current_state.md`](current_state.md), and [`prize_first_r4_status.md`](prize_first_r4_status.md).
 
 Window: 2026-07-11 through 2026-08-20.
 
 ## Operating rules
 
-1. Target total `0.94`. EXP035 total `0.92146109375` leaves `+0.01853890625` at the same time score, so marginal vanilla continuation is not the primary route.
+1. Primary objective: final rank `<= 5`; stretch objective: rank `1`. Keep `target_score=null`: no fixed total, including `0.94`, is a success or stop threshold. Use official total, component scores, timing, and observable margins to the fifth-place and first-place cutoffs as adaptive evidence. The matched continuation result, rather than a fixed-score gap, keeps marginal vanilla continuation off the primary route.
 2. Keep EXP035 and the verified EXP030 package immutable as leader and fallback.
 3. Use leaderboard-faithful local validation as the promotion gate: average acc4 and acc8 within each metric before averaging foreground and bbox. Keep pooled `overall` only as a diagnostic. Official `recon_eval` remains explicit-approval only.
 4. Do not run the final 30-repeat timing cohort until the model is frozen.
@@ -15,6 +15,8 @@ Window: 2026-07-11 through 2026-08-20.
 7. Cap exploratory training at 720 GPU-hours and stop broad training by 2026-08-11, preserving the final nine days for official evaluation, freeze, timing, packaging, and submission.
 8. Separate training memory from inference memory. Before any long LOCAL architecture run, preflight its untrained maximum-input forward path on the actual 8 GB contract; do not assume a model that needs more than 8 GB to train also needs compression to infer.
 9. Treat [`final_evaluation_server.md`](final_evaluation_server.md) as the deployment authority: GTX 1080 Pascal, 16 GB host RAM, driver 550.127.08, and the captured PyTorch runtime—not a generic 8 GB GPU—decide final compatibility.
+
+All numeric gain and oracle-gap thresholds below are branch-specific evidence and compute-allocation gates. They do not define a top-five or winning score.
 
 ## Compute and evidence budget
 

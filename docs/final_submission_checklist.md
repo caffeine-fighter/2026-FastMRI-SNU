@@ -2,6 +2,13 @@
 
 > The EXP030 entries below preserve the completed fallback delivery record. EXP030 is no longer the current one-shot leader. EXP035 epoch 30 leads at total `0.92146109375`, and the final prize candidate is not frozen yet.
 
+## Objective record
+
+- Primary success: eligible final rank `<= 5` (prize).
+- Stretch success: final rank `1` (win).
+- Fixed target score: none (`target_score=null`).
+- At candidate freeze and submission, timestamp the latest eligible official score, observable public rank and fifth-place/first-place margins, quota/calibration state, and public/private-leaderboard uncertainty. Do not turn any fixed score into a checklist gate.
+
 ## Final prize-candidate replacement gate
 
 - [ ] Every submitted model component was trained end-to-end on VESSL from an allowed, code-reproducible initialization.

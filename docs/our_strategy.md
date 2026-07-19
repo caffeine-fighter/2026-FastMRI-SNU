@@ -5,7 +5,9 @@
 
 ## 목표
 
-평가 환경의 8GB GPU 제약과 공식 평가 규칙을 지키면서 최종 총점 `0.94`를 목표로 한다. 현재 EXP035 total `0.92146109375`에서 같은 time score를 가정하면 `+0.01853890625`가 더 필요하므로, vanilla VarNet의 작은 추가-epoch 개선은 주 경로가 아니다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다. 최종 서버의 CPU·RAM·GTX 1080·driver/runtime 계약과 합격 기준은 [`final_evaluation_server.md`](final_evaluation_server.md)를 단일 기준으로 사용한다.
+1차 성공 기준은 **최종 순위 5위 이내 수상**이고, stretch 목표는 **최종 1위 우승**이다. 고정 총점 목표는 두지 않는다(`target_score=null`). `0.94`를 포함한 특정 점수는 성공·freeze·중단·launch 기준이 아니며, 공식 총점과 full/bbox·acc4/acc8·시간은 순위 가능성을 갱신하는 증거로만 사용한다. 공개 순위와 5위/1위 cutoff를 관측할 수 있으면 incumbent 대비 margin, quota·calibration 상태와 함께 추적하고, public/private leaderboard 차이처럼 관측할 수 없는 부분은 불확실성을 명시한다. 단순히 검증 점수가 높은 모델이 아니라, **품질·추론 시간·재현성·패키징 가능성**을 모두 만족하는 한 개의 최종 후보와 한 개의 fallback을 확보한다. 최종 서버의 CPU·RAM·GTX 1080·driver/runtime 계약과 합격 기준은 [`final_evaluation_server.md`](final_evaluation_server.md)를 단일 기준으로 사용한다.
+
+아래의 `+0.0005`, `0.001` 같은 수치는 특정 branch의 noise·promotion·compute-allocation gate일 뿐, 수상 또는 우승 점수 기준이 아니다.
 로컬 **RTX 3090 24 GB**는 VESSL 8 GB 환경에서 오래 걸리거나 메모리 여유가 부족한 학습 screen·seed 검증·긴 recipe 실험을 빠르게 수행하는 주력 학습 환경으로 쓴다. 다만 최종 후보는 반드시 공식 8 GB 추론 계약과 시간을 별도로 통과해야 한다.
 
 ## 2026-07-19 prize-first override
@@ -94,7 +96,7 @@
 - student는 teacher 이득 보존율이 아니라 최종 절대 gate로 판정한다: 현재 리더 대비 `>= 0.0005`, 완전한 coverage, 8 GB 반복 안정성, 공식 시간 이득을 모두 요구한다.
 - 사후 unstructured pruning과 INT8 양자화는 실제 GTX 1080 kernel·메모리 이득이 증명되지 않으면 사용하지 않는다. pruning을 연구할 경우에는 사후 pruning보다 initialization-time structured/sparse 후보를 별도 실험으로 취급한다.
 
-즉 기본 전략은 **큰 teacher를 만든 뒤 줄이기**가 아니라 **8 GB에 직접 배포 가능한 가장 큰 모델을 먼저 찾아 LOCAL에서 크게 학습하기**다. 증류는 direct-deploy 가능한 구조가 품질 목표를 못 채우고, 별도의 큰 teacher가 충분한 oracle gap을 증명했을 때만 사용한다.
+즉 기본 전략은 **큰 teacher를 만든 뒤 줄이기**가 아니라 **8 GB에 직접 배포 가능한 가장 큰 모델을 먼저 찾아 LOCAL에서 크게 학습하기**다. 증류는 direct-deploy 가능한 구조가 적응형 prize evidence에서 경쟁력이 부족하고, 별도의 큰 teacher가 충분한 oracle gap을 증명했을 때만 사용한다.
 
 ## 실행 순서
 

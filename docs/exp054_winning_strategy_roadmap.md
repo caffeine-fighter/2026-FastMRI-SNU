@@ -1,6 +1,6 @@
 # EXP054 이후 우승 전략 반영 Implementation Plan
 
-> Historical roadmap. The 2026-07-19 rule resolution and R4.1 queue supersede its approval and external-compute assumptions. Use [`our_strategy.md`](our_strategy.md), [`current_state.md`](current_state.md), and [`prize_first_r4_status.md`](prize_first_r4_status.md) for current execution.
+> Historical roadmap. The 2026-07-19 rule resolution, rank-based prize objective, and R4.1 queue supersede its fixed-score, approval, and external-compute assumptions. Use [`our_strategy.md`](our_strategy.md), [`current_state.md`](current_state.md), and [`prize_first_r4_status.md`](prize_first_r4_status.md) for current execution.
 
 > **For Hermes:** Execute this plan phase-by-phase under the `controlled-ml-experiment-operations`, `reproducible-experiment-operations`, test-driven-development, and exact-byte review workflows. LOCAL training, VESSL training, official evaluation, Git publication, and branch deletion are separate approval scopes.
 
@@ -104,7 +104,7 @@
 **Closed branching decision:**
 - The Candidate did not clear the `+0.0005` matched gate and one protected component regressed.
 - `DO_NOT_PROMOTE`; no automatic continuation, second seed, official one-shot, or timing.
-- The `0.94` target is `+0.01853890625` above EXP035 at the same time score, so move to Feature/FI architecture feasibility rather than marginal vanilla epochs.
+- Prize success is final rank `<= 5` and the stretch objective is rank `1`; `target_score=null`. The matched `+0.0005` gate and acc8 bbox regression, not a fixed-score gap, move the primary route to Feature/FI architecture feasibility rather than marginal vanilla epochs.
 
 ---
 

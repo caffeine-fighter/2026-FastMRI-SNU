@@ -25,6 +25,7 @@ The Control publisher manifest is terminal, but the Candidate remains blocked un
 
 _Operational snapshot: 2026-07-19 14:47 KST._
 
+- Prize success means an eligible final rank of 5 or better; the stretch objective is rank 1. There is no fixed score target (`target_score=null`): official scores are adaptive evidence interpreted against the latest eligible incumbent, observable fifth-place/first-place margins, component metrics, quota/calibration state, and public/private-leaderboard uncertainty—not a pass/stop condition.
 - EXP035 epoch 30 remains the protected official leader at total `0.92146109375`.
 - R1 ended naturally and is disabled. R4.1 owns durable monitoring, but its dispatcher is `ACTIVE_SAFE_IDLE` because there is no valid reviewed launch manifest.
 - The local RTX 3090 is compute-idle; the RunPod A6000 remains occupied by a protected SNU AI Challenge job; the VESSL workspace control plane is running, the EXP037 Control publisher is terminal, and Candidate progress is unavailable from the local observer.
@@ -55,7 +56,7 @@ EXP035 closed the current unmodified vanilla capacity track with a clear PASS. T
 
 ## Latest matched continuation result
 
-The VESSL EXP035 epoch-30 continuation pair is complete. Lowering Adam LR from `1e-3` to `3e-4` improved the Candidate over the independently continued Control by only `+0.0003468637`, below the preregistered `+0.0005` gate, while acc8 bbox decreased by `0.0003703822`. The lower-LR Candidate, second seed, epoch-40 continuation, and c9/c10/c12 vanilla expansion are closed without official evaluation; Candidate epoch 34 is a research artifact only. The target total is `0.94`, leaving `+0.01853890625` at EXP035's time score, so the next bounded work is the pinned MIT Feature/FI source/license and 8 GB inference feasibility gate. PromptMR+ remains blocked pending written competition/license confirmation. See the [matched continuation report](reports/local_comparisons/exp035_matched_continuation_r1_20260716.md) and [`docs/upstream_model_feasibility.md`](docs/upstream_model_feasibility.md).
+The VESSL EXP035 epoch-30 continuation pair is complete. Lowering Adam LR from `1e-3` to `3e-4` improved the Candidate over the independently continued Control by only `+0.0003468637`, below the preregistered `+0.0005` gate, while acc8 bbox decreased by `0.0003703822`. The lower-LR Candidate, second seed, epoch-40 continuation, and c9/c10/c12 vanilla expansion are closed without official evaluation; Candidate epoch 34 is a research artifact only. That closure rests on the matched promotion evidence, not on a fixed leaderboard-score gap. The next bounded work is the pinned MIT Feature/FI source/license and 8 GB inference feasibility gate. PromptMR+ remains blocked pending written competition/license confirmation. See the [matched continuation report](reports/local_comparisons/exp035_matched_continuation_r1_20260716.md) and [`docs/upstream_model_feasibility.md`](docs/upstream_model_feasibility.md).
 
 ## Common commands
 

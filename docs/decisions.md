@@ -33,10 +33,13 @@ Detailed experiment metrics live in [`../experiments/experiment_log.csv`](../exp
 | 2026-07-19 | Quarantine the unchanged EXP036 PromptMR+ restart. | The prior scratch candidate reached NaN at iteration 590 and produced no e1/e5 checkpoint. A finite diagnostic and new exact manifest are required before another production run. |
 | 2026-07-19 | Invalidate annotation-aware V1 launch authority until exact bytes are restored and re-reviewed. | The first review found the zero-reconstruction-weight P1. Although a v2 manifest passed 131 tests, seven of eighteen frozen paths later diverged in the live research worktree. |
 | 2026-07-19 | Grant standing authorization for eligible official evaluation, score submission, and additive Git publication. | Authorization removes repeated user-confirmation waits but never replaces candidate, evaluator, provenance, coverage, archive, hardware, quota, license, or secret-safety gates. |
+| 2026-07-19 | Replace the fixed `0.94` planning target with a rank-based prize objective. | Primary success is an eligible final rank `<= 5`; stretch success is rank `1`; `target_score=null`. Scores remain adaptive evidence, and earlier fixed-target/gap fields are superseded rather than launch, promotion, failure, freeze, or stopping gates. |
 
 ## Current gate
 
 EXP035 epoch 30 is the protected one-shot official leader at total `0.92146109375`. Do not repeat its one-shot. The next promotable challenger must have a reviewed exact manifest and must be trained end-to-end on VESSL without imported learned state. Standing authorization exists for eligible evaluation and submission; the final 30-repeat timing cohort still waits for a frozen finalist.
+
+The prize objective is final rank `<= 5`, with rank `1` as the stretch objective. Interpret score and component deltas against the current eligible incumbent, observable leaderboard cutoffs, quota/calibration state, and public/private uncertainty; do not infer success or failure from a fixed score.
 
 ## Permanent constraints
 

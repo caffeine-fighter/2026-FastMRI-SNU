@@ -2,6 +2,13 @@
 
 _Snapshot: 2026-07-19 14:47 KST. This is an operational research snapshot, not launch authority._
 
+## Prize objective
+
+- Primary success: final rank `<= 5` (prize).
+- Stretch success: final rank `1` (win).
+- Fixed score target: none (`target_score=null`).
+- Official score, component, timing, observable fifth-place/first-place margins, quota/calibration state, and public/private-leaderboard uncertainty update candidate priority; no branch passes or stops merely because it crosses or misses `0.94`.
+
 ## Protected result
 
 `EXP035_varnet_c8_ch12_s8_e30` epoch 30 remains the protected one-shot official leader:

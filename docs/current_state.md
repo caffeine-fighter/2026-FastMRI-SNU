@@ -67,7 +67,7 @@ The VESSL R1 pair independently resumed the exact EXP035 epoch-30 generation and
 - Both arms passed exact coverage, H5, checkpoint, history, source-hash, and finite-output gates.
 - Decision: `DO_NOT_PROMOTE`; no official evaluation or repeated timing was run.
 - Candidate epoch 34 is a research artifact only. Do not run a second seed, epoch-40 continuation, or c9/c10/c12 vanilla expansion.
-- The vanilla capacity/continuation track is closed. At the same time score, the `0.94` target remains `+0.01853890625` above EXP035, so marginal extra epochs are not the primary path.
+- The vanilla capacity/continuation track is closed by the matched `+0.0005` promotion gate and protected-component regression, not by a fixed target-score gap. Prize success is final rank `<= 5`, the stretch objective is rank `1`, and `target_score=null`; future work is prioritized by its evidence-backed chance of improving those rank outcomes.
 
 See the [complete matched continuation report](../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
 
