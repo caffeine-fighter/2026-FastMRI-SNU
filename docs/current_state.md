@@ -28,6 +28,22 @@ For the full execution plan and RTX 3090 training role, see [`our_strategy.md`](
 
 `EXP035` is protected because its `+0.0046` quality gain over EXP033R materially exceeds its `0.00004015625` time-score penalty, improving total by `+0.00455984375`. `EXP033R` remains the faster prior leader, and `EXP030` remains the finalized timing fallback.
 
+## Active prize-first queue — 2026-07-19
+
+| Lane | Current state | Constraint |
+|---|---|---|
+| R4.1 continuity | Durable guardian running; dispatcher `ACTIVE_SAFE_IDLE` | R1 ended naturally and is disabled; no reviewed exact launch manifest exists |
+| LOCAL RTX 3090 | Sustained compute-process zero | Hardware availability is not launch authority |
+| RunPod A6000 | Protected SNU AI Challenge process healthy | Do not interrupt; any later FastMRI weights are disposable screens only |
+| VESSL EXP037 | Workspace running; Control publisher `TRAINING_COMPLETE`; Candidate progress unavailable | EXP034/ScoreAlignedLoss robustness replication only; not a normalized-L1 PromptMR fork |
+| EXP036 PromptMR+ | `HARD_BLOCKED` | NaN at iteration 590 and no e1/e5 checkpoint; unchanged restart prohibited and final promotion remains license-gated |
+| Annotation-aware V1 | `SOURCE_DIVERGED / REVIEW_INVALIDATED` | Seven of eighteen v2 manifest paths changed; restore/refreeze and independently re-review |
+| Feature/FI and physics policies | CPU package work | Shape/data-consistency and physics parity must precede a GPU screen |
+
+The organizer has resolved the former rule unknowns. External architecture/hyperparameter screening, train/validation k-space transformation, ensemble/TTA, and private cloud processing are allowed under [Issue #409](https://github.com/LISTatSNU/FastMRI_challenge/issues/409#issuecomment-5013857396). External-data-derived or externally supplied/file-loaded initialization weights remain prohibited by [Issue #408](https://github.com/LISTatSNU/FastMRI_challenge/issues/408#issuecomment-5013509585). Final-submitted components must be trained end-to-end on VESSL; learned state from LOCAL/RunPod screens must not cross into the final run.
+
+See [`prize_first_r4_status.md`](prize_first_r4_status.md) for the timestamped operational snapshot.
+
 ## Completed gate: EXP035
 
 `EXP035` tested `c8/ch12/s8` over 30 epochs against the prior c6/ch12 capacity result. It completed with terminal exit code 0 and closed the unmodified vanilla VarNet capacity track.
@@ -51,7 +67,7 @@ The VESSL R1 pair independently resumed the exact EXP035 epoch-30 generation and
 - Both arms passed exact coverage, H5, checkpoint, history, source-hash, and finite-output gates.
 - Decision: `DO_NOT_PROMOTE`; no official evaluation or repeated timing was run.
 - Candidate epoch 34 is a research artifact only. Do not run a second seed, epoch-40 continuation, or c9/c10/c12 vanilla expansion.
-- The vanilla capacity/continuation track is closed. At the same time score, the `0.94` target remains `+0.01853890625` above EXP035, so marginal extra epochs are not the primary path.
+- The vanilla capacity/continuation track is closed by the matched `+0.0005` promotion gate and protected-component regression, not by a fixed target-score gap. Prize success is final rank `<= 5`, the stretch objective is rank `1`, and `target_score=null`; future work is prioritized by its evidence-backed chance of improving those rank outcomes.
 
 See the [complete matched continuation report](../reports/local_comparisons/exp035_matched_continuation_r1_20260716.md).
 
@@ -66,14 +82,18 @@ See the [complete matched continuation report](../reports/local_comparisons/exp0
 1. Protect EXP035 epoch 30 as the one-shot official leader; do not rerun its one-shot.
 2. Keep the matched lower-LR continuation and the entire vanilla capacity/continuation track closed. Do not run another block, second seed, c9/c10/c12 expansion, or official evaluation; Candidate epoch 34 is research-only.
 3. AdamW-only is closed. Do not run a second seed, long rescue, scheduler combination, VESSL promotion, or official evaluation for AdamW.
-4. Do not launch c9/c10/c12 capacity rescue. Reuse the pinned MIT Feature/FI implementation through a thin adapter; PromptMR+ remains blocked on written competition/license confirmation. See [`upstream_model_feasibility.md`](upstream_model_feasibility.md).
-5. Before any new family trains, run the maximum-input GTX 1080 FP32/no-grad deployment contract.
-6. After explicit final freeze approval, run the 30-repeat timing cohort, fresh-clone package verification, and upload.
+4. Do not launch c9/c10/c12 capacity rescue. Prioritize an exact-byte re-freeze/re-review of annotation-aware V1, a PromptMR finite diagnostic, and Feature/FI/physics parity packages.
+5. Use LOCAL/RunPod only for architecture and scalar-recipe screening. Transfer no learned state; retrain every final component end-to-end on VESSL.
+6. Before any new family trains for promotion, run the maximum-input GTX 1080 FP32/no-grad deployment contract and exact-manifest gate.
+7. Official evaluation, eligible score submission, and additive Git publication have standing authorization, but may run only after their candidate-specific integrity and eligibility gates pass.
+8. Run the final 30-repeat timing cohort, fresh-clone package verification, and upload only after the finalist is frozen.
 
 ## Guardrails
 
 - Do not modify `recon_eval.py` or mounted `Data`.
 - Do not commit data, H5 files, checkpoints, result directories, `.env` files, or credentials.
-- LOCAL results are evidence only; they do not become official candidates without independent validation and approval.
+- LOCAL/RunPod results are screening evidence only. Their weights and learned state never become or initialize official candidates.
+- Final-submitted model components must be trained end-to-end on VESSL from allowed, code-reproducible initialization.
+- Midnight is an atomic status snapshot, not a shutdown or dispatch cutoff.
 - Gradient checkpointing reduces training activation memory only. It does not reduce final checkpoint size, inference VRAM, or inference time; the final model must fit 8 GB structurally.
 - Do not reinvent the post-EXP035 model stack. Pin, license, and smoke-test upstream code before writing repository adapters.
