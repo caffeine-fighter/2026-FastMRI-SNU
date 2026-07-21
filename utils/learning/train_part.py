@@ -39,6 +39,7 @@ from utils.learning.resume import (
     validate_training_checkpoint,
 )
 from utils.model.varnet import VarNet
+from utils.model.fi_varnet_adapter import build_pinned_fi_varnet
 
 import os
 
@@ -707,6 +708,27 @@ def _publish_retained_epoch(staged, final_dir):
     _publish_staged_directory_no_replace(staged, final_dir, "Retained epoch")
 
 
+def build_model(args):
+    """Shared model-family factory used by both legacy training and FI smoke."""
+    model_family = getattr(args, "model_family", "varnet")
+    if model_family == "varnet":
+        return VarNet(
+            num_cascades=args.cascade,
+            chans=args.chans,
+            sens_chans=args.sens_chans,
+        )
+    if model_family == "fi-varnet-acc8":
+        return build_pinned_fi_varnet(
+            num_cascades=args.cascade,
+            chans=args.chans,
+            pools=args.pools,
+            sens_chans=args.sens_chans,
+            sens_pools=args.sens_pools,
+            acceleration=args.acceleration,
+        )
+    raise ValueError(f"Unsupported model family: {model_family!r}")
+
+
 def train(args):
     required_cuda_name = getattr(args, "require_cuda_device_name", None)
     if required_cuda_name is not None:
@@ -727,9 +749,7 @@ def train(args):
         device = torch.device('cpu')
         print('Current device: cpu')
 
-    model = VarNet(num_cascades=args.cascade, 
-                   chans=args.chans, 
-                   sens_chans=args.sens_chans)
+    model = build_model(args)
     model.to(device=device)
 
     if getattr(args, "score_aligned_loss", False):

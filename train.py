@@ -7,6 +7,10 @@ from pathlib import Path
 if os.getcwd() + '/utils/model/' not in sys.path:
     sys.path.insert(1, os.getcwd() + '/utils/model/')
 from utils.learning.train_part import train
+from utils.learning.fi_acc8_training import (
+    FI_ACC8_RECIPE,
+    run_fi_acc8_training_fit_smoke,
+)
 
 if os.getcwd() + '/utils/common/' not in sys.path:
     sys.path.insert(1, os.getcwd() + '/utils/common/')
@@ -31,6 +35,22 @@ def parse():
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-g', '--GPU-NUM', type=int, default=0, help='GPU number to allocate')
     parser.add_argument(
+        '--model-family',
+        choices=('varnet', 'fi-varnet-acc8'),
+        default='varnet',
+        help='Model family selected through the shared training integration',
+    )
+    parser.add_argument(
+        '--fi-acc8-one-step-smoke',
+        action='store_true',
+        help='Run only the review-gated exactly-one-step FI-VarNet training-fit smoke',
+    )
+    parser.add_argument(
+        '--expected-gpu-uuid',
+        default=None,
+        help='Exact UUID of the otherwise idle 8192 MiB GTX 1080 selected for smoke',
+    )
+    parser.add_argument(
         '--require-cuda-device-name',
         default=None,
         help='Fail closed unless the selected CUDA device has this exact name',
@@ -46,6 +66,16 @@ def parse():
     parser.add_argument('--cascade', type=int, default=1, help='Number of cascades | Should be less than 12') ## important hyperparameter
     parser.add_argument('--chans', type=int, default=9, help='Number of channels for cascade U-Net | 18 in original varnet') ## important hyperparameter
     parser.add_argument('--sens_chans', type=int, default=4, help='Number of channels for sensitivity map U-Net | 8 in original varnet') ## important hyperparameter
+    parser.add_argument('--pools', type=int, default=4)
+    parser.add_argument('--sens-pools', type=int, default=4)
+    parser.add_argument('--acceleration', type=int, default=8)
+    parser.add_argument('--precision', choices=('fp32', 'fp16', 'bf16'), default='fp32')
+    parser.add_argument('--weight-decay', type=float, default=0.0)
+    parser.add_argument('--ramp-steps', type=int, default=3704)
+    parser.add_argument('--cosine-decay-start', type=int, default=46300)
+    parser.add_argument('--max-steps', type=int, default=92600)
+    parser.add_argument('--external-learned-state', type=Path, default=None)
+    parser.add_argument('--no-scratch', action='store_true')
     parser.add_argument('--input-key', type=str, default='kspace', help='Name of input key')
     parser.add_argument('--target-key', type=str, default='image_label', help='Name of target key')
     parser.add_argument('--max-key', type=str, default='max', help='Name of max key in attributes')
@@ -91,16 +121,93 @@ def parse():
         parser.error('--resume-lr requires --resume-checkpoint')
     if args.allow_inexact_resume and args.resume_checkpoint is None:
         parser.error('--allow-inexact-resume requires --resume-checkpoint')
+    if args.model_family == FI_ACC8_RECIPE.model_family:
+        if not args.fi_acc8_one_step_smoke:
+            parser.error(
+                'Full FI-VarNet training is blocked pending reviewed smoke PASS and '
+                'separate launch authority; use --fi-acc8-one-step-smoke only'
+            )
+        if not args.expected_gpu_uuid:
+            parser.error('--expected-gpu-uuid is required for FI-VarNet smoke')
+        if args.data_path_train != Path('/root/Data/train'):
+            parser.error(
+                'FI-VarNet smoke organizer root is frozen to /root/Data/train'
+            )
+
+        provided = {
+            token.split('=', 1)[0]
+            for token in sys.argv[1:]
+            if token.startswith('-')
+        }
+        frozen = (
+            (('-b', '--batch-size'), 'batch_size', FI_ACC8_RECIPE.batch_size),
+            (('-e', '--num-epochs'), 'num_epochs', FI_ACC8_RECIPE.epochs),
+            (('-l', '--lr'), 'lr', FI_ACC8_RECIPE.lr),
+            (('--seed',), 'seed', FI_ACC8_RECIPE.seed),
+            (('--cascade',), 'cascade', FI_ACC8_RECIPE.num_cascades),
+            (('--chans',), 'chans', FI_ACC8_RECIPE.chans),
+            (('--sens_chans',), 'sens_chans', FI_ACC8_RECIPE.sens_chans),
+            (('--pools',), 'pools', FI_ACC8_RECIPE.pools),
+            (('--sens-pools',), 'sens_pools', FI_ACC8_RECIPE.sens_pools),
+            (('--acceleration',), 'acceleration', FI_ACC8_RECIPE.acceleration),
+            (('--precision',), 'precision', FI_ACC8_RECIPE.precision),
+            (('--weight-decay',), 'weight_decay', FI_ACC8_RECIPE.weight_decay),
+            (('--ramp-steps',), 'ramp_steps', FI_ACC8_RECIPE.ramp_steps),
+            (('--cosine-decay-start',), 'cosine_decay_start', FI_ACC8_RECIPE.cosine_decay_start),
+            (('--max-steps',), 'max_steps', FI_ACC8_RECIPE.max_steps),
+            (('--input-key',), 'input_key', 'kspace'),
+            (('--target-key',), 'target_key', 'image_label'),
+            (('--max-key',), 'max_key', 'max'),
+            (
+                ('-n', '--net-name'),
+                'net_name',
+                Path('LOCAL_FI_ACC8_CKPT_SMOKE_R1'),
+            ),
+        )
+        for options, attribute, expected in frozen:
+            if provided.intersection(options) and getattr(args, attribute) != expected:
+                parser.error(
+                    f'{options[-1]} is frozen to {expected!r} for FI-VarNet acc8'
+                )
+            setattr(args, attribute, expected)
+        if args.resume_checkpoint is not None or args.allow_inexact_resume:
+            parser.error('FI-VarNet acc8 is scratch-only; resume is forbidden')
+        if args.external_learned_state is not None or args.no_scratch:
+            parser.error('FI-VarNet acc8 forbids all external learned state')
+        if args.score_aligned_loss:
+            parser.error('FI-VarNet acc8 loss is frozen to upstream SSIMLoss')
     return args
 
-if __name__ == '__main__':
-    args = parse()
-    
-    # fix seed
+def main(args=None, result_root=Path('../result')):
+    if args is None:
+        args = parse()
+
+    if getattr(args, 'model_family', 'varnet') == FI_ACC8_RECIPE.model_family:
+        if not getattr(args, 'fi_acc8_one_step_smoke', False):
+            raise RuntimeError('Full FI-VarNet training remains blocked')
+        net_name = Path(args.net_name)
+        expected_net_name = Path('LOCAL_FI_ACC8_CKPT_SMOKE_R1')
+        if net_name != expected_net_name:
+            raise ValueError(
+                'FI-VarNet checkpoint smoke net name must be '
+                'LOCAL_FI_ACC8_CKPT_SMOKE_R1'
+            )
+        if (
+            net_name.is_absolute()
+            or len(net_name.parts) != 1
+            or net_name.name in {'', '.', '..'}
+        ):
+            raise ValueError('FI-VarNet smoke net name must be one relative basename')
+        output_dir = (
+            Path(result_root) / net_name.name / 'fi-acc8-training-fit-smoke'
+        )
+        return run_fi_acc8_training_fit_smoke(args, output_dir)
+
+    # Preserve the legacy VarNet entrypoint behavior unchanged.
     if args.seed is not None:
         seed_fix(args.seed)
 
-    result_root = Path("../result")
+    result_root = Path(result_root)
     args.exp_dir = result_root / args.net_name / "checkpoints"
     args.val_dir = result_root / args.net_name / "reconstructions_val"
     args.val_epochs_dir = result_root / args.net_name / "reconstructions_val_epochs"
@@ -109,5 +216,8 @@ if __name__ == '__main__':
 
     args.exp_dir.mkdir(parents=True, exist_ok=True)
     args.val_dir.mkdir(parents=True, exist_ok=True)
+    return train(args)
 
-    train(args)
+
+if __name__ == '__main__':
+    main()
