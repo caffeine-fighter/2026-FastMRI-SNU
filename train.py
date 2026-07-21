@@ -11,6 +11,10 @@ from utils.learning.fi_acc8_training import (
     FI_ACC8_RECIPE,
     run_fi_acc8_training_fit_smoke,
 )
+from utils.learning.fi_acc8_full_training import (
+    FI_ACC8_FULL_NAMESPACE,
+    FI_ACC8_FULL_RECIPE,
+)
 
 if os.getcwd() + '/utils/common/' not in sys.path:
     sys.path.insert(1, os.getcwd() + '/utils/common/')
@@ -44,6 +48,11 @@ def parse():
         '--fi-acc8-one-step-smoke',
         action='store_true',
         help='Run only the review-gated exactly-one-step FI-VarNet training-fit smoke',
+    )
+    parser.add_argument(
+        '--fi-acc8-full-training',
+        action='store_true',
+        help='Run only the separately reviewed checkpointed FI acc8 epochs-1-30 lane',
     )
     parser.add_argument(
         '--expected-gpu-uuid',
@@ -122,16 +131,19 @@ def parse():
     if args.allow_inexact_resume and args.resume_checkpoint is None:
         parser.error('--allow-inexact-resume requires --resume-checkpoint')
     if args.model_family == FI_ACC8_RECIPE.model_family:
-        if not args.fi_acc8_one_step_smoke:
+        selected_modes = int(args.fi_acc8_one_step_smoke) + int(
+            args.fi_acc8_full_training
+        )
+        if selected_modes != 1:
             parser.error(
-                'Full FI-VarNet training is blocked pending reviewed smoke PASS and '
-                'separate launch authority; use --fi-acc8-one-step-smoke only'
+                'FI-VarNet requires exactly one explicit lane: '
+                '--fi-acc8-one-step-smoke or --fi-acc8-full-training'
             )
         if not args.expected_gpu_uuid:
-            parser.error('--expected-gpu-uuid is required for FI-VarNet smoke')
+            parser.error('--expected-gpu-uuid is required for FI-VarNet acc8')
         if args.data_path_train != Path('/root/Data/train'):
             parser.error(
-                'FI-VarNet smoke organizer root is frozen to /root/Data/train'
+                'FI-VarNet organizer root is frozen to /root/Data/train'
             )
 
         provided = {
@@ -139,9 +151,19 @@ def parse():
             for token in sys.argv[1:]
             if token.startswith('-')
         }
+        lane_epochs = (
+            FI_ACC8_FULL_RECIPE.base_epochs
+            if args.fi_acc8_full_training
+            else FI_ACC8_RECIPE.epochs
+        )
+        lane_namespace = (
+            Path(FI_ACC8_FULL_NAMESPACE)
+            if args.fi_acc8_full_training
+            else Path('LOCAL_FI_ACC8_CKPT_SMOKE_R1')
+        )
         frozen = (
             (('-b', '--batch-size'), 'batch_size', FI_ACC8_RECIPE.batch_size),
-            (('-e', '--num-epochs'), 'num_epochs', FI_ACC8_RECIPE.epochs),
+            (('-e', '--num-epochs'), 'num_epochs', lane_epochs),
             (('-l', '--lr'), 'lr', FI_ACC8_RECIPE.lr),
             (('--seed',), 'seed', FI_ACC8_RECIPE.seed),
             (('--cascade',), 'cascade', FI_ACC8_RECIPE.num_cascades),
@@ -158,11 +180,7 @@ def parse():
             (('--input-key',), 'input_key', 'kspace'),
             (('--target-key',), 'target_key', 'image_label'),
             (('--max-key',), 'max_key', 'max'),
-            (
-                ('-n', '--net-name'),
-                'net_name',
-                Path('LOCAL_FI_ACC8_CKPT_SMOKE_R1'),
-            ),
+            (('-n', '--net-name'), 'net_name', lane_namespace),
         )
         for options, attribute, expected in frozen:
             if provided.intersection(options) and getattr(args, attribute) != expected:
@@ -170,8 +188,21 @@ def parse():
                     f'{options[-1]} is frozen to {expected!r} for FI-VarNet acc8'
                 )
             setattr(args, attribute, expected)
-        if args.resume_checkpoint is not None or args.allow_inexact_resume:
-            parser.error('FI-VarNet acc8 is scratch-only; resume is forbidden')
+        if args.fi_acc8_one_step_smoke and (
+            args.resume_checkpoint is not None or args.allow_inexact_resume
+        ):
+            parser.error('FI-VarNet acc8 smoke is scratch-only; resume is forbidden')
+        if args.fi_acc8_full_training:
+            if (
+                args.resume_checkpoint is not None
+                and args.resume_checkpoint_sha256 is None
+            ):
+                parser.error(
+                    'FI-VarNet full-training resume requires '
+                    '--resume-checkpoint-sha256'
+                )
+            if args.allow_inexact_resume or args.resume_lr is not None:
+                parser.error('FI-VarNet full training permits exact resume only')
         if args.external_learned_state is not None or args.no_scratch:
             parser.error('FI-VarNet acc8 forbids all external learned state')
         if args.score_aligned_loss:
@@ -183,8 +214,20 @@ def main(args=None, result_root=Path('../result')):
         args = parse()
 
     if getattr(args, 'model_family', 'varnet') == FI_ACC8_RECIPE.model_family:
+        if getattr(args, 'fi_acc8_full_training', False):
+            from utils.learning.fi_acc8_full_training import run_fi_acc8_full_training
+
+            net_name = Path(args.net_name)
+            if net_name != Path(FI_ACC8_FULL_NAMESPACE):
+                raise ValueError(
+                    f'FI-VarNet full-training net name must be {FI_ACC8_FULL_NAMESPACE}'
+                )
+            if net_name.is_absolute() or len(net_name.parts) != 1:
+                raise ValueError('FI-VarNet full-training net name must be one basename')
+            output_dir = Path(result_root) / net_name.name / 'fi-acc8-full-training'
+            return run_fi_acc8_full_training(args, output_dir)
         if not getattr(args, 'fi_acc8_one_step_smoke', False):
-            raise RuntimeError('Full FI-VarNet training remains blocked')
+            raise RuntimeError('FI-VarNet requires an explicit execution lane')
         net_name = Path(args.net_name)
         expected_net_name = Path('LOCAL_FI_ACC8_CKPT_SMOKE_R1')
         if net_name != expected_net_name:
