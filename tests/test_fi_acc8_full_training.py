@@ -82,6 +82,20 @@ def _tiny_state():
     return model, optimizer, scheduler
 
 
+def _reflect_receipt():
+    return dict(full_training_module.FI_DETERMINISTIC_REFLECT_PAD_CONTRACT)
+
+
+def _bindings():
+    return {
+        "source_sha256": "1" * 64,
+        "data_manifest_sha256": "2" * 64,
+        "recipe_sha256": "3" * 64,
+        "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
+    }
+
+
 def _advance_tiny_state(model, optimizer, scheduler, steps):
     for index in range(steps):
         optimizer.zero_grad(set_to_none=True)
@@ -181,7 +195,7 @@ def _resume_args(checkpoint_path, sha256):
 def test_full_recipe_and_cli_are_separate_frozen_epoch_30_lane():
     assert FI_ACC8_FULL_NAMESPACE == "EXP_FI_ACC8_CKPT_BASE_E30_R1"
     assert FI_ACC8_FULL_RECIPE.as_dict() == {
-        "schema": "fi-varnet-acc8-checkpointed-full-training-v1",
+        "schema": "fi-varnet-acc8-checkpointed-full-training-v2",
         "model_family": "fi-varnet-acc8",
         "namespace": "EXP_FI_ACC8_CKPT_BASE_E30_R1",
         "scope": "FULL_TRAINING_ONLY",
@@ -214,6 +228,12 @@ def test_full_recipe_and_cli_are_separate_frozen_epoch_30_lane():
         "status_interval_seconds": 300,
         "activation_checkpoint_feature_cascades": 12,
         "activation_checkpoint_image_cascades": 12,
+        "reflect_padding_adapter_schema": "fi-varnet-reflect-padding-adapter-v2",
+        "reflect_padding_adapter_implementation": "utils.model.fi_varnet_adapter.deterministic_reflect_pad2d",
+        "reflect_padding_adapter_version": "1.0.0",
+        "reflect_padding_native_forward_exact": True,
+        "reflect_padding_state_dict_unchanged": True,
+        "reflect_padding_strict_deterministic_algorithms": True,
     }
     argv = [
         "train.py",
@@ -248,11 +268,16 @@ def test_determinism_contract_is_exact_and_fail_closed_before_cuda(monkeypatch):
     enable.assert_called_once_with(True)
     assert os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":4096:8"
     assert contract == {
-        "schema": "fi-acc8-determinism-v1",
+        "schema": "fi-acc8-determinism-v2",
         "cublas_workspace_config": ":4096:8",
         "deterministic_algorithms": True,
         "cudnn_deterministic": True,
         "cudnn_benchmark": False,
+        "implementation": "utils.model.fi_varnet_adapter.deterministic_reflect_pad2d",
+        "version": "1.0.0",
+        "native_forward_exact": True,
+        "state_dict_unchanged": True,
+        "strict_deterministic_algorithms": True,
     }
     assert torch.backends.cudnn.deterministic is True
     assert torch.backends.cudnn.benchmark is False
@@ -271,6 +296,52 @@ def test_determinism_contract_is_exact_and_fail_closed_before_cuda(monkeypatch):
     ):
         with pytest.raises(RuntimeError, match="nondeterministic operation"):
             full_training_module.configure_determinism_pre_cuda()
+
+
+def test_production_model_build_fails_closed_without_valid_adapter_receipt():
+    model = torch.nn.Linear(2, 2)
+    with patch.object(full_training_module, "build_model", return_value=model), patch.object(
+        full_training_module,
+        "install_deterministic_reflect_pad_adapter",
+        return_value=None,
+    ), patch.object(full_training_module, "enable_fi_activation_checkpointing") as activation:
+        with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+            full_training_module._build_full_training_model_with_adapters(SimpleNamespace())
+    activation.assert_not_called()
+
+
+def test_production_model_build_returns_valid_adapter_and_activation_receipts():
+    model = torch.nn.Linear(2, 2)
+    reflect_receipt = dict(full_training_module.FI_DETERMINISTIC_REFLECT_PAD_CONTRACT)
+    activation_receipt = dict(full_training_module.FI_ACTIVATION_CHECKPOINT_CONTRACT)
+    with patch.object(full_training_module, "build_model", return_value=model), patch.object(
+        full_training_module,
+        "install_deterministic_reflect_pad_adapter",
+        return_value=reflect_receipt,
+    ), patch.object(
+        full_training_module,
+        "enable_fi_activation_checkpointing",
+        return_value=activation_receipt,
+    ):
+        actual = full_training_module._build_full_training_model_with_adapters(
+            SimpleNamespace()
+        )
+    assert actual == (model, reflect_receipt, activation_receipt)
+
+
+def test_source_and_recipe_digests_are_closed_over_exact_adapter_receipt():
+    source = {"commit": "exact", "feature_varnet_sha256": "a" * 64}
+    receipt = _reflect_receipt()
+    source_digest = full_training_module.source_binding_sha256(source, receipt)
+    recipe_digest = full_training_module.recipe_sha256(receipt)
+    assert source_digest == full_training_module.source_binding_sha256(source, receipt)
+    assert recipe_digest == full_training_module.recipe_sha256(receipt)
+
+    malformed = dict(receipt, native_forward_exact=False)
+    with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+        full_training_module.source_binding_sha256(source, malformed)
+    with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+        full_training_module.recipe_sha256(malformed)
 
 
 def test_resource_preflight_uses_checkpoint_and_max_volume_and_fails_closed(tmp_path):
@@ -548,6 +619,7 @@ def test_checkpoint_invariants_cover_steps_lr_transactions_and_finite_tensors():
         "data_manifest_sha256": "2" * 64,
         "recipe_sha256": "3" * 64,
         "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
     }
     checkpoint = build_full_checkpoint(
         model=model,
@@ -558,6 +630,7 @@ def test_checkpoint_invariants_cover_steps_lr_transactions_and_finite_tensors():
         bindings=bindings,
         transactions=_exact_transactions(records, cursor),
         metrics={"loss_sum": 1.0, "loss_count": 2},
+        reflect_padding_adapter=_reflect_receipt(),
     )
     full_training_module.validate_full_checkpoint(checkpoint, records=records)
 
@@ -593,6 +666,45 @@ def test_checkpoint_invariants_cover_steps_lr_transactions_and_finite_tensors():
             full_training_module.validate_full_checkpoint(bad, records=records)
 
 
+def test_checkpoint_reflect_adapter_receipt_is_required_closed_and_provenance_bound():
+    model, optimizer, scheduler = _tiny_state()
+    receipt = dict(full_training_module.FI_DETERMINISTIC_REFLECT_PAD_CONTRACT)
+    checkpoint = build_full_checkpoint(
+        model=model,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        cursor=FullSamplerCursor(1, 0, 0),
+        records=(SimpleNamespace(name="a_acc8.h5", slices=1),),
+        bindings=_bindings(),
+        transactions=[],
+        metrics={"loss_sum": 0.0, "loss_count": 0},
+        reflect_padding_adapter=receipt,
+    )
+    assert checkpoint["reflect_padding_adapter"] == receipt
+    assert checkpoint["bindings"]["reflect_padding_adapter"] == receipt
+    assert checkpoint["provenance"]["reflect_padding_adapter"] == receipt
+
+    missing = copy.deepcopy(checkpoint)
+    missing.pop("reflect_padding_adapter")
+    with pytest.raises(ValueError, match="top-level schema"):
+        full_training_module.validate_full_checkpoint(missing)
+
+    malformed = copy.deepcopy(checkpoint)
+    malformed["reflect_padding_adapter"]["native_forward_exact"] = False
+    with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+        full_training_module.validate_full_checkpoint(malformed)
+
+    malformed_binding = copy.deepcopy(checkpoint)
+    malformed_binding["bindings"]["reflect_padding_adapter"]["version"] = "other"
+    with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+        full_training_module.validate_full_checkpoint(malformed_binding)
+
+    disagreeing = copy.deepcopy(checkpoint)
+    disagreeing["provenance"]["reflect_padding_adapter"]["version"] = "other"
+    with pytest.raises(ValueError, match="provenance"):
+        full_training_module.validate_full_checkpoint(disagreeing)
+
+
 def test_full_checkpoint_requires_exact_sha_bindings_and_valid_next_cursor(tmp_path):
     model, optimizer, scheduler = _tiny_state()
     _advance_tiny_state(model, optimizer, scheduler, 2)
@@ -601,6 +713,7 @@ def test_full_checkpoint_requires_exact_sha_bindings_and_valid_next_cursor(tmp_p
         "data_manifest_sha256": "2" * 64,
         "recipe_sha256": "3" * 64,
         "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
     }
     cursor = FullSamplerCursor(1, 1, 2)
     records = (
@@ -612,6 +725,7 @@ def test_full_checkpoint_requires_exact_sha_bindings_and_valid_next_cursor(tmp_p
         "data": {"manifest_sha256": bindings["data_manifest_sha256"]},
         "recipe": FI_ACC8_FULL_RECIPE.as_dict(),
         "gpu": {"uuid": "GPU-exact"},
+        "reflect_padding_adapter": _reflect_receipt(),
     }
     checkpoint = build_full_checkpoint(
         model=model,
@@ -623,6 +737,7 @@ def test_full_checkpoint_requires_exact_sha_bindings_and_valid_next_cursor(tmp_p
         provenance=checkpoint_provenance,
         transactions=_exact_transactions(records, cursor),
         metrics={"loss_sum": 1.0, "loss_count": 2},
+        reflect_padding_adapter=_reflect_receipt(),
     )
     publication = publish_full_checkpoint(tmp_path, checkpoint, epoch_end=False)
     resumed_model, resumed_optimizer, resumed_scheduler = _tiny_state()
@@ -681,6 +796,7 @@ def test_resume_is_fresh_cpu_staged_then_moves_model_and_all_optimizer_tensors(t
         "data_manifest_sha256": "2" * 64,
         "recipe_sha256": "3" * 64,
         "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
     }
     checkpoint = build_full_checkpoint(
         model=source_model,
@@ -691,6 +807,7 @@ def test_resume_is_fresh_cpu_staged_then_moves_model_and_all_optimizer_tensors(t
         bindings=bindings,
         transactions=_exact_transactions(records, cursor),
         metrics={"loss_sum": 1.0, "loss_count": 2},
+        reflect_padding_adapter=_reflect_receipt(),
     )
     publication = publish_full_checkpoint(tmp_path, checkpoint, epoch_end=False)
 
@@ -777,9 +894,11 @@ def test_checkpoint_publication_rejects_duplicate_epoch_cursor_without_mutation(
             "data_manifest_sha256": "2" * 64,
             "recipe_sha256": "3" * 64,
             "gpu_uuid": "GPU-exact",
+            "reflect_padding_adapter": _reflect_receipt(),
         },
         transactions=_exact_transactions(records, cursor),
         metrics={"loss_sum": 1.0, "loss_count": 1},
+        reflect_padding_adapter=_reflect_receipt(),
     )
     checkpoint["sampler"]["global_step"] = FI_ACC8_FULL_RECIPE.slices_per_epoch
     publish_full_checkpoint(tmp_path, checkpoint, epoch_end=True)
@@ -804,6 +923,7 @@ def test_checkpoint_publication_retains_latest_previous_and_epoch_generations(tm
         "data_manifest_sha256": "2" * 64,
         "recipe_sha256": "3" * 64,
         "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
     }
     records = tuple(
         SimpleNamespace(name=f"{name}_acc8.h5", slices=1) for name in ("a", "b", "c")
@@ -825,6 +945,7 @@ def test_checkpoint_publication_retains_latest_previous_and_epoch_generations(tm
             bindings=bindings,
             transactions=_exact_transactions(records, cursor),
             metrics={"loss_sum": float(index), "loss_count": index},
+            reflect_padding_adapter=_reflect_receipt(),
         )
         if epoch_end:
             checkpoint["sampler"]["global_step"] = FI_ACC8_FULL_RECIPE.slices_per_epoch
@@ -845,6 +966,7 @@ def test_repeated_latest_previous_resume_publications_stay_within_32_generations
         "data_manifest_sha256": "2" * 64,
         "recipe_sha256": "3" * 64,
         "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
     }
 
     for completed_epoch in range(1, FI_ACC8_FULL_RECIPE.base_epochs + 1):
@@ -862,6 +984,7 @@ def test_repeated_latest_previous_resume_publications_stay_within_32_generations
                 "loss_sum": float(completed_epoch),
                 "loss_count": completed_epoch,
             },
+            reflect_padding_adapter=_reflect_receipt(),
         )
         checkpoint["sampler"]["global_step"] = (
             completed_epoch * FI_ACC8_FULL_RECIPE.slices_per_epoch
@@ -927,6 +1050,7 @@ def test_checkpoint_pointer_crash_preserves_old_authority_and_next_commit_prunes
         "data_manifest_sha256": "2" * 64,
         "recipe_sha256": "3" * 64,
         "gpu_uuid": "GPU-exact",
+        "reflect_padding_adapter": _reflect_receipt(),
     }
 
     records = (SimpleNamespace(name="a_acc8.h5", slices=1),)
@@ -936,6 +1060,7 @@ def test_checkpoint_pointer_crash_preserves_old_authority_and_next_commit_prunes
             model=model, optimizer=optimizer, scheduler=scheduler,
             cursor=cursor, records=records, bindings=bindings, transactions=[],
             metrics={"loss_sum": 0.0, "loss_count": 0},
+            reflect_padding_adapter=_reflect_receipt(),
         )
 
     first = publish_full_checkpoint(
@@ -1027,6 +1152,12 @@ def test_pre_cuda_gates_finish_before_output_reservation_and_device_selection(tm
         full_training_module, "configure_determinism_pre_cuda",
         side_effect=event("determinism", dict(full_training_module.FI_ACC8_DETERMINISM_CONTRACT)),
     ), patch.object(
+        full_training_module, "_build_full_training_model_with_adapters",
+        side_effect=event(
+            "adapters",
+            (None, _reflect_receipt(), dict(full_training_module.FI_ACTIVATION_CHECKPOINT_CONTRACT)),
+        ),
+    ), patch.object(
         full_training_module, "_prepare_full_run_root",
         side_effect=event("reserve", output),
     ), patch.object(
@@ -1041,7 +1172,8 @@ def test_pre_cuda_gates_finish_before_output_reservation_and_device_selection(tm
             full_training_module.run_fi_acc8_full_training(args, output)
 
     assert events == [
-        "source", "inventory", "gpu-preflight", "resources", "determinism", "reserve"
+        "source", "inventory", "gpu-preflight", "resources", "determinism",
+        "adapters", "reserve",
     ]
 
 
@@ -1075,7 +1207,7 @@ def test_resource_gate_failure_strands_no_zero_checkpoint_run_root(tmp_path):
 def test_status_update_is_atomic_closed_and_five_minute_friendly(tmp_path):
     status_path = tmp_path / "status.json"
     status = {
-        "schema": "fi-varnet-acc8-full-training-status-v1",
+        "schema": "fi-varnet-acc8-full-training-status-v2",
         "authoritative": False,
         "phase": "checkpointed",
         "pid": os.getpid(),
@@ -1102,6 +1234,7 @@ def test_status_update_is_atomic_closed_and_five_minute_friendly(tmp_path):
         "deterministic_contract": dict(
             full_training_module.FI_ACC8_DETERMINISM_CONTRACT
         ),
+        "reflect_padding_adapter": _reflect_receipt(),
         "updated_unix_seconds": 1.0,
     }
     atomic_write_status(status_path, status)
@@ -1110,6 +1243,10 @@ def test_status_update_is_atomic_closed_and_five_minute_friendly(tmp_path):
     invalid = dict(status, global_step=True)
     with pytest.raises(ValueError, match="status"):
         atomic_write_status(status_path, invalid)
+    malformed_receipt = copy.deepcopy(status)
+    malformed_receipt["reflect_padding_adapter"]["version"] = "other"
+    with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+        atomic_write_status(status_path, malformed_receipt)
     assert status_path.read_bytes() == previous
     assert not list(tmp_path.glob(".status-unpublished-*"))
 
@@ -1139,6 +1276,7 @@ def test_status_payload_uses_explicit_selected_device_runtime_without_cuda_probe
             checkpoint_path=checkpoint,
             checkpoint_sha256="b" * 64,
             command_argv=["python", "train.py"],
+            reflect_padding_adapter=_reflect_receipt(),
             updated_unix_seconds=30.0,
         )
     assert set(status) == full_training_module._STATUS_KEYS
@@ -1158,6 +1296,56 @@ def test_status_payload_uses_explicit_selected_device_runtime_without_cuda_probe
         status["deterministic_contract"]
         == full_training_module.FI_ACC8_DETERMINISM_CONTRACT
     )
+    assert status["reflect_padding_adapter"] == _reflect_receipt()
+
+
+def test_run_provenance_and_summary_require_exact_reflect_adapter_receipt(tmp_path):
+    receipt = _reflect_receipt()
+    provenance = {
+        "schema": "fi-varnet-acc8-full-training-provenance-v2",
+        "source": {"commit": "exact"},
+        "data": {"manifest_sha256": "2" * 64},
+        "recipe": FI_ACC8_FULL_RECIPE.as_dict(),
+        "gpu_preflight": {"uuid": "GPU-exact"},
+        "scope": {"training": True, "evaluation": False, "submission": False},
+        "reflect_padding_adapter": receipt,
+    }
+    assert full_training_module.validate_run_provenance(provenance) is provenance
+
+    summary = {
+        "schema": "fi-varnet-acc8-full-training-summary-v2",
+        "namespace": FI_ACC8_FULL_NAMESPACE,
+        "scope": "FULL_TRAINING_ONLY",
+        "training_complete": True,
+        "evaluation_authorized": False,
+        "submission_authorized": False,
+        "completed_epoch": 30,
+        "global_step": 69450,
+        "optimizer_steps": 69450,
+        "scheduler_steps": 69450,
+        "file_transactions": 2550,
+        "loss_sum": 1.0,
+        "loss_count": 69450,
+        "mean_loss": 1.0 / 69450,
+        "last_checkpoint": str((tmp_path / "checkpoint.pt").absolute()),
+        "last_checkpoint_sha256": "a" * 64,
+        "bindings": _bindings(),
+        "reflect_padding_adapter": receipt,
+        "pid": os.getpid(),
+        "gpu_uuid": "GPU-exact",
+        "peak_vram_bytes": 1,
+        "elapsed_seconds": 1.0,
+    }
+    assert full_training_module.validate_full_training_summary(summary) is summary
+
+    for artifact, validator in (
+        (provenance, full_training_module.validate_run_provenance),
+        (summary, full_training_module.validate_full_training_summary),
+    ):
+        malformed = copy.deepcopy(artifact)
+        malformed["reflect_padding_adapter"]["version"] = "other"
+        with pytest.raises(ValueError, match="reflect-padding adapter receipt"):
+            validator(malformed)
 
 
 @pytest.mark.parametrize("bad_entry", ["unknown", "symlink", "directory"])
@@ -1486,9 +1674,11 @@ def test_publication_rejects_preexisting_31_epoch_pointer_before_generation_crea
             "data_manifest_sha256": "2" * 64,
             "recipe_sha256": "3" * 64,
             "gpu_uuid": "GPU-exact",
+            "reflect_padding_adapter": _reflect_receipt(),
         },
         transactions=[],
         metrics={"loss_sum": 0.0, "loss_count": 0},
+        reflect_padding_adapter=_reflect_receipt(),
     )
 
     with pytest.raises(ValueError, match="checkpoint pointer"):
@@ -1512,9 +1702,11 @@ def test_publication_validates_constructed_pointer_before_atomic_switch(tmp_path
             "data_manifest_sha256": "2" * 64,
             "recipe_sha256": "3" * 64,
             "gpu_uuid": "GPU-exact",
+            "reflect_padding_adapter": _reflect_receipt(),
         },
         transactions=[],
         metrics={"loss_sum": 0.0, "loss_count": 0},
+        reflect_padding_adapter=_reflect_receipt(),
     )
 
     with patch.object(

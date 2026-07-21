@@ -59,8 +59,11 @@ from utils.learning.train_part import (
     build_model,
 )
 from utils.model.fi_varnet_adapter import (
+    FI_DETERMINISTIC_REFLECT_PAD_CONTRACT,
     build_pinned_ssim_loss,
     enable_fi_activation_checkpointing,
+    install_deterministic_reflect_pad_adapter,
+    validate_deterministic_reflect_pad_receipt,
     verify_pinned_upstream_sources,
 )
 
@@ -68,11 +71,16 @@ from utils.model.fi_varnet_adapter import (
 FI_ACC8_FULL_NAMESPACE = "EXP_FI_ACC8_CKPT_BASE_E30_R1"
 CUBLAS_WORKSPACE_CONFIG = ":4096:8"
 FI_ACC8_DETERMINISM_CONTRACT = {
-    "schema": "fi-acc8-determinism-v1",
+    "schema": "fi-acc8-determinism-v2",
     "cublas_workspace_config": CUBLAS_WORKSPACE_CONFIG,
     "deterministic_algorithms": True,
     "cudnn_deterministic": True,
     "cudnn_benchmark": False,
+    "implementation": FI_DETERMINISTIC_REFLECT_PAD_CONTRACT["implementation"],
+    "version": FI_DETERMINISTIC_REFLECT_PAD_CONTRACT["version"],
+    "native_forward_exact": True,
+    "state_dict_unchanged": True,
+    "strict_deterministic_algorithms": True,
 }
 FI_ACC8_CHECKPOINT_BYTES = 1_479_000_000
 FI_ACC8_RETAINED_CHECKPOINT_LIMIT = 32
@@ -199,9 +207,23 @@ def configure_determinism_pre_cuda():
     return dict(FI_ACC8_DETERMINISM_CONTRACT)
 
 
+def _build_full_training_model_with_adapters(args):
+    """Build the fresh CPU FI model and fail closed on either adapter receipt."""
+    model = build_model(args)
+    if any(parameter.device.type != "cpu" for parameter in model.parameters()):
+        raise ValueError("FI acc8 model factory must return fresh CPU parameters")
+    reflect_padding = validate_deterministic_reflect_pad_receipt(
+        install_deterministic_reflect_pad_adapter(model)
+    )
+    activation = _validate_activation_checkpoint_contract(
+        enable_fi_activation_checkpointing(model)
+    )
+    return model, reflect_padding, activation
+
+
 @dataclass(frozen=True)
 class FIAcc8FullRecipe:
-    schema: str = "fi-varnet-acc8-checkpointed-full-training-v1"
+    schema: str = "fi-varnet-acc8-checkpointed-full-training-v2"
     model_family: str = "fi-varnet-acc8"
     namespace: str = FI_ACC8_FULL_NAMESPACE
     scope: str = "FULL_TRAINING_ONLY"
@@ -234,6 +256,16 @@ class FIAcc8FullRecipe:
     status_interval_seconds: int = 300
     activation_checkpoint_feature_cascades: int = 12
     activation_checkpoint_image_cascades: int = 12
+    reflect_padding_adapter_schema: str = FI_DETERMINISTIC_REFLECT_PAD_CONTRACT["schema"]
+    reflect_padding_adapter_implementation: str = FI_DETERMINISTIC_REFLECT_PAD_CONTRACT[
+        "implementation"
+    ]
+    reflect_padding_adapter_version: str = FI_DETERMINISTIC_REFLECT_PAD_CONTRACT[
+        "version"
+    ]
+    reflect_padding_native_forward_exact: bool = True
+    reflect_padding_state_dict_unchanged: bool = True
+    reflect_padding_strict_deterministic_algorithms: bool = True
 
     def as_dict(self):
         return asdict(self)
@@ -248,12 +280,19 @@ def _canonical_json(value):
     ).encode("utf-8")
 
 
-def recipe_sha256():
-    return hashlib.sha256(_canonical_json(FI_ACC8_FULL_RECIPE.as_dict())).hexdigest()
+def recipe_sha256(reflect_padding_adapter):
+    receipt = validate_deterministic_reflect_pad_receipt(reflect_padding_adapter)
+    value = {
+        "recipe": FI_ACC8_FULL_RECIPE.as_dict(),
+        "reflect_padding_adapter": receipt,
+    }
+    return hashlib.sha256(_canonical_json(value)).hexdigest()
 
 
-def source_binding_sha256(source):
-    return hashlib.sha256(_canonical_json(source)).hexdigest()
+def source_binding_sha256(source, reflect_padding_adapter):
+    receipt = validate_deterministic_reflect_pad_receipt(reflect_padding_adapter)
+    value = {"source": source, "reflect_padding_adapter": receipt}
+    return hashlib.sha256(_canonical_json(value)).hexdigest()
 
 
 def _seed_for(*parts):
@@ -815,6 +854,7 @@ def _validate_bindings(bindings):
         "data_manifest_sha256",
         "recipe_sha256",
         "gpu_uuid",
+        "reflect_padding_adapter",
     }
     if not isinstance(bindings, dict) or set(bindings) != required:
         raise ValueError("Invalid full checkpoint binding schema")
@@ -822,6 +862,9 @@ def _validate_bindings(bindings):
         _validate_sha(bindings[key], key)
     if not isinstance(bindings["gpu_uuid"], str) or not bindings["gpu_uuid"]:
         raise ValueError("Invalid full checkpoint GPU binding")
+    validate_deterministic_reflect_pad_receipt(
+        bindings["reflect_padding_adapter"]
+    )
 
 
 def _validate_state_mapping(value, description):
@@ -916,6 +959,7 @@ def validate_full_checkpoint(
         "submission_authorized",
         "recipe",
         "activation_checkpointing",
+        "reflect_padding_adapter",
         "model",
         "optimizer",
         "scheduler",
@@ -930,7 +974,7 @@ def validate_full_checkpoint(
     if not isinstance(checkpoint, dict) or set(checkpoint) != required:
         raise ValueError("Invalid FI acc8 full checkpoint top-level schema")
     if (
-        checkpoint["format_version"] != 1
+        checkpoint["format_version"] != 2
         or checkpoint["kind"] != "fi-varnet-acc8-checkpointed-full-training"
         or checkpoint["scope"] != "FULL_TRAINING_ONLY"
         or checkpoint["resumable"] is not True
@@ -941,6 +985,7 @@ def validate_full_checkpoint(
     ):
         raise ValueError("Invalid FI acc8 full checkpoint scope or recipe")
     _validate_activation_checkpoint_contract(checkpoint["activation_checkpointing"])
+    validate_deterministic_reflect_pad_receipt(checkpoint["reflect_padding_adapter"])
     _validate_state_mapping(checkpoint["model"], "model")
     if not isinstance(checkpoint["optimizer"], dict) or set(checkpoint["optimizer"]) != {"state", "param_groups"}:
         raise ValueError("Full checkpoint optimizer schema is invalid")
@@ -961,9 +1006,14 @@ def validate_full_checkpoint(
     if not isinstance(numpy, dict) or set(numpy) != {"name", "keys", "position", "has_gauss", "cached_gaussian"}:
         raise ValueError("Full checkpoint NumPy RNG is invalid")
     _validate_bindings(checkpoint["bindings"])
+    if (
+        checkpoint["bindings"]["reflect_padding_adapter"]
+        != checkpoint["reflect_padding_adapter"]
+    ):
+        raise ValueError("Full checkpoint reflect-padding adapter binding disagrees")
     provenance = checkpoint["provenance"]
     if not isinstance(provenance, dict) or set(provenance) != {
-        "source", "data", "recipe", "gpu"
+        "source", "data", "recipe", "gpu", "reflect_padding_adapter"
     }:
         raise ValueError("Full checkpoint provenance schema is invalid")
     if (
@@ -971,6 +1021,8 @@ def validate_full_checkpoint(
         or not isinstance(provenance["data"], dict)
         or provenance["recipe"] != FI_ACC8_FULL_RECIPE.as_dict()
         or provenance["gpu"] != {"uuid": checkpoint["bindings"]["gpu_uuid"]}
+        or provenance["reflect_padding_adapter"]
+        != checkpoint["reflect_padding_adapter"]
     ):
         raise ValueError("Full checkpoint provenance does not match bindings/recipe")
     if not isinstance(checkpoint["transactions"], list):
@@ -1011,11 +1063,17 @@ def build_full_checkpoint(
     bindings,
     transactions,
     metrics,
+    reflect_padding_adapter,
     provenance=None,
     runtime=None,
     activation_checkpointing=None,
 ):
     _validate_bindings(bindings)
+    reflect_padding_adapter = validate_deterministic_reflect_pad_receipt(
+        reflect_padding_adapter
+    )
+    if bindings["reflect_padding_adapter"] != reflect_padding_adapter:
+        raise ValueError("Full checkpoint reflect-padding adapter binding disagrees")
     if isinstance(cursor, FullSamplerCursor):
         sampler = cursor.as_dict()
     else:
@@ -1035,9 +1093,10 @@ def build_full_checkpoint(
             "data": {"manifest_sha256": bindings["data_manifest_sha256"]},
             "recipe": FI_ACC8_FULL_RECIPE.as_dict(),
             "gpu": {"uuid": bindings["gpu_uuid"]},
+            "reflect_padding_adapter": dict(reflect_padding_adapter),
         }
     checkpoint = {
-        "format_version": 1,
+        "format_version": 2,
         "kind": "fi-varnet-acc8-checkpointed-full-training",
         "scope": "FULL_TRAINING_ONLY",
         "resumable": True,
@@ -1048,6 +1107,7 @@ def build_full_checkpoint(
         "activation_checkpointing": _validate_activation_checkpoint_contract(
             activation_checkpointing
         ),
+        "reflect_padding_adapter": dict(reflect_padding_adapter),
         "model": _cpu_snapshot(model.state_dict()),
         "optimizer": _cpu_snapshot(optimizer.state_dict()),
         "scheduler": _cpu_snapshot(scheduler.state_dict()),
@@ -1637,6 +1697,7 @@ _STATUS_KEYS = {
     "last_checkpoint_sha256",
     "command_argv",
     "deterministic_contract",
+    "reflect_padding_adapter",
     "updated_unix_seconds",
 }
 
@@ -1644,7 +1705,7 @@ _STATUS_KEYS = {
 def validate_status(status):
     if not isinstance(status, dict) or set(status) != _STATUS_KEYS:
         raise ValueError("Invalid FI acc8 full-training status schema")
-    if status["schema"] != "fi-varnet-acc8-full-training-status-v1":
+    if status["schema"] != "fi-varnet-acc8-full-training-status-v2":
         raise ValueError("Invalid FI acc8 full-training status version")
     if status["authoritative"] is not False:
         raise ValueError("FI acc8 full-training status must be nonauthoritative")
@@ -1702,6 +1763,9 @@ def validate_status(status):
         raise ValueError("Invalid FI acc8 full-training status command argv")
     if status["deterministic_contract"] != FI_ACC8_DETERMINISM_CONTRACT:
         raise ValueError("Invalid FI acc8 full-training status deterministic contract")
+    validate_deterministic_reflect_pad_receipt(
+        status["reflect_padding_adapter"]
+    )
     return status
 
 
@@ -1830,6 +1894,35 @@ def _prepare_full_run_root(output_dir, *, resume):
     return output_dir
 
 
+def validate_run_provenance(provenance):
+    required = {
+        "schema",
+        "source",
+        "data",
+        "recipe",
+        "gpu_preflight",
+        "scope",
+        "reflect_padding_adapter",
+    }
+    if not isinstance(provenance, dict) or set(provenance) != required:
+        raise ValueError("Invalid FI acc8 full-training provenance schema")
+    if provenance["schema"] != "fi-varnet-acc8-full-training-provenance-v2":
+        raise ValueError("Invalid FI acc8 full-training provenance version")
+    if (
+        not isinstance(provenance["source"], dict)
+        or not isinstance(provenance["data"], dict)
+        or not isinstance(provenance["gpu_preflight"], dict)
+        or provenance["recipe"] != FI_ACC8_FULL_RECIPE.as_dict()
+        or provenance["scope"]
+        != {"training": True, "evaluation": False, "submission": False}
+    ):
+        raise ValueError("Invalid FI acc8 full-training provenance contract")
+    validate_deterministic_reflect_pad_receipt(
+        provenance["reflect_padding_adapter"]
+    )
+    return provenance
+
+
 def _manifest_provenance(manifest):
     def selected(record):
         return {
@@ -1898,6 +1991,7 @@ def _status_payload(
     checkpoint_path,
     checkpoint_sha256,
     command_argv,
+    reflect_padding_adapter,
     now_monotonic=None,
     updated_unix_seconds=None,
 ):
@@ -1914,7 +2008,7 @@ def _status_payload(
     eta = remaining / throughput if throughput > 0.0 else 0.0
     checkpoint_path = str(checkpoint_path) if checkpoint_path else ""
     status = {
-        "schema": "fi-varnet-acc8-full-training-status-v1",
+        "schema": "fi-varnet-acc8-full-training-status-v2",
         "authoritative": False,
         "phase": phase,
         "pid": os.getpid(),
@@ -1937,12 +2031,86 @@ def _status_payload(
         "last_checkpoint_sha256": checkpoint_sha256,
         "command_argv": list(command_argv),
         "deterministic_contract": dict(FI_ACC8_DETERMINISM_CONTRACT),
+        "reflect_padding_adapter": dict(
+            validate_deterministic_reflect_pad_receipt(reflect_padding_adapter)
+        ),
         "updated_unix_seconds": float(updated_unix_seconds),
     }
     return validate_status(status)
 
 
+def validate_full_training_summary(summary):
+    required = {
+        "schema",
+        "namespace",
+        "scope",
+        "training_complete",
+        "evaluation_authorized",
+        "submission_authorized",
+        "completed_epoch",
+        "global_step",
+        "optimizer_steps",
+        "scheduler_steps",
+        "file_transactions",
+        "loss_sum",
+        "loss_count",
+        "mean_loss",
+        "last_checkpoint",
+        "last_checkpoint_sha256",
+        "bindings",
+        "reflect_padding_adapter",
+        "pid",
+        "gpu_uuid",
+        "peak_vram_bytes",
+        "elapsed_seconds",
+    }
+    if not isinstance(summary, dict) or set(summary) != required:
+        raise ValueError("Invalid FI acc8 full-training summary schema")
+    if (
+        summary["schema"] != "fi-varnet-acc8-full-training-summary-v2"
+        or summary["namespace"] != FI_ACC8_FULL_NAMESPACE
+        or summary["scope"] != "FULL_TRAINING_ONLY"
+        or summary["training_complete"] is not True
+        or summary["evaluation_authorized"] is not False
+        or summary["submission_authorized"] is not False
+        or summary["completed_epoch"] != FI_ACC8_FULL_RECIPE.base_epochs
+        or summary["global_step"] != FI_ACC8_FULL_RECIPE.base_max_steps
+        or summary["optimizer_steps"] != FI_ACC8_FULL_RECIPE.base_max_steps
+        or summary["scheduler_steps"] != FI_ACC8_FULL_RECIPE.base_max_steps
+        or summary["file_transactions"]
+        != FI_ACC8_FULL_RECIPE.base_epochs * FI_ACC8_FULL_RECIPE.train_files
+        or summary["loss_count"] != FI_ACC8_FULL_RECIPE.base_max_steps
+    ):
+        raise ValueError("Invalid FI acc8 full-training summary contract")
+    for key in ("loss_sum", "mean_loss", "elapsed_seconds"):
+        if type(summary[key]) is not float or not math.isfinite(summary[key]):
+            raise ValueError(f"Invalid FI acc8 full-training summary {key}")
+    if summary["loss_sum"] < 0 or summary["mean_loss"] < 0 or summary["elapsed_seconds"] < 0:
+        raise ValueError("Invalid FI acc8 full-training summary finite values")
+    for key in ("pid", "peak_vram_bytes"):
+        minimum = 1 if key == "pid" else 0
+        if type(summary[key]) is not int or summary[key] < minimum:
+            raise ValueError(f"Invalid FI acc8 full-training summary {key}")
+    if (
+        not isinstance(summary["gpu_uuid"], str)
+        or not summary["gpu_uuid"]
+        or summary["gpu_uuid"] != summary["bindings"].get("gpu_uuid")
+        or not isinstance(summary["last_checkpoint"], str)
+        or not Path(summary["last_checkpoint"]).is_absolute()
+    ):
+        raise ValueError("Invalid FI acc8 full-training summary runtime binding")
+    _validate_sha(summary["last_checkpoint_sha256"], "summary checkpoint")
+    _validate_bindings(summary["bindings"])
+    receipt = validate_deterministic_reflect_pad_receipt(
+        summary["reflect_padding_adapter"]
+    )
+    if summary["bindings"]["reflect_padding_adapter"] != receipt:
+        raise ValueError("FI acc8 full-training summary adapter binding disagrees")
+    return summary
+
+
 def _complete_full_run(output_dir, summary):
+    validate_full_training_summary(summary)
     _atomic_replace_bytes(output_dir / "training-summary.json", _canonical_json(summary) + b"\n")
     _atomic_replace_bytes(
         output_dir / "COMPLETE",
@@ -1982,24 +2150,41 @@ def run_fi_acc8_full_training(args, output_dir):
     gpu = preflight_smoke_gpu(args.GPU_NUM, args.expected_gpu_uuid)
     resource_preflight = preflight_full_training_resources(manifest, output_dir)
     determinism = configure_determinism_pre_cuda()
-    output_dir = _prepare_full_run_root(output_dir, resume=resume)
+
+    # Build and validate the exact CPU model adapters before binding provenance or
+    # selecting/transferring to CUDA.  A malformed/missing receipt therefore fails
+    # closed without creating GPU state.
+    random.seed(FI_ACC8_FULL_RECIPE.seed)
+    np.random.seed(FI_ACC8_FULL_RECIPE.seed)
+    torch.manual_seed(FI_ACC8_FULL_RECIPE.seed)
+    model, reflect_padding, activation = _build_full_training_model_with_adapters(args)
+    reflect_padding = dict(
+        validate_deterministic_reflect_pad_receipt(reflect_padding)
+    )
+
     bindings = {
-        "source_sha256": source_binding_sha256(source),
+        "source_sha256": source_binding_sha256(source, reflect_padding),
         "data_manifest_sha256": manifest.manifest_sha256,
-        "recipe_sha256": recipe_sha256(), "gpu_uuid": gpu["uuid"],
+        "recipe_sha256": recipe_sha256(reflect_padding),
+        "gpu_uuid": gpu["uuid"],
+        "reflect_padding_adapter": reflect_padding,
     }
     provenance = {
-        "schema": "fi-varnet-acc8-full-training-provenance-v1",
+        "schema": "fi-varnet-acc8-full-training-provenance-v2",
         "source": source, "data": _manifest_provenance(manifest),
         "recipe": FI_ACC8_FULL_RECIPE.as_dict(), "gpu_preflight": gpu,
         "scope": {"training": True, "evaluation": False, "submission": False},
+        "reflect_padding_adapter": reflect_padding,
     }
+    validate_run_provenance(provenance)
+    output_dir = _prepare_full_run_root(output_dir, resume=resume)
     provenance_path = output_dir / "provenance.json"
     checkpoint_provenance = {
         "source": source,
         "data": provenance["data"],
         "recipe": FI_ACC8_FULL_RECIPE.as_dict(),
         "gpu": {"uuid": gpu["uuid"]},
+        "reflect_padding_adapter": reflect_padding,
     }
     if provenance_path.exists():
         if json.loads(provenance_path.read_bytes()) != provenance:
@@ -2008,16 +2193,7 @@ def run_fi_acc8_full_training(args, output_dir):
         _write_file_fsync(provenance_path, _canonical_json(provenance) + b"\n")
 
     device = _select_smoke_device(args.GPU_NUM)
-    random.seed(FI_ACC8_FULL_RECIPE.seed)
-    np.random.seed(FI_ACC8_FULL_RECIPE.seed)
-    torch.manual_seed(FI_ACC8_FULL_RECIPE.seed)
     torch.cuda.reset_peak_memory_stats(device)
-    model = build_model(args)
-    if any(parameter.device.type != "cpu" for parameter in model.parameters()):
-        raise ValueError("FI acc8 model factory must return fresh CPU parameters")
-    activation = _validate_activation_checkpoint_contract(
-        enable_fi_activation_checkpointing(model)
-    )
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=FI_ACC8_FULL_RECIPE.lr,
         weight_decay=FI_ACC8_FULL_RECIPE.weight_decay,
@@ -2076,6 +2252,7 @@ def run_fi_acc8_full_training(args, output_dir):
                 checkpoint_path=last_checkpoint,
                 checkpoint_sha256=last_checkpoint_sha256,
                 command_argv=command_argv,
+                reflect_padding_adapter=reflect_padding,
             ),
         )
         last_status = now
@@ -2127,6 +2304,7 @@ def run_fi_acc8_full_training(args, output_dir):
                 provenance=checkpoint_provenance,
                 runtime=_runtime(gpu["uuid"], device, started),
                 activation_checkpointing=activation,
+                reflect_padding_adapter=reflect_padding,
             )
             publication = publish_full_checkpoint(output_dir, state, epoch_end=epoch_end)
             last_checkpoint = str(publication["checkpoint_path"])
@@ -2141,7 +2319,7 @@ def run_fi_acc8_full_training(args, output_dir):
         raise RuntimeError("Base run did not cover each slice/file exactly once")
     runtime = _runtime(gpu["uuid"], device, started)
     summary = {
-        "schema": "fi-varnet-acc8-full-training-summary-v1",
+        "schema": "fi-varnet-acc8-full-training-summary-v2",
         "namespace": FI_ACC8_FULL_NAMESPACE, "scope": "FULL_TRAINING_ONLY",
         "training_complete": True, "evaluation_authorized": False,
         "submission_authorized": False, "completed_epoch": 30,
@@ -2152,6 +2330,7 @@ def run_fi_acc8_full_training(args, output_dir):
         "last_checkpoint": last_checkpoint,
         "last_checkpoint_sha256": last_checkpoint_sha256,
         "bindings": bindings,
+        "reflect_padding_adapter": reflect_padding,
         **runtime,
     }
     publish_status("complete", last_record_name, last_slice)

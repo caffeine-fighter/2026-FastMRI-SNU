@@ -3,11 +3,13 @@
 import functools
 import hashlib
 import importlib.util
+from numbers import Integral
 from pathlib import Path
 import subprocess
 import sys
 
 import torch
+import torch.nn.functional as torch_functional
 from torch.utils.checkpoint import checkpoint
 
 
@@ -27,6 +29,140 @@ PINNED_LICENSE_SHA256 = (
 )
 _MODULE_NAME = "_pinned_fastmri_91f2df47_feature_varnet"
 _LOSS_MODULE_NAME = "_pinned_fastmri_91f2df47_losses"
+_PINNED_FEATURE_SOURCE = (
+    PINNED_UPSTREAM_ROOT / "fastmri_examples" / "feature_varnet" / "feature_varnet.py"
+).resolve()
+FI_DETERMINISTIC_REFLECT_PAD_CONTRACT = {
+    "schema": "fi-varnet-reflect-padding-adapter-v2",
+    "implementation": "utils.model.fi_varnet_adapter.deterministic_reflect_pad2d",
+    "version": "1.0.0",
+    "native_forward_exact": True,
+    "state_dict_unchanged": True,
+    "strict_deterministic_algorithms": True,
+    "scope": "process-global-pinned-feature-varnet-module-only",
+    "pinned_module_name": _MODULE_NAME,
+    "pinned_module_origin": str(_PINNED_FEATURE_SOURCE),
+    "pinned_feature_varnet_sha256": PINNED_FEATURE_VARNET_SHA256,
+}
+
+
+def deterministic_reflect_pad2d(tensor, pad):
+    """Reflect-pad the final two dimensions without native reflection backward.
+
+    This implementation is deliberately closed to the four-value, nonnegative
+    2D padding contract used by the pinned FI-VarNet.  Width is reflected first,
+    then height, exactly matching ``torch.nn.functional.pad(..., 'reflect')``.
+    Its autograd graph contains only slices, flips, and concatenations.
+    """
+    if not torch.is_tensor(tensor) or tensor.ndim != 4:
+        raise ValueError("Deterministic reflect_pad2d requires one 4D tensor")
+    if not isinstance(pad, (tuple, list)) or len(pad) != 4:
+        raise ValueError("Deterministic reflect_pad2d pad must contain four integers")
+    if any(isinstance(value, bool) or not isinstance(value, Integral) for value in pad):
+        raise ValueError("Deterministic reflect_pad2d pad must contain four integers")
+    left, right, top, bottom = (int(value) for value in pad)
+    if min(left, right, top, bottom) < 0:
+        raise ValueError("Deterministic reflect_pad2d padding must be nonnegative")
+    height, width = tensor.shape[-2:]
+    if left >= width or right >= width or top >= height or bottom >= height:
+        raise ValueError("Deterministic reflect_pad2d padding must be smaller than input")
+
+    horizontal = torch.cat(
+        (
+            tensor[..., 1 : left + 1].flip(-1),
+            tensor,
+            tensor[..., width - right - 1 : width - 1].flip(-1),
+        ),
+        dim=-1,
+    )
+    return torch.cat(
+        (
+            horizontal[..., 1 : top + 1, :].flip(-2),
+            horizontal,
+            horizontal[..., height - bottom - 1 : height - 1, :].flip(-2),
+        ),
+        dim=-2,
+    )
+
+
+class _PinnedFunctionalProxy:
+    """Delegate F except for reflect pad in the one pinned upstream module."""
+
+    __slots__ = ("_functional",)
+
+    def __init__(self, functional):
+        self._functional = functional
+
+    def __getattr__(self, name):
+        return getattr(self._functional, name)
+
+    def pad(self, input, pad, mode="constant", value=None):
+        if mode == "reflect":
+            if value is not None:
+                raise ValueError("Deterministic reflect_pad2d forbids a value argument")
+            return deterministic_reflect_pad2d(input, pad)
+        return self._functional.pad(input, pad, mode=mode, value=value)
+
+
+def validate_deterministic_reflect_pad_receipt(receipt):
+    """Validate the closed production receipt for adapter schema v2."""
+    if (
+        not isinstance(receipt, dict)
+        or set(receipt) != set(FI_DETERMINISTIC_REFLECT_PAD_CONTRACT)
+        or any(
+            type(receipt[key]) is not type(expected) or receipt[key] != expected
+            for key, expected in FI_DETERMINISTIC_REFLECT_PAD_CONTRACT.items()
+        )
+    ):
+        raise ValueError("Invalid deterministic reflect-padding adapter receipt")
+    return receipt
+
+
+def install_deterministic_reflect_pad_adapter(model):
+    """Install the adapter only into the cached pinned FI module.
+
+    The assignment to that module's ``F`` binding is process-global for callers
+    of the exact pinned module, but it does not mutate ``torch.nn.functional`` or
+    any unrelated module. The adapter is idempotent and carries no model state.
+    """
+    if (
+        not torch.are_deterministic_algorithms_enabled()
+        or torch.is_deterministic_algorithms_warn_only_enabled()
+    ):
+        raise RuntimeError(
+            "Deterministic reflect-padding adapter requires strict deterministic algorithms"
+        )
+    fi_class = load_pinned_fi_varnet_class()
+    module = sys.modules.get(_MODULE_NAME)
+    if (
+        module is None
+        or fi_class.__module__ != _MODULE_NAME
+        or model.__class__.__module__ != _MODULE_NAME
+        or not isinstance(model, fi_class)
+        or Path(module.__file__).resolve() != _PINNED_FEATURE_SOURCE
+        or _sha256(_PINNED_FEATURE_SOURCE) != PINNED_FEATURE_VARNET_SHA256
+    ):
+        raise RuntimeError("Deterministic reflect-padding adapter requires exact pinned FI model")
+
+    state_before = {
+        key: value.detach().cpu().clone() for key, value in model.state_dict().items()
+    }
+    current = module.F
+    if current is torch_functional:
+        module.F = _PinnedFunctionalProxy(torch_functional)
+    elif not (
+        isinstance(current, _PinnedFunctionalProxy)
+        and current._functional is torch_functional
+    ):
+        raise RuntimeError("Pinned FI functional binding was unexpectedly modified")
+
+    state_after = model.state_dict()
+    if list(state_after) != list(state_before) or any(
+        not torch.equal(state_after[key].detach().cpu(), expected)
+        for key, expected in state_before.items()
+    ):
+        raise RuntimeError("Deterministic reflect-padding adapter changed model state_dict")
+    return dict(FI_DETERMINISTIC_REFLECT_PAD_CONTRACT)
 
 
 def _sha256(path):

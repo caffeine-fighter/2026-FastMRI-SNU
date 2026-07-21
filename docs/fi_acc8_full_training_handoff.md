@@ -37,7 +37,7 @@ That PASS establishes only one-step checkpointed FP32 training fit. Its own reco
 
 | Field | Exact value |
 |---|---:|
-| recipe schema | `fi-varnet-acc8-checkpointed-full-training-v1` |
+| recipe schema | `fi-varnet-acc8-checkpointed-full-training-v2` |
 | namespace | `EXP_FI_ACC8_CKPT_BASE_E30_R1` |
 | scope | `FULL_TRAINING_ONLY` |
 | initialization | scratch; no external learned state |
@@ -66,13 +66,15 @@ The nominal schedule is not smoke-primed. Constructing the frozen `LambdaLR` set
 
 ## Deterministic execution contract
 
-All pre-CUDA gates complete before the run root is reserved and before device selection. The runner then enforces this exact contract before any CUDA selection:
+All data/source/GPU/resource gates and strict deterministic configuration complete before model adapter construction, output reservation, and device selection. The exact FI model is built on CPU; its deterministic reflect-padding and activation-checkpoint adapters must return closed, state-dict-transparent receipts before source/recipe digests, provenance, or checkpoint bindings can be formed. Only then is the run root reserved and CUDA selected.
 
 ```json
-{"schema":"fi-acc8-determinism-v1","cublas_workspace_config":":4096:8","deterministic_algorithms":true,"cudnn_deterministic":true,"cudnn_benchmark":false}
+{"schema":"fi-acc8-determinism-v2","cublas_workspace_config":":4096:8","deterministic_algorithms":true,"cudnn_deterministic":true,"cudnn_benchmark":false,"implementation":"utils.model.fi_varnet_adapter.deterministic_reflect_pad2d","version":"1.0.0","native_forward_exact":true,"state_dict_unchanged":true,"strict_deterministic_algorithms":true}
 ```
 
 `CUBLAS_WORKSPACE_CONFIG` must be absent (the runner sets `:4096:8`) or already exactly `:4096:8`; any other value is a blocker. PyTorch deterministic algorithms are enabled, cuDNN deterministic mode is enabled, and cuDNN benchmark mode is disabled. File and slice permutations are deterministic functions of seed, epoch, and basename. Python, NumPy, CPU Torch, and selected-device CUDA RNG state are checkpointed and restored.
+
+The reviewed R2 live gate reached the first actual backward and blocked because native CUDA `reflection_pad2d_backward` has no strict deterministic implementation. Recipe v2 therefore installs a proxy only in the exact pinned FI module. It intercepts only four-value 2D `mode="reflect"` calls and implements reflection with slicing, `flip`, and `cat`; all other functional calls and padding modes delegate unchanged, and global `torch.nn.functional` is not modified. Representative CPU and GTX 1080 probes showed native/custom forward tensors byte-exact and repeated custom gradients byte-exact under strict deterministic algorithms. The custom gradient can differ from native nondeterministic backward by a few FP32 ulps because accumulation order changes; this is an explicit recipe change, not a claim of byte-identical training gradients to the old native path. Ordered model state keys and tensor values are unchanged, and the closed adapter receipt is bound into source/recipe digests, provenance, status, every checkpoint, resume validation, and the final summary.
 
 ## Same-FD data transaction and durable rollback boundary
 
