@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Phase 2 runbook
-    url: ../blob/main/docs/vessl_after_exp030_runbook.md
-    about: Use the runbook before opening Phase 2 official eval issues.
-  - name: Current state
-    url: ../blob/main/docs/current_state.md
-    about: Check current EXP/VESSL status before filing a new issue.
