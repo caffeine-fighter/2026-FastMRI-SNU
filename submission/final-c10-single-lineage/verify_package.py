@@ -38,6 +38,12 @@ FINAL_STRUCTURE = (
     "reproduction/FINAL_C10_SINGLE_LINEAGE_R23_E49.json",
     "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json",
     "reproduction/final-tactics-c10-r23-e49.json",
+    "reproduction/generalist/train.py",
+    "reproduction/generalist/promptmr_production.py",
+    "reproduction/specialist/train.py",
+    "reproduction/specialist/promptmr_production.py",
+    "reproduction/vessl_train_post_refiner.py",
+    "reproduction/vessl_build_routed_promptmr_checkpoint.py",
     "reproduction/organizer-data-provenance.json",
     "reproduction/source-sha256sums.txt",
     "evidence/generalist-e49-receipt.json",
@@ -263,7 +269,9 @@ def verify_evidence_receipts(
         or not isinstance(scheduler_sources, dict)
         or scheduler_sources.get("promptmr_production.py")
         != R24_PRODUCTION_SHA256
-        or sha256(ROOT / "project/utils/learning/promptmr_production.py")
+        or sha256(
+            ROOT / "reproduction/specialist/promptmr_production.py"
+        )
         != R24_PRODUCTION_SHA256
     ):
         fail("R24 scheduler amendment/deployment evidence is invalid")
