@@ -9,7 +9,9 @@ DATA_ROOT="${DATA_ROOT:-/root/Data}"
 RESULT_ROOT=/root/result
 MANIFEST="$REPRO_ROOT/organizer-data-provenance.json"
 R24_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+R24_POST_E49_PREFLIGHT="$REPRO_ROOT/R24_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
 R24_SPECIALIST_PRODUCTION_SHA256="ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
+R24_POST_E49_PREFLIGHT_SHA256="5d323e4894b53cbc9b77b5e46c570580bee60baeb1444b68cb6e62008ba0a6cd"
 RUN_NAME="EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_R23_REPRO"
 RUN_DIR="$RESULT_ROOT/$RUN_NAME"
 E49_STEP=228928
@@ -24,6 +26,7 @@ test -f "$PROJECT_ROOT/recon_eval.py"
 test -f "$REPRO_ROOT/source-sha256sums.txt"
 test -f "$MANIFEST"
 test -f "$R24_AMENDMENT"
+test -f "$R24_POST_E49_PREFLIGHT"
 test -d "$DATA_ROOT/train/kspace"
 test -d "$DATA_ROOT/train/image"
 test -d "$DATA_ROOT/val/kspace"
@@ -45,7 +48,8 @@ cd "$REPRO_ROOT"
 sha256sum -c source-sha256sums.txt
 
 python - "$R24_AMENDMENT" "$REPRO_ROOT/specialist/promptmr_production.py" \
-  "$R24_SPECIALIST_PRODUCTION_SHA256" <<'PY'
+  "$R24_SPECIALIST_PRODUCTION_SHA256" "$R24_POST_E49_PREFLIGHT" \
+  "$R24_POST_E49_PREFLIGHT_SHA256" <<'PY'
 import hashlib
 import json
 from pathlib import Path
@@ -54,7 +58,10 @@ import sys
 amendment_path = Path(sys.argv[1])
 production_path = Path(sys.argv[2])
 expected_production = sys.argv[3]
+preflight_path = Path(sys.argv[4])
+expected_preflight = sys.argv[5]
 amendment = json.loads(amendment_path.read_text(encoding="utf-8"))
+preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
 assert amendment["schema"] == (
     "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
 )
@@ -65,7 +72,34 @@ assert amendment["amendment"]["equal_boundary_semantics"] == (
 assert amendment["amendment"]["r23_recipe_changed"] is False
 assert amendment["source_hashes"]["promptmr_production.py"] == expected_production
 assert hashlib.sha256(production_path.read_bytes()).hexdigest() == expected_production
+assert hashlib.sha256(preflight_path.read_bytes()).hexdigest() == expected_preflight
+assert preflight["schema"] == "vessl-r24-post-e49-command-parser-preflight-v1"
+assert preflight["state"] == "PASS"
+assert preflight["cpu_only"] is True
+assert preflight["cuda_initialized"] is False
+assert preflight["remote_process_changed"] is False
+assert preflight["active_generalist_process_touched"] is False
+assert preflight["recipe_changed"] is False
+assert preflight["candidate_count"] == 1
+assert preflight["fallback_registered"] is False
+assert preflight["handoff"] == {
+    "epoch": 49,
+    "optimizer_step": 228928,
+    "scheduler_horizon_epoch": 51,
+    "scheduler_horizon_optimizer_step": 238272,
+}
+assert all(
+    entry["parser"] == "PASS"
+    for entry in preflight["specialists"].values()
+)
+assert preflight["post_refiner"]["parser"] == "PASS"
+assert preflight["post_refiner"]["main_c10_frozen"] is True
+assert preflight["post_refiner"]["optimizer_scope"] == "naf_s_only"
+assert preflight["post_refiner"]["bbox_loss_coefficient"] == 0.5
+assert preflight["final_builder"]["parser"] == "PASS"
+assert preflight["final_builder"]["candidate_count"] == 1
 print("R24_SCHEDULER_REPRODUCTION_SOURCE_OK")
+print("R24_POST_E49_COMMAND_PARSER_PREFLIGHT_OK")
 PY
 
 install -m 0644 "$REPRO_ROOT/generalist/train.py" "$PROJECT_ROOT/train.py"

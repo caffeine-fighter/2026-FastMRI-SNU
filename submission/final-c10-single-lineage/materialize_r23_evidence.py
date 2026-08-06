@@ -20,9 +20,24 @@ TACTICS = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
 SCHEDULER_AMENDMENT = (
     ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
 )
+POST_E49_PREFLIGHT = (
+    ROOT / "reproduction/R24_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
+)
 MODEL = ROOT / "best_model.pt"
 R24_PRODUCTION_SHA256 = (
     "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
+)
+R24_CONTROLLER_SHA256 = (
+    "929e53558cbb976f011d9ab925980c12a8b39be49b283a2de71621f45c18ce31"
+)
+R24_TRAIN_SHA256 = (
+    "95465b1b09189af87359a39518559f1759fdbeb881a4abb35b1f7b7faa832e47"
+)
+R23_POST_TRAINER_SHA256 = (
+    "23ea62bf1e95772e5d1b00392718dff0604d554f638eb354793bb0613f1b6428"
+)
+R23_BUILDER_SHA256 = (
+    "3d5263fc93e631c2b769201b9f547a6bfa8ca9b03270fc92ebd6287ffe6530a7"
 )
 
 
@@ -80,9 +95,13 @@ parser.add_argument("--acc8-terminal", type=Path, required=True)
 parser.add_argument("--naf-receipt", type=Path, required=True)
 args = parser.parse_args()
 
-if not MODEL.is_file() or not TACTICS.is_file() or not SCHEDULER_AMENDMENT.is_file():
+if not all(
+    path.is_file()
+    for path in (MODEL, TACTICS, SCHEDULER_AMENDMENT, POST_E49_PREFLIGHT)
+):
     raise SystemExit(
-        "R23_EVIDENCE_REFUSED: model, sealed tactics, or R24 amendment is absent"
+        "R23_EVIDENCE_REFUSED: model, sealed tactics, R24 amendment, or "
+        "post-E49 preflight is absent"
     )
 outputs = {
     "generalist": EVIDENCE / "generalist-e49-receipt.json",
@@ -116,6 +135,7 @@ tactics = tactics_envelope.get("selected_recipe")
 controller = load(args.controller_receipt)
 scheduler_amendment = load(SCHEDULER_AMENDMENT)
 scheduler_deployment = load(args.scheduler_deployment_receipt)
+post_e49_preflight = load(POST_E49_PREFLIGHT)
 generalist = load(args.generalist_receipt)
 terminals = {"acc4": load(args.acc4_terminal), "acc8": load(args.acc8_terminal)}
 naf = load(args.naf_receipt)
@@ -125,6 +145,11 @@ model_sha = sha256(MODEL)
 amendment = scheduler_amendment.get("amendment")
 deployment_contract = scheduler_amendment.get("deployment_contract")
 deployment_sources = scheduler_deployment.get("source_hashes")
+preflight_sources = post_e49_preflight.get("source_hashes")
+preflight_handoff = post_e49_preflight.get("handoff")
+preflight_specialists = post_e49_preflight.get("specialists")
+preflight_post = post_e49_preflight.get("post_refiner")
+preflight_builder = post_e49_preflight.get("final_builder")
 if (
     scheduler_amendment.get("schema")
     != "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
@@ -168,6 +193,116 @@ if (
     != R24_PRODUCTION_SHA256
 ):
     raise SystemExit("R23_EVIDENCE_REFUSED: R24 scheduler evidence is invalid")
+
+expected_specialist_flags = {
+    "acc4": {
+        "--promptmr-train-acceleration": "acc4",
+        "--promptmr-stop-after-optimizer-steps": "2336",
+        "--promptmr-specialist-lr-horizon-optimizer-steps": "2336",
+        "--promptmr-specialist-loss-family": "exact_upstream_ssim",
+        "--promptmr-mraugment": "conservative_immediate",
+        "--lr": "1e-05",
+    },
+    "acc8": {
+        "--promptmr-train-acceleration": "acc8",
+        "--promptmr-stop-after-optimizer-steps": "1158",
+        "--promptmr-specialist-lr-horizon-optimizer-steps": "2315",
+        "--promptmr-specialist-loss-family": (
+            "r10_image_masked_ssim_valid_windows_mean"
+        ),
+        "--promptmr-mraugment": "off",
+        "--lr": "5e-05",
+    },
+}
+specialist_parser_valid = isinstance(preflight_specialists, dict)
+if specialist_parser_valid:
+    for route, expected_flags in expected_specialist_flags.items():
+        for mode in ("fresh", "resume"):
+            entry = preflight_specialists.get(f"{route}_{mode}")
+            flags = entry.get("flags") if isinstance(entry, dict) else None
+            specialist_parser_valid = specialist_parser_valid and (
+                isinstance(entry, dict)
+                and entry.get("parser") == "PASS"
+                and isinstance(flags, dict)
+                and all(flags.get(key) == value for key, value in expected_flags.items())
+                and flags.get("--promptmr-num-cascades") == "10"
+                and flags.get("--promptmr-n-history") == "0"
+                and flags.get("--precision") == "fp32"
+                and flags.get("--batch-size") == "1"
+                and flags.get("--seed") == "430"
+                and flags.get("--promptmr-skip-validation") is True
+            )
+
+post_flags = preflight_post.get("flags") if isinstance(preflight_post, dict) else None
+builder_flags = (
+    preflight_builder.get("flags") if isinstance(preflight_builder, dict) else None
+)
+if (
+    post_e49_preflight.get("schema")
+    != "vessl-r24-post-e49-command-parser-preflight-v1"
+    or post_e49_preflight.get("state") != "PASS"
+    or post_e49_preflight.get("cpu_only") is not True
+    or post_e49_preflight.get("cuda_initialized") is not False
+    or post_e49_preflight.get("remote_process_read") is not False
+    or post_e49_preflight.get("remote_process_changed") is not False
+    or post_e49_preflight.get("active_generalist_process_touched") is not False
+    or post_e49_preflight.get("recipe_changed") is not False
+    or post_e49_preflight.get("candidate_count") != 1
+    or post_e49_preflight.get("fallback_registered") is not False
+    or post_e49_preflight.get("external_learned_state_imported") is not False
+    or post_e49_preflight.get("leaderboard_data_used") is not False
+    or post_e49_preflight.get("official_evaluation_executed") is not False
+    or post_e49_preflight.get("chain")
+    != [
+        "E49_HASH_SEALED_GENERALIST",
+        "ACC4_MODEL_ONLY_SPECIALIST",
+        "ACC8_MODEL_ONLY_R10_SPECIALIST",
+        "FROZEN_ROUTED_BASE_PLUS_NAF_S",
+        "SINGLE_ROUTED_BEST_MODEL_PT",
+    ]
+    or preflight_handoff
+    != {
+        "epoch": 49,
+        "optimizer_step": 228928,
+        "scheduler_horizon_epoch": 51,
+        "scheduler_horizon_optimizer_step": 238272,
+    }
+    or not isinstance(preflight_sources, dict)
+    or preflight_sources.get("final-tactics-c10-r23-e49.json") != sha256(TACTICS)
+    or preflight_sources.get(
+        "FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+    )
+    != sha256(SCHEDULER_AMENDMENT)
+    or preflight_sources.get("r24-deployment-receipt.json")
+    != sha256(args.scheduler_deployment_receipt)
+    or preflight_sources.get("controller.py") != R24_CONTROLLER_SHA256
+    or preflight_sources.get("train.py") != R24_TRAIN_SHA256
+    or preflight_sources.get("promptmr_production.py") != R24_PRODUCTION_SHA256
+    or preflight_sources.get("vessl_train_post_refiner.py")
+    != R23_POST_TRAINER_SHA256
+    or preflight_sources.get("vessl_build_routed_promptmr_checkpoint.py")
+    != R23_BUILDER_SHA256
+    or not specialist_parser_valid
+    or not isinstance(preflight_post, dict)
+    or preflight_post.get("parser") != "PASS"
+    or preflight_post.get("main_c10_frozen") is not True
+    or preflight_post.get("optimizer_scope") != "naf_s_only"
+    or preflight_post.get("bbox_loss_coefficient") != 0.5
+    or not isinstance(post_flags, dict)
+    or post_flags.get("--variant") != "NAF_S"
+    or post_flags.get("--views") != ["identity", "flip_lr"]
+    or post_flags.get("--epochs") != "21"
+    or post_flags.get("--optimizer-steps") != "93567"
+    or post_flags.get("--peak-lr") != "0.0001"
+    or post_flags.get("--seed") != "430"
+    or not isinstance(preflight_builder, dict)
+    or preflight_builder.get("parser") != "PASS"
+    or preflight_builder.get("candidate_count") != 1
+    or not isinstance(builder_flags, dict)
+    or builder_flags.get("--tta-views") != "acc8_identity_flip_lr"
+    or builder_flags.get("--output") != "/root/result/final/best_model.pt"
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: post-E49 command preflight is invalid")
 
 if (
     tactics_envelope.get("state") != "SEALED"
@@ -313,6 +448,7 @@ policy_receipt = {
     "scheduler_deployment_receipt_sha256": sha256(
         args.scheduler_deployment_receipt
     ),
+    "post_e49_command_parser_preflight_sha256": sha256(POST_E49_PREFLIGHT),
 }
 
 if (
