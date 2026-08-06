@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the one R23 final package."""
+"""Fail-closed verifier for the one R23 package with its R24 source fix."""
 
 from __future__ import annotations
 
@@ -36,6 +36,7 @@ FINAL_STRUCTURE = (
     "project/utils/model/promptmr_plus_adapter.py",
     "project/third_party/promptmr_plus/SOURCE_MANIFEST.json",
     "reproduction/FINAL_C10_SINGLE_LINEAGE_R23_E49.json",
+    "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json",
     "reproduction/final-tactics-c10-r23-e49.json",
     "reproduction/organizer-data-provenance.json",
     "reproduction/source-sha256sums.txt",
@@ -45,8 +46,12 @@ FINAL_STRUCTURE = (
     "evidence/naf-s-training-receipt.json",
     "evidence/policy-receipt.json",
     "evidence/inference-admission-receipt.json",
+    "evidence/scheduler-amendment-deployment-receipt.json",
 )
 LEARNED_SUFFIXES = {".pt", ".pth", ".ckpt", ".safetensors"}
+R24_PRODUCTION_SHA256 = (
+    "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
+)
 
 
 def sha256(path: Path) -> str:
@@ -201,6 +206,68 @@ def json_object(relative: str) -> dict:
 def verify_evidence_receipts(
     source_hashes: dict[str, str], model_sha256: str
 ) -> None:
+    tactics_path = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+    amendment_path = (
+        ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+    )
+    amendment_envelope = json_object(
+        "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+    )
+    amendment = amendment_envelope.get("amendment")
+    deployment_contract = amendment_envelope.get("deployment_contract")
+    scheduler = json_object(
+        "evidence/scheduler-amendment-deployment-receipt.json"
+    )
+    scheduler_sources = scheduler.get("source_hashes")
+    if (
+        amendment_envelope.get("schema")
+        != "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
+        or amendment_envelope.get("state") != "SEALED"
+        or amendment_envelope.get("parent", {}).get("r23_tactics_sha256")
+        != sha256(tactics_path)
+        or not isinstance(amendment, dict)
+        or amendment.get("equal_boundary_semantics")
+        != "ONE_EPOCH_LINEAR_WARMUP_WITH_ZERO_COSINE_TAIL"
+        or amendment.get("r23_recipe_changed") is not False
+        or amendment.get("optimizer_step_budget_changed") is not False
+        or amendment.get("learning_rate_changed") is not False
+        or amendment_envelope.get("source_hashes", {}).get(
+            "promptmr_production.py"
+        )
+        != R24_PRODUCTION_SHA256
+        or not isinstance(deployment_contract, dict)
+        or deployment_contract.get(
+            "active_generalist_gpu_process_must_be_preserved"
+        )
+        is not True
+        or deployment_contract.get("candidate_count") != 1
+        or deployment_contract.get("fallback_registered") is not False
+        or scheduler.get("schema")
+        != "vessl-c10-single-lineage-r24-scheduler-fix-deployment-v1"
+        or scheduler.get("state")
+        != "ACTIVE_CURRENT_C10_PRESERVED_R24_SCHEDULER_FIX_ARMED"
+        or scheduler.get("r24_amendment_sha256") != sha256(amendment_path)
+        or scheduler.get("r23_tactics_sha256") != sha256(tactics_path)
+        or scheduler.get("scheduler_boundary_fixed") is not True
+        or scheduler.get("scheduler_cpu_preflight") != "PASS"
+        or scheduler.get("trainer_signal_sent") is not False
+        or scheduler.get("active_generalist_process_touched") is not False
+        or scheduler.get("active_generalist_recipe_changed") is not False
+        or scheduler.get("specialist_recipe_changed") is not False
+        or scheduler.get("optimizer_step_budget_changed") is not False
+        or scheduler.get("learning_rate_changed") is not False
+        or scheduler.get("candidate_count") != 1
+        or scheduler.get("final_package_count") != 1
+        or scheduler.get("fallback_registered") is not False
+        or scheduler.get("official_evaluation_max_runs") != 1
+        or not isinstance(scheduler_sources, dict)
+        or scheduler_sources.get("promptmr_production.py")
+        != R24_PRODUCTION_SHA256
+        or sha256(ROOT / "project/utils/learning/promptmr_production.py")
+        != R24_PRODUCTION_SHA256
+    ):
+        fail("R24 scheduler amendment/deployment evidence is invalid")
+
     generalist = json_object("evidence/generalist-e49-receipt.json")
     if (
         generalist.get("schema") != "vessl-g10-generalist-terminal-checkpoint-v1"
@@ -303,6 +370,10 @@ def verify_evidence_receipts(
         or policy.get("learned_state_source") != "VESSL_ONLY"
         or policy.get("external_learned_state_imported") is not False
         or policy.get("leaderboard_data_used_for_training_or_selection") is not False
+        or policy.get("scheduler_deployment_receipt_sha256")
+        != sha256(
+            ROOT / "evidence/scheduler-amendment-deployment-receipt.json"
+        )
     ):
         fail("augmentation/dispatch/single-candidate policy receipt is invalid")
 

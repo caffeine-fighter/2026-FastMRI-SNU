@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize normalized R23 evidence from authoritative VESSL receipts."""
+"""Materialize normalized R23/R24 evidence from authoritative VESSL receipts."""
 
 from __future__ import annotations
 
@@ -17,7 +17,13 @@ import torch
 ROOT = Path(__file__).resolve().parent
 EVIDENCE = ROOT / "evidence"
 TACTICS = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+SCHEDULER_AMENDMENT = (
+    ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+)
 MODEL = ROOT / "best_model.pt"
+R24_PRODUCTION_SHA256 = (
+    "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
+)
 
 
 def sha256(path: Path) -> str:
@@ -59,14 +65,25 @@ def atomic_json(path: Path, value: object) -> None:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--controller-receipt", type=Path, required=True)
+parser.add_argument(
+    "--scheduler-deployment-receipt",
+    type=Path,
+    default=Path(
+        "/root/result/"
+        "VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1/"
+        "r24-deployment-receipt.json"
+    ),
+)
 parser.add_argument("--generalist-receipt", type=Path, required=True)
 parser.add_argument("--acc4-terminal", type=Path, required=True)
 parser.add_argument("--acc8-terminal", type=Path, required=True)
 parser.add_argument("--naf-receipt", type=Path, required=True)
 args = parser.parse_args()
 
-if not MODEL.is_file() or not TACTICS.is_file():
-    raise SystemExit("R23_EVIDENCE_REFUSED: model or sealed tactics is absent")
+if not MODEL.is_file() or not TACTICS.is_file() or not SCHEDULER_AMENDMENT.is_file():
+    raise SystemExit(
+        "R23_EVIDENCE_REFUSED: model, sealed tactics, or R24 amendment is absent"
+    )
 outputs = {
     "generalist": EVIDENCE / "generalist-e49-receipt.json",
     "acc4": EVIDENCE / "acc4-specialist-receipt.json",
@@ -74,6 +91,7 @@ outputs = {
     "naf": EVIDENCE / "naf-s-training-receipt.json",
     "policy": EVIDENCE / "policy-receipt.json",
     "admission": EVIDENCE / "inference-admission-receipt.json",
+    "scheduler": EVIDENCE / "scheduler-amendment-deployment-receipt.json",
 }
 if any(path.exists() for path in outputs.values()):
     raise SystemExit("R23_EVIDENCE_REFUSED: normalized evidence already exists")
@@ -96,11 +114,60 @@ except Exception as error:
 tactics_envelope = load(TACTICS)
 tactics = tactics_envelope.get("selected_recipe")
 controller = load(args.controller_receipt)
+scheduler_amendment = load(SCHEDULER_AMENDMENT)
+scheduler_deployment = load(args.scheduler_deployment_receipt)
 generalist = load(args.generalist_receipt)
 terminals = {"acc4": load(args.acc4_terminal), "acc8": load(args.acc8_terminal)}
 naf = load(args.naf_receipt)
 admission = controller.get("final_admission")
 model_sha = sha256(MODEL)
+
+amendment = scheduler_amendment.get("amendment")
+deployment_contract = scheduler_amendment.get("deployment_contract")
+deployment_sources = scheduler_deployment.get("source_hashes")
+if (
+    scheduler_amendment.get("schema")
+    != "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
+    or scheduler_amendment.get("state") != "SEALED"
+    or scheduler_amendment.get("parent", {}).get("r23_tactics_sha256")
+    != sha256(TACTICS)
+    or not isinstance(amendment, dict)
+    or amendment.get("equal_boundary_semantics")
+    != "ONE_EPOCH_LINEAR_WARMUP_WITH_ZERO_COSINE_TAIL"
+    or amendment.get("r23_recipe_changed") is not False
+    or amendment.get("optimizer_step_budget_changed") is not False
+    or amendment.get("learning_rate_changed") is not False
+    or scheduler_amendment.get("source_hashes", {}).get(
+        "promptmr_production.py"
+    )
+    != R24_PRODUCTION_SHA256
+    or not isinstance(deployment_contract, dict)
+    or deployment_contract.get("active_generalist_gpu_process_must_be_preserved")
+    is not True
+    or deployment_contract.get("candidate_count") != 1
+    or deployment_contract.get("fallback_registered") is not False
+    or scheduler_deployment.get("schema")
+    != "vessl-c10-single-lineage-r24-scheduler-fix-deployment-v1"
+    or scheduler_deployment.get("state")
+    != "ACTIVE_CURRENT_C10_PRESERVED_R24_SCHEDULER_FIX_ARMED"
+    or scheduler_deployment.get("r24_amendment_sha256")
+    != sha256(SCHEDULER_AMENDMENT)
+    or scheduler_deployment.get("r23_tactics_sha256") != sha256(TACTICS)
+    or scheduler_deployment.get("scheduler_boundary_fixed") is not True
+    or scheduler_deployment.get("scheduler_cpu_preflight") != "PASS"
+    or scheduler_deployment.get("trainer_signal_sent") is not False
+    or scheduler_deployment.get("active_generalist_process_touched") is not False
+    or scheduler_deployment.get("active_generalist_recipe_changed") is not False
+    or scheduler_deployment.get("specialist_recipe_changed") is not False
+    or scheduler_deployment.get("optimizer_step_budget_changed") is not False
+    or scheduler_deployment.get("learning_rate_changed") is not False
+    or scheduler_deployment.get("candidate_count") != 1
+    or scheduler_deployment.get("fallback_registered") is not False
+    or not isinstance(deployment_sources, dict)
+    or deployment_sources.get("promptmr_production.py")
+    != R24_PRODUCTION_SHA256
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: R24 scheduler evidence is invalid")
 
 if (
     tactics_envelope.get("state") != "SEALED"
@@ -243,6 +310,9 @@ policy_receipt = {
     ),
     "tactics_sha256": sha256(TACTICS),
     "controller_receipt_sha256": sha256(args.controller_receipt),
+    "scheduler_deployment_receipt_sha256": sha256(
+        args.scheduler_deployment_receipt
+    ),
 }
 
 if (
@@ -265,6 +335,7 @@ payloads = {
     outputs["naf"]: naf,
     outputs["policy"]: policy_receipt,
     outputs["admission"]: admission,
+    outputs["scheduler"]: scheduler_deployment,
 }
 created = []
 try:
