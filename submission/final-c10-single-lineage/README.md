@@ -1,304 +1,182 @@
-# Final C10 single-lineage reproduction
+# Final C10 R23 E49 single-lineage package
 
-This package reproduces the single submitted model used for the 2026 SNU
-FastMRI Challenge.  The model consists of one compact PromptMR+ C10
-generalist followed by one mask-conditioned NAF_S image-domain post-refiner.
-There is one routed package, no fallback model, and no candidate selection.
+This directory is the only final submission package for the 2026 SNU FastMRI
+Challenge. It contains one VESSL-only routed model and the source, environment,
+training receipts, and commands required to reproduce it. There is no fallback
+model, ensemble candidate, or checkpoint selected from validation or
+leaderboard results.
 
-The reproduction target is equality with the submitted leaderboard result for
-every reported SSIM item to four decimal places.  Exact checkpoint-byte
-identity is not required.
+The reproduction target is equality with every submitted SSIM item after
+rounding to four decimal places. The official evaluation receipt in
+`evidence/official-evaluation-receipt.json` is authoritative once the final
+evaluation has completed.
 
-## 1. Required environment
+## Package contents
 
-- VESSL instance with one `NVIDIA GeForce GTX 1080` (8,192 MiB)
-- Ubuntu with Python 3.10.12
-- CUDA 12.1 and cuDNN 8.9.2
-- Organizer-provided train, validation, and test data
-- Batch size 1 and seed 430
-
-Install the exact Python dependencies from the package root:
-
-```bash
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-Verify the main runtime versions:
-
-```bash
-python - <<'PY'
-import h5py
-import numpy as np
-import torch
-
-assert torch.__version__ == "2.3.1+cu121"
-assert torch.version.cuda == "12.1"
-assert np.__version__ == "1.24.4"
-assert h5py.__version__ == "3.11.0"
-assert torch.cuda.get_device_name(0) == "NVIDIA GeForce GTX 1080"
-print("VESSL_ENVIRONMENT_OK")
-PY
-```
-
-The training entrypoints set seed 430, `torch.backends.cudnn.deterministic =
-True`, and `torch.backends.cudnn.benchmark = False`.  Do not enable TF32, an
-external AMP/GradScaler policy, EMA, SWA, or an alternative CUDA device.  The
-compact C10 source's built-in FP16 activation autocast with FP32 master
-parameters is part of the fixed recipe and must remain enabled.
-
-## 2. Package and data layout
-
-Run all commands from a clean extracted package with this layout:
+The sealed package has the following layout:
 
 ```text
 README.md
 requirements.txt
-source/
-reproduction/
-  organizer-data-provenance.json
-  vessl_train_post_refiner.py
-  vessl_build_routed_promptmr_checkpoint.py
-result/                         # created by the commands below
+recon_eval.sh
+reproduce_final.sh
+verify_package.py
+package-manifest.json
+best_model.pt
+project/                         # exact inference project snapshot
+reproduction/                    # exact R23 training sources and contracts
+evidence/                        # lineage, policy, package, and evaluation receipts
 ```
 
-The organizer data must be mounted read-only as follows:
+`package-manifest.json` records SHA-256 and byte size for every submitted file.
+`verify_package.py` rejects an unsealed manifest, a second learned-state file,
+`candidate_count != 1`, a fallback, an E51 parent, or a hash mismatch.
 
-```text
-/root/Data/train/kspace/*.h5
-/root/Data/train/image/*.h5
-/root/Data/val/kspace/*.h5
-/root/Data/val/image/*.h5
-```
+## Environment
 
-Set the paths once:
+- VESSL Ubuntu instance
+- one `NVIDIA GeForce GTX 1080` with 8,192 MiB VRAM
+- Python 3.10.12
+- CUDA 12.1 and PyTorch 2.3.1+cu121
+- seed 430, batch size 1, FP32 CLI contract
+
+Install the pinned environment and verify the package before inference:
 
 ```bash
-export PACKAGE_ROOT="$(pwd)"
-export SOURCE_ROOT="$PACKAGE_ROOT/source"
-export REPRO_ROOT="$PACKAGE_ROOT/reproduction"
-export DATA_ROOT=/root/Data
-export TRUSTED_DATA_MANIFEST="$REPRO_ROOT/organizer-data-provenance.json"
-export RUN_NAME=EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_V1
-export RUN_DIR="$PACKAGE_ROOT/result/$RUN_NAME"
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python verify_package.py
+```
+
+The training runtime uses FP32 master parameters with its pinned activation
+autocast, activation checkpointing, and CPU-offloaded AdamW implementation.
+Do not enable TF32, EMA, SWA, a separate GradScaler, external learned state, or
+another GPU.
+
+## Fixed R23 lineage
+
+| Component | Sealed contract |
+|---|---|
+| Generalist | compact PromptMR+ R2/C10/H0, fresh VESSL initialization, seed 430 |
+| Scheduler | one-epoch warmup and cosine horizon E51/238,272 steps |
+| Generalist handoff | exact atomic E49 checkpoint, optimizer step 228,928 |
+| Generalist data | organizer train only; validation forwards 0 |
+| ACC4 specialist | E1, 2,336 steps, peak LR 1e-5, exact upstream SSIM |
+| ACC8 specialist | first 1,158/2,315 cosine-horizon steps, peak LR 5e-5 |
+| ACC8 specialist data | organizer real ACC8 only, no MR augmentation |
+| NAF_S | fresh 72,625-parameter refiner, 93,567 steps (20.027 epoch-equivalent) |
+| NAF_S data | organizer train plus organizer validation used only as training data |
+| NAF_S objective | foreground SSIM + L1 + official-384 bbox SSIM, bbox coefficient 0.5 |
+| NAF_S input | outputs of the actual routed ACC4/ACC8 specialists |
+| Final model | one routed checkpoint, candidate count 1, no fallback |
+| Official evaluation | one `bash recon_eval.sh` invocation |
+
+The generalist process is launched with `--num-epochs 51`; this defines the
+unchanged scheduler horizon. The R23 boundary controller waits for the atomic
+E49 file `checkpoint-last-000228928.pt`, verifies and hash-seals it, and only
+then stops the trainer. No optimizer, scheduler, sampler, RNG, EMA, or SWA
+state is rewritten. All downstream components bind to that E49 hash.
+
+Only organizer train data updates the C10 generalist and both specialists.
+Organizer validation is appended as training data only for the terminal NAF_S
+stage. There is no validation loop, early stopping, checkpoint selection, or
+leaderboard/test-target access at any stage.
+
+## Mask and augmentation policy
+
+Training uses legal native-width Cartesian ACC4/ACC8 masks with ACS width
+`round(native_width * 0.08)`. The ACS region is always retained. For each legal
+ACC4 example, non-ACS acquired lines are divided into two complementary virtual
+ACC8 masks; the original ACC4 example is retained. The sampler keeps the
+pre-augmentation optimizer-step budget.
+
+Augmentation is never applied to organizer validation during evaluation,
+inference, official masks, or source-target pairing. Routing never reads a
+filename, image field, target, bbox annotation, public/private score, or
+leaderboard result.
+
+## Routed inference
+
+The final checkpoint contains the E49 generalist, one ACC4 specialist, one
+ACC8 specialist, and one shared NAF_S refiner.
+
+- Exact legal ACC4 masks select the ACC4 specialist.
+- Exact legal ACC8 masks select the ACC8 specialist.
+- Unknown or mismatched masks select the E49 generalist in the same package.
+- ACC4 and unknown routes use one identity pipeline.
+- ACC8 uses identity and left-right-flipped full-pipeline views, restores both
+  outputs, and averages them.
+
+The input k-space is aligned to the 384-row training frame inside timed
+`recon_slice()` using IFFT, center crop, FFT, and official-mask reapplication.
+Sensitivity estimation uses coil micro-batches of eight. Routing, alignment,
+all PromptMR forwards, NAF_S, TTA, restoration, and averaging occur inside the
+official timed `recon_slice()` call. `prep_volume()` only loads input.
+
+At most one PromptMR expert is resident on CUDA. The selected expert remains
+resident across consecutive volumes on the same route and is offloaded only
+when the exact input mask changes route. The final GTX1080 admission receipt
+records max-shape VRAM, finite output, save/reload parity, and official-wrapper
+compatibility.
+
+## Reproduce training
+
+Mount organizer data at `/root/Data` with train and validation `kspace/` and
+`image/` directories. Start from a clean result directory; do not copy a local,
+RunPod, leaderboard, or previous VESSL checkpoint into it.
+
+```bash
 export CUDA_VISIBLE_DEVICES=0
 export PYTHONHASHSEED=430
-
-test -f "$TRUSTED_DATA_MANIFEST"
-test -d "$DATA_ROOT/train/kspace"
-test -d "$DATA_ROOT/train/image"
-test -d "$DATA_ROOT/val/kspace"
-test -d "$DATA_ROOT/val/image"
-mkdir -p "$PACKAGE_ROOT/result"
+export DATA_ROOT=/root/Data
+export PROJECT_ROOT=/root/2026-FastMRI-SNU-promptmr-training
+bash reproduce_final.sh
 ```
 
-Only organizer train data is used to update C10.  Organizer validation data is
-never used for model selection or early stopping.  No leaderboard or test
-payload is read during training.
+`reproduce_final.sh` performs the complete fixed sequence:
 
-## 3. C10 phase A: reproduce steps 1-31,500
+1. fresh C10 training on the E51 cosine horizon;
+2. exact E49/228,928 boundary hash-seal;
+3. fresh ACC4-2,336 and ACC8-1,158 specialist runs from the E49 model;
+4. C10 freeze verification and fresh NAF_S-93,567 training;
+5. construction of exactly one routed `best_model.pt`;
+6. package and policy verification.
 
-The submitted lineage began with a 50-epoch cosine horizon.  Reproduce this
-state exactly and stop only after the atomic step-31,500 checkpoint appears.
-The validation passes completed before this transition are diagnostic only;
-they do not select a checkpoint or update any learned state.
+The script fails closed if its result directory is non-empty, an exact parent
+hash differs, the E49 checkpoint is absent, a second candidate appears, or any
+registered source differs from `reproduction/source-sha256sums.txt`.
 
-```bash
-cd "$SOURCE_ROOT"
+## Official evaluation
 
-python -u train.py \
-  --model-family promptmr-plus \
-  --promptmr-production \
-  --promptmr-rung R2 \
-  --promptmr-num-cascades 10 \
-  --promptmr-n-history 0 \
-  --promptmr-compact-fallback \
-  --promptmr-train-acceleration all \
-  --promptmr-mraugment conservative_delay5 \
-  --promptmr-legal-mask-family \
-  --promptmr-lr-schedule cos50 \
-  --precision fp32 \
-  --require-cuda-device-name "NVIDIA GeForce GTX 1080" \
-  --GPU-NUM 0 \
-  --batch-size 1 \
-  --num-epochs 50 \
-  --lr 0.0001 \
-  --seed 430 \
-  --net-name "$RUN_NAME" \
-  --data-path-train "$DATA_ROOT/train" \
-  --data-path-val "$DATA_ROOT/val" \
-  --trusted-data-manifest "$TRUSTED_DATA_MANIFEST" \
-  --report-interval 50 \
-  >"$PACKAGE_ROOT/result/c10-phase-a.log" 2>&1 &
-C10_PHASE_A_PID=$!
-
-C10_TRANSITION="$RUN_DIR/checkpoints/checkpoint-last-000031500.pt"
-while kill -0 "$C10_PHASE_A_PID" 2>/dev/null; do
-  if test -f "$C10_TRANSITION"; then
-    kill -TERM "$C10_PHASE_A_PID"
-    break
-  fi
-  sleep 5
-done
-wait "$C10_PHASE_A_PID" || true
-test -f "$C10_TRANSITION"
-```
-
-The training set uses legal native-width Cartesian masks with ACS width
-`round(width * 0.08)`.  Each legal ACC4 example is retained and also supplies
-two complementary virtual ACC8 masks.  The pre-augmentation sampler budget is
-fixed at 2,336 samples per acceleration, or 4,672 optimizer steps per epoch.
-
-## 4. C10 phase B: no-validation full push to E51
-
-Resume the complete optimizer, scheduler, sampler, and RNG state from step
-31,500.  The scheduler object is rebuilt with the final 238,272-step horizon
-before loading the saved scheduler state.  No validation dataset is
-constructed and no validation forward is run in this phase.
+The inference entry point required by the organizer is one command:
 
 ```bash
-C10_TRANSITION_SHA256="$(sha256sum "$C10_TRANSITION" | awk '{print $1}')"
-
-cd "$SOURCE_ROOT"
-python -u train.py \
-  --model-family promptmr-plus \
-  --promptmr-production \
-  --promptmr-rung R2 \
-  --promptmr-num-cascades 10 \
-  --promptmr-n-history 0 \
-  --promptmr-compact-fallback \
-  --promptmr-train-acceleration all \
-  --promptmr-mraugment conservative_delay5 \
-  --promptmr-legal-mask-family \
-  --promptmr-lr-schedule cos50 \
-  --promptmr-skip-validation \
-  --precision fp32 \
-  --require-cuda-device-name "NVIDIA GeForce GTX 1080" \
-  --GPU-NUM 0 \
-  --batch-size 1 \
-  --num-epochs 51 \
-  --lr 0.0001 \
-  --seed 430 \
-  --net-name "$RUN_NAME" \
-  --data-path-train "$DATA_ROOT/train" \
-  --trusted-data-manifest "$TRUSTED_DATA_MANIFEST" \
-  --report-interval 50 \
-  --resume-checkpoint "$C10_TRANSITION" \
-  --resume-checkpoint-sha256 "$C10_TRANSITION_SHA256" \
-  >"$PACKAGE_ROOT/result/c10-phase-b.log" 2>&1
-
-C10_FINAL="$RUN_DIR/checkpoints/checkpoint-last-000238272.pt"
-test -f "$C10_FINAL"
-C10_FINAL_SHA256="$(sha256sum "$C10_FINAL" | awk '{print $1}')"
-```
-
-The expected C10 terminal state is epoch 51 and optimizer step 238,272.  The
-C10 parameters are frozen after this point.
-
-## 5. Mask-conditioned NAF_S post-refiner
-
-Train one fresh NAF_S post-refiner for 91,141 optimizer steps.  Organizer train
-and organizer validation are both used as final training data in this phase;
-there is no validation loop, early stopping, or checkpoint selection.  The
-four listed views are registered post-refiner views used during training and
-reproduced during inference in one batched refiner application.  The final
-routed package uses one C10 forward and one batched post-refiner application
-per slice.
-
-```bash
-NAF_DIR="$PACKAGE_ROOT/result/VESSL_POST_REFINER_R2_C10_NAF_S_E20_WINNER_FULLDATA_SEED430_R3"
-
-cd "$SOURCE_ROOT"
-python -u "$REPRO_ROOT/vessl_train_post_refiner.py" \
-  --base-checkpoint "$C10_FINAL" \
-  --base-checkpoint-sha256 "$C10_FINAL_SHA256" \
-  --variant NAF_S \
-  --views identity flip_lr flip_ud rot180 \
-  --epochs 20 \
-  --output-dir "$NAF_DIR" \
-  --train-root "$DATA_ROOT/train" \
-  --trusted-data-manifest "$TRUSTED_DATA_MANIFEST" \
-  --extra-train-root "$DATA_ROOT/val" \
-  --extra-trusted-data-manifest "$TRUSTED_DATA_MANIFEST" \
-  --loss-family winner_foreground_ssim_l1_sqrt_area_v1 \
-  --peak-lr 0.0001 \
-  --weight-decay 0.0001 \
-  --seed 430 \
-  --optimizer-steps 91141 \
-  --mask-conditioned \
-  >"$PACKAGE_ROOT/result/naf-s.log" 2>&1
-
-NAF_CKPT="$(python - "$NAF_DIR/receipt.json" <<'PY'
-import json
-from pathlib import Path
-import sys
-print(json.loads(Path(sys.argv[1]).read_text())["checkpoint"])
-PY
-)"
-NAF_SHA256="$(sha256sum "$NAF_CKPT" | awk '{print $1}')"
-test -f "$NAF_CKPT"
-```
-
-The post-refiner has 74,065 trainable parameters, including the 1,440-parameter
-mask conditioner.  Acceleration is inferred only from the input k-space mask.
-Exact legal ACC4 and ACC8 masks use their conditioned route; unknown or
-mismatched masks use the generalist condition.  Filenames, targets, image
-fields, bounding boxes, and leaderboard results are not routing inputs.
-
-## 6. Build the one final routed checkpoint
-
-The same C10 checkpoint is used for both acceleration routes.  There is no
-second candidate or fallback checkpoint.
-
-```bash
-FINAL_DIR="$PACKAGE_ROOT/result/final-routed-package"
-mkdir -p "$FINAL_DIR"
-
-cd "$SOURCE_ROOT"
-python -u "$REPRO_ROOT/vessl_build_routed_promptmr_checkpoint.py" \
-  --acc4-checkpoint "$C10_FINAL" \
-  --acc4-sha256 "$C10_FINAL_SHA256" \
-  --acc8-checkpoint "$C10_FINAL" \
-  --acc8-sha256 "$C10_FINAL_SHA256" \
-  --tta-views identity \
-  --post-refiner-checkpoint "$NAF_CKPT" \
-  --post-refiner-sha256 "$NAF_SHA256" \
-  --output "$FINAL_DIR/best_model.pt"
-
-sha256sum "$FINAL_DIR/best_model.pt"
-```
-
-All dispatch and model forwards occur inside the organizer-timed
-`recon_slice()` implementation.  `prep_volume()` only prepares the input.
-
-## 7. Official reconstruction and score comparison
-
-Use the organizer-provided, unmodified `recon_eval.py` and wrapper.  Place the
-single routed checkpoint at the path expected by that wrapper:
-
-```bash
-mkdir -p "$PACKAGE_ROOT/result/test_Varnet/checkpoints"
-cp "$FINAL_DIR/best_model.pt" \
-  "$PACKAGE_ROOT/result/test_Varnet/checkpoints/best_model.pt"
-
-cd "$SOURCE_ROOT"
 bash recon_eval.sh
 ```
 
-Do not train, validate, route, or select using leaderboard/test targets or
-scores.  Run official evaluation once after the final package is complete.
-The reproduction is accepted when every leaderboard SSIM item equals the
-submitted result after rounding to four decimal places.
+The wrapper first verifies the sealed manifest and the unique checkpoint, then
+places that checkpoint at the organizer's fixed result path and invokes the
+unmodified `project/recon_eval.py` once. The organizer may repeat timing 30
+times internally and use its fastest execution. This package does not launch
+additional official runs or candidates.
 
-## 8. Fixed lineage summary
+SSIM is the ranking value. Reconstruction time is relevant only under the
+organizer's exact-SSIM tie rule.
 
-| Component | Fixed contract |
-|---|---|
-| C10 | compact PromptMR+ R2/C10/H0, seed 430, batch 1 |
-| C10 steps 1-31,500 | cosine-50 state, diagnostic validation allowed |
-| C10 steps 31,501-238,272 | cosine-51 full push, validation forwards 0 |
-| C10 data | organizer train only |
-| NAF_S | 20 epochs, 91,141 steps, mask-conditioned, fresh initialization |
-| NAF_S data | organizer train plus organizer validation as training data |
-| Final package | one routed checkpoint, candidate count 1, no fallback |
-| Official evaluation | one run; SSIM is the primary ranking value |
+## Evidence
+
+The final package is complete only when all of the following sealed receipts
+are present and referenced by `package-manifest.json`:
+
+- E49 generalist checkpoint path, SHA-256, epoch, and optimizer step;
+- ACC4 and ACC8 specialist parent hashes and terminal-step receipts;
+- frozen-C10 NAF_S training receipt and routed-parent hashes;
+- augmentation, legal-mask, unknown-route, and dispatch-parity receipt;
+- candidate count 1, no fallback, no external learned state, and no
+  leaderboard/test training influence receipt;
+- final package hash, inference admission, and source snapshot manifest;
+- official evaluation or submission receipt dated before
+  `2026-08-20 23:59 KST`.
+
+Until those artifacts exist, the package is not claimed as the final evaluated
+model.
