@@ -57,6 +57,130 @@ def fail(message: str) -> None:
     raise SystemExit(f"FINAL_PACKAGE_INVALID: {message}")
 
 
+def verify_routed_model(path: Path) -> dict[str, str]:
+    """Verify the learned payload, not only its outer file hash."""
+    try:
+        import torch
+
+        value = torch.load(path, map_location="cpu", weights_only=True)
+    except Exception as error:
+        fail(f"best_model.pt cannot be loaded safely: {type(error).__name__}: {error}")
+    if not isinstance(value, dict):
+        fail("best_model.pt is not a dictionary checkpoint")
+    architecture = value.get("architecture")
+    routing = value.get("routing_contract")
+    components = value.get("components")
+    post = value.get("post_refiner")
+    if (
+        value.get("schema") != "vessl-acceleration-routed-promptmr-v2"
+        or value.get("all_components_trained_on_vessl") is not True
+        or architecture
+        != {
+            "rung": "R2",
+            "num_cascades": 10,
+            "n_history": 0,
+            "parameter_count": 54090459,
+            "trainable_parameter_count": 45381339,
+        }
+        or value.get("routing_feature")
+        != "exact_legal_mask_family_with_generalist_fail_safe"
+        or not isinstance(routing, dict)
+        or routing.get("schema") != "promptmr-legal-mask-routing-contract-v2"
+        or routing.get("supported_accelerations") != [4, 8]
+        or routing.get("generalist_component") != "generalist"
+        or routing.get("unknown_or_mismatch") != "generalist"
+        or routing.get("public_frequency_weighting") is not False
+        or routing.get("generator")
+        != {
+            "center_fraction": 0.08,
+            "acs_width": "round(native_width*0.08)",
+            "acs_start": "(native_width-acs_width+1)//2",
+            "outer_lines": "column%acceleration==residue",
+        }
+        or value.get("tta_views") != ["identity"]
+        or value.get("tta_views_by_acceleration")
+        != {
+            "acc4": ["identity"],
+            "acc8": ["identity", "flip_lr"],
+        }
+        or not isinstance(components, dict)
+        or set(components) != {"generalist", "acc4", "acc8"}
+        or not isinstance(post, dict)
+    ):
+        fail("best_model.pt outer routed contract is not exact R23")
+
+    expected = {
+        "generalist": (None, "generalist", "all", 228928, 49),
+        "acc4": (4, "acc4", "acc4", 2336, 0),
+        "acc8": (8, "acc8", "acc8", 1158, 0),
+    }
+    source_hashes: dict[str, str] = {}
+    for name, (acceleration, role, route, step, epoch) in expected.items():
+        component = components[name]
+        source_hash = component.get("source_checkpoint_sha256") if isinstance(component, dict) else None
+        if (
+            not isinstance(component, dict)
+            or component.get("acceleration") != acceleration
+            or component.get("role") != role
+            or component.get("rung") != "R2"
+            or component.get("num_cascades") != 10
+            or component.get("n_history") != 0
+            or component.get("parameter_count") != 54090459
+            or component.get("trainable_parameter_count") != 45381339
+            or component.get("train_acceleration") != route
+            or component.get("scratch") is not True
+            or component.get("external_learned_state") is not False
+            or component.get("trained_on_vessl") is not True
+            or component.get("source_step") != step
+            or (epoch is not None and component.get("source_epoch") != epoch)
+            or not isinstance(component.get("model"), dict)
+            or not isinstance(source_hash, str)
+            or len(source_hash) != 64
+        ):
+            fail(f"best_model.pt {name} component is not exact R23")
+        source_hashes[name] = source_hash
+    if len(set(source_hashes.values())) != 3:
+        fail("generalist and specialist source hashes must be distinct")
+
+    if (
+        post.get("enabled") is not True
+        or post.get("role") != "main_output_post_refiner"
+        or post.get("variant") != "NAF_S"
+        or post.get("views") != ["identity", "flip_lr"]
+        or post.get("views_batched") is not True
+        or post.get("mask_conditioned") is not False
+        or post.get("epoch") != 21
+        or post.get("parent_epoch") != 49
+        or post.get("late_branch_epochs") != [50, 70]
+        or post.get("optimizer_steps") != 93567
+        or post.get("steps_per_epoch") != 4672
+        or post.get("partial_terminal_epoch") is not True
+        or post.get("training_data") != "organizer_train_plus_val_final"
+        or post.get("loss_family")
+        != "winner_foreground_ssim_l1_sqrt_area_plus_official384_bbox05_v2"
+        or post.get("bbox_loss_coefficient") != 0.5
+        or post.get("organizer_annotations_used_for_training") is not True
+        or post.get("inference_annotation_access") is not False
+        or post.get("validation_used_for_checkpoint_selection") is not False
+        or post.get("trainable_parameter_scope") != "naf_s_only"
+        or post.get("frozen_parameter_scope") != "main_c10_e49_all_parameters"
+        or post.get("main_parameters_updated") is not False
+        or post.get("parameter_count") != 72625
+        or post.get("trained_on_vessl") is not True
+        or post.get("external_learned_state_imported") is not False
+        or post.get("base_checkpoint_sha256") != source_hashes["generalist"]
+        or post.get("routed_branch_sha256")
+        != {"acc4": source_hashes["acc4"], "acc8": source_hashes["acc8"]}
+        or post.get("sampler_policy") != "equal_acc_real_acc8_real80_virtual20_v1"
+        or not isinstance(post.get("post_refiner_state"), dict)
+    ):
+        fail("best_model.pt NAF_S component is not exact frozen-C10 R23")
+    forbidden = {"optimizer", "scheduler", "rng_state", "ema", "swa", "scaler"}
+    if forbidden.intersection(value):
+        fail("best_model.pt contains forbidden training state")
+    return source_hashes
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--structure-only",
@@ -171,12 +295,15 @@ if learned != ["best_model.pt"]:
 if "best_model.pt" not in files:
     fail("best_model.pt is not sealed by the manifest")
 
+source_hashes = verify_routed_model(model_path)
+
 print(
     json.dumps(
         {
             "state": "FINAL_PACKAGE_OK",
             "candidate_count": 1,
             "best_model_sha256": sha256(model_path),
+            "component_source_sha256": source_hashes,
             "file_count": len(files),
         },
         sort_keys=True,

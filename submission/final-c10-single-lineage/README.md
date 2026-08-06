@@ -30,7 +30,9 @@ evidence/                        # lineage, policy, package, and evaluation rece
 
 `package-manifest.json` records SHA-256 and byte size for every submitted file.
 `verify_package.py` rejects an unsealed manifest, a second learned-state file,
-`candidate_count != 1`, a fallback, an E51 parent, or a hash mismatch.
+`candidate_count != 1`, a fallback, an E51 parent, or a hash mismatch. It also
+loads `best_model.pt` with PyTorch's safe weights-only loader and verifies the
+exact E49/ACC4/ACC8/NAF_S embedded lineage before inference.
 
 ## Environment
 
