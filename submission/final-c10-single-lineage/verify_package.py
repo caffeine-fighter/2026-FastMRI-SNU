@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the one R23 package with its R24 source fix."""
+"""Fail-closed verifier for the one R25 single-lineage package."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ STRUCTURE = (
     "record_official_evaluation.py",
     "reproduce_final.sh",
     "run_official_evaluation_once.sh",
+    "assemble_final_package.py",
     "materialize_r23_evidence.py",
     "seal_package.py",
     "verify_package.py",
@@ -37,8 +38,12 @@ FINAL_STRUCTURE = (
     "project/third_party/promptmr_plus/SOURCE_MANIFEST.json",
     "reproduction/FINAL_C10_SINGLE_LINEAGE_R23_E49.json",
     "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json",
-    "reproduction/R24_POST_E49_COMMAND_PARSER_PREFLIGHT.json",
+    "reproduction/FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json",
+    "reproduction/R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json",
+    "reproduction/R25_CPU_PREFLIGHT.json",
     "reproduction/final-tactics-c10-r23-e49.json",
+    "reproduction/final-tactics-c10-r25-acc4-e2-naf-tail.json",
+    "reproduction/controller.py",
     "reproduction/generalist/train.py",
     "reproduction/generalist/promptmr_production.py",
     "reproduction/specialist/train.py",
@@ -46,7 +51,12 @@ FINAL_STRUCTURE = (
     "reproduction/vessl_train_post_refiner.py",
     "reproduction/vessl_build_routed_promptmr_checkpoint.py",
     "reproduction/organizer-data-provenance.json",
+    "reproduction/inference-source-snapshot-manifest.json",
     "reproduction/source-sha256sums.txt",
+    "evidence/assembly-receipt.json",
+    "evidence/raw/controller-final-receipt.json",
+    "evidence/raw/acc4-terminal.json",
+    "evidence/raw/acc8-terminal.json",
     "evidence/generalist-e49-receipt.json",
     "evidence/acc4-specialist-receipt.json",
     "evidence/acc8-specialist-receipt.json",
@@ -54,22 +64,26 @@ FINAL_STRUCTURE = (
     "evidence/policy-receipt.json",
     "evidence/inference-admission-receipt.json",
     "evidence/scheduler-amendment-deployment-receipt.json",
+    "evidence/r25-amendment-deployment-receipt.json",
 )
 LEARNED_SUFFIXES = {".pt", ".pth", ".ckpt", ".safetensors"}
 R24_PRODUCTION_SHA256 = (
     "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
 )
-R24_CONTROLLER_SHA256 = (
-    "929e53558cbb976f011d9ab925980c12a8b39be49b283a2de71621f45c18ce31"
+R25_PRODUCTION_SHA256 = (
+    "ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
 )
-R24_TRAIN_SHA256 = (
-    "95465b1b09189af87359a39518559f1759fdbeb881a4abb35b1f7b7faa832e47"
+R25_CONTROLLER_SHA256 = (
+    "78718ea26e1049546627710c515a7e5d7dd78c11c6ccd8b06b0075de28048b55"
 )
-R23_POST_TRAINER_SHA256 = (
-    "23ea62bf1e95772e5d1b00392718dff0604d554f638eb354793bb0613f1b6428"
+R25_TRAIN_SHA256 = (
+    "ae559aea9d13a35af00c3fc9c37d70471b273f740577d6056fa17728d3ab950b"
 )
-R23_BUILDER_SHA256 = (
-    "3d5263fc93e631c2b769201b9f547a6bfa8ca9b03270fc92ebd6287ffe6530a7"
+R25_POST_TRAINER_SHA256 = (
+    "399410e2e4b9155a95d5cf0bef344d896bab7e4e9c140c0e8abb7475cd405e17"
+)
+R25_BUILDER_SHA256 = (
+    "cf9aafb064d9e4aa2b04f35f7faf293970ea2f055059780950e91d213c42c8e7"
 )
 
 
@@ -135,11 +149,11 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or set(components) != {"generalist", "acc4", "acc8"}
         or not isinstance(post, dict)
     ):
-        fail("best_model.pt outer routed contract is not exact R23")
+        fail("best_model.pt outer routed contract is not exact R25")
 
     expected = {
         "generalist": (None, "generalist", "all", 228928, 49),
-        "acc4": (4, "acc4", "acc4", 2336, 0),
+        "acc4": (4, "acc4", "acc4", 4672, 1),
         "acc8": (8, "acc8", "acc8", 1158, 0),
     }
     source_hashes: dict[str, str] = {}
@@ -165,7 +179,7 @@ def verify_routed_model(path: Path) -> dict[str, str]:
             or not isinstance(source_hash, str)
             or len(source_hash) != 64
         ):
-            fail(f"best_model.pt {name} component is not exact R23")
+            fail(f"best_model.pt {name} component is not exact R25")
         source_hashes[name] = source_hash
     if len(set(source_hashes.values())) != 3:
         fail("generalist and specialist source hashes must be distinct")
@@ -180,7 +194,8 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or post.get("epoch") != 21
         or post.get("parent_epoch") != 49
         or post.get("late_branch_epochs") != [50, 70]
-        or post.get("optimizer_steps") != 93567
+        or post.get("optimizer_steps") != 91231
+        or post.get("lr_horizon_optimizer_steps") != 93567
         or post.get("steps_per_epoch") != 4672
         or post.get("partial_terminal_epoch") is not True
         or post.get("training_data") != "organizer_train_plus_val_final"
@@ -204,7 +219,7 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or len(post["source_checkpoint_sha256"]) != 64
         or not isinstance(post.get("post_refiner_state"), dict)
     ):
-        fail("best_model.pt NAF_S component is not exact frozen-C10 R23")
+        fail("best_model.pt NAF_S component is not exact frozen-C10 R25")
     source_hashes["post_refiner"] = post["source_checkpoint_sha256"]
     forbidden = {"optimizer", "scheduler", "rng_state", "ema", "swa", "scaler"}
     if forbidden.intersection(value):
@@ -225,9 +240,15 @@ def json_object(relative: str) -> dict:
 def verify_evidence_receipts(
     source_hashes: dict[str, str], model_sha256: str
 ) -> None:
-    tactics_path = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+    parent_tactics_path = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+    tactics_path = (
+        ROOT / "reproduction/final-tactics-c10-r25-acc4-e2-naf-tail.json"
+    )
     amendment_path = (
         ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+    )
+    r25_amendment_path = (
+        ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
     )
     amendment_envelope = json_object(
         "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
@@ -237,11 +258,22 @@ def verify_evidence_receipts(
     scheduler = json_object(
         "evidence/scheduler-amendment-deployment-receipt.json"
     )
+    r25_amendment = json_object(
+        "reproduction/FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
+    )
+    r25_deployment_path = (
+        ROOT / "evidence/r25-amendment-deployment-receipt.json"
+    )
+    r25_deployment = json_object(
+        "evidence/r25-amendment-deployment-receipt.json"
+    )
+    r25_cpu_preflight_path = ROOT / "reproduction/R25_CPU_PREFLIGHT.json"
+    r25_cpu_preflight = json_object("reproduction/R25_CPU_PREFLIGHT.json")
     post_e49_preflight_path = (
-        ROOT / "reproduction/R24_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
+        ROOT / "reproduction/R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
     )
     post_e49_preflight = json_object(
-        "reproduction/R24_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
+        "reproduction/R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
     )
     scheduler_sources = scheduler.get("source_hashes")
     if (
@@ -249,7 +281,7 @@ def verify_evidence_receipts(
         != "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
         or amendment_envelope.get("state") != "SEALED"
         or amendment_envelope.get("parent", {}).get("r23_tactics_sha256")
-        != sha256(tactics_path)
+        != sha256(parent_tactics_path)
         or not isinstance(amendment, dict)
         or amendment.get("equal_boundary_semantics")
         != "ONE_EPOCH_LINEAR_WARMUP_WITH_ZERO_COSINE_TAIL"
@@ -272,7 +304,7 @@ def verify_evidence_receipts(
         or scheduler.get("state")
         != "ACTIVE_CURRENT_C10_PRESERVED_R24_SCHEDULER_FIX_ARMED"
         or scheduler.get("r24_amendment_sha256") != sha256(amendment_path)
-        or scheduler.get("r23_tactics_sha256") != sha256(tactics_path)
+        or scheduler.get("r23_tactics_sha256") != sha256(parent_tactics_path)
         or scheduler.get("scheduler_boundary_fixed") is not True
         or scheduler.get("scheduler_cpu_preflight") != "PASS"
         or scheduler.get("trainer_signal_sent") is not False
@@ -288,12 +320,138 @@ def verify_evidence_receipts(
         or not isinstance(scheduler_sources, dict)
         or scheduler_sources.get("promptmr_production.py")
         != R24_PRODUCTION_SHA256
-        or sha256(
-            ROOT / "reproduction/specialist/promptmr_production.py"
-        )
-        != R24_PRODUCTION_SHA256
     ):
-        fail("R24 scheduler amendment/deployment evidence is invalid")
+        fail("R24 parent scheduler amendment/deployment evidence is invalid")
+
+    r25_sources = r25_deployment.get("source_hashes")
+    r25_preflight_hashes = r25_deployment.get("preflight_hashes")
+    if (
+        r25_amendment.get("schema")
+        != "final-c10-single-lineage-r25-acc4-e2-naf-tail-amendment-v1"
+        or r25_amendment.get("state") != "SEALED"
+        or r25_amendment.get("parent", {}).get("r23_tactics_sha256")
+        != sha256(parent_tactics_path)
+        or r25_amendment.get("parent", {}).get(
+            "r24_scheduler_amendment_sha256"
+        )
+        != sha256(amendment_path)
+        or r25_amendment.get("amendment", {}).get(
+            "post_e49_total_optimizer_steps"
+        )
+        != 97_061
+        or r25_deployment.get("schema")
+        != "vessl-c10-single-lineage-r25-acc4-e2-naf-tail-deployment-v1"
+        or r25_deployment.get("state")
+        != "ACTIVE_CURRENT_C10_PRESERVED_R25_ACC4_E2_NAF_TAIL_ARMED"
+        or r25_deployment.get("parent_r24_deployment_receipt_sha256")
+        != sha256(ROOT / "evidence/scheduler-amendment-deployment-receipt.json")
+        or r25_deployment.get("r24_amendment_sha256") != sha256(amendment_path)
+        or r25_deployment.get("r25_amendment_sha256")
+        != sha256(r25_amendment_path)
+        or r25_deployment.get("r25_tactics_sha256") != sha256(tactics_path)
+        or r25_deployment.get("trainer_signal_sent") is not False
+        or r25_deployment.get("active_generalist_process_touched") is not False
+        or r25_deployment.get("active_generalist_recipe_changed") is not False
+        or r25_deployment.get("future_specialist_recipe_changed") is not True
+        or r25_deployment.get("post_e49_optimizer_step_budget_changed") is not False
+        or r25_deployment.get("post_e49_optimizer_steps") != 97_061
+        or r25_deployment.get("candidate_count") != 1
+        or r25_deployment.get("final_package_count") != 1
+        or r25_deployment.get("fallback_registered") is not False
+        or r25_deployment.get("official_evaluation_max_runs") != 1
+        or r25_deployment.get("cpu_preflight") != "PASS"
+        or not isinstance(r25_sources, dict)
+        or r25_sources.get("controller.py") != R25_CONTROLLER_SHA256
+        or r25_sources.get("train.py") != R25_TRAIN_SHA256
+        or r25_sources.get("promptmr_production.py") != R25_PRODUCTION_SHA256
+        or r25_sources.get("vessl_train_post_refiner.py")
+        != R25_POST_TRAINER_SHA256
+        or r25_sources.get("vessl_build_routed_promptmr_checkpoint.py")
+        != R25_BUILDER_SHA256
+        or sha256(ROOT / "reproduction/controller.py")
+        != R25_CONTROLLER_SHA256
+        or sha256(ROOT / "reproduction/specialist/train.py")
+        != R25_TRAIN_SHA256
+        or sha256(ROOT / "reproduction/specialist/promptmr_production.py")
+        != R25_PRODUCTION_SHA256
+        or sha256(ROOT / "reproduction/vessl_train_post_refiner.py")
+        != R25_POST_TRAINER_SHA256
+        or sha256(
+            ROOT / "reproduction/vessl_build_routed_promptmr_checkpoint.py"
+        )
+        != R25_BUILDER_SHA256
+        or not isinstance(r25_preflight_hashes, dict)
+        or r25_preflight_hashes.get("command_parser")
+        != sha256(post_e49_preflight_path)
+        or r25_preflight_hashes.get("cpu_contract")
+        != sha256(r25_cpu_preflight_path)
+        or r25_cpu_preflight.get("state") != "PASS"
+        or r25_cpu_preflight.get("post_e49_optimizer_steps") != 97_061
+        or r25_cpu_preflight.get("tactics_sha256") != sha256(tactics_path)
+        or r25_cpu_preflight.get("amendment_sha256")
+        != sha256(r25_amendment_path)
+        or r25_cpu_preflight.get("command_preflight_sha256")
+        != sha256(post_e49_preflight_path)
+    ):
+        fail("R25 contract/deployment/CPU-preflight evidence is invalid")
+
+    assembly = json_object("evidence/assembly-receipt.json")
+    raw_controller_path = ROOT / "evidence/raw/controller-final-receipt.json"
+    raw_controller = json_object("evidence/raw/controller-final-receipt.json")
+    snapshot_manifest_path = (
+        ROOT / "reproduction/inference-source-snapshot-manifest.json"
+    )
+    snapshot_manifest = json_object(
+        "reproduction/inference-source-snapshot-manifest.json"
+    )
+    snapshot_files = snapshot_manifest.get("files")
+    snapshot_destinations = assembly.get("snapshot_destinations")
+    if (
+        assembly.get("schema")
+        != "vessl-r25-single-final-package-assembly-v1"
+        or assembly.get("state") != "PASS"
+        or assembly.get("candidate_count") != 1
+        or assembly.get("fallback_registered") is not False
+        or assembly.get("controller_receipt_sha256")
+        != sha256(raw_controller_path)
+        or assembly.get("r24_deployment_receipt_sha256")
+        != sha256(ROOT / "evidence/scheduler-amendment-deployment-receipt.json")
+        or assembly.get("r25_deployment_receipt_sha256")
+        != sha256(r25_deployment_path)
+        or assembly.get("final_checkpoint_sha256") != model_sha256
+        or assembly.get("inference_source_snapshot_manifest_sha256")
+        != sha256(snapshot_manifest_path)
+        or raw_controller.get("schema")
+        != "vessl-g10-architecture-dispatcher-receipt-v1"
+        or raw_controller.get("state") != "PASS"
+        or raw_controller.get("winner") != "R2_C10"
+        or raw_controller.get("final_checkpoint_sha256") != model_sha256
+        or raw_controller.get("final_admission_mode") != "PRIMARY_REQUESTED"
+        or raw_controller.get("fallback_checkpoint") is not None
+        or raw_controller.get("fallback_checkpoint_sha256") is not None
+        or snapshot_manifest.get("schema")
+        != "vessl-final-inference-source-snapshot-v1"
+        or snapshot_manifest.get("state") != "SEALED"
+        or snapshot_manifest.get("leaderboard_data_read") is not False
+        or not isinstance(snapshot_files, list)
+        or not snapshot_files
+        or not isinstance(snapshot_destinations, dict)
+    ):
+        fail("single-final assembly/source-snapshot evidence is invalid")
+    for item in snapshot_files:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            fail("source snapshot file record is invalid")
+        source_relative = item["path"]
+        destination_relative = snapshot_destinations.get(source_relative)
+        if not isinstance(destination_relative, str):
+            fail(f"source snapshot destination is absent: {source_relative}")
+        destination = ROOT / "project" / destination_relative
+        if (
+            not destination.is_file()
+            or sha256(destination) != item.get("sha256")
+            or destination.stat().st_size != int(item.get("size_bytes", -1))
+        ):
+            fail(f"source snapshot destination mismatch: {source_relative}")
 
     preflight_sources = post_e49_preflight.get("source_hashes")
     preflight_handoff = post_e49_preflight.get("handoff")
@@ -303,11 +461,12 @@ def verify_evidence_receipts(
     expected_specialist_flags = {
         "acc4": {
             "--promptmr-train-acceleration": "acc4",
-            "--promptmr-stop-after-optimizer-steps": "2336",
-            "--promptmr-specialist-lr-horizon-optimizer-steps": "2336",
+            "--promptmr-stop-after-optimizer-steps": "4672",
+            "--promptmr-specialist-lr-horizon-optimizer-steps": "35040",
             "--promptmr-specialist-loss-family": "exact_upstream_ssim",
             "--promptmr-mraugment": "conservative_immediate",
-            "--lr": "1e-05",
+            "--lr": "2.5e-05",
+            "--num-epochs": "2",
         },
         "acc8": {
             "--promptmr-train-acceleration": "acc8",
@@ -352,14 +511,16 @@ def verify_evidence_receipts(
     )
     if (
         post_e49_preflight.get("schema")
-        != "vessl-r24-post-e49-command-parser-preflight-v1"
+        != "vessl-r25-post-e49-command-parser-preflight-v1"
         or post_e49_preflight.get("state") != "PASS"
         or post_e49_preflight.get("cpu_only") is not True
         or post_e49_preflight.get("cuda_initialized") is not False
         or post_e49_preflight.get("remote_process_read") is not False
         or post_e49_preflight.get("remote_process_changed") is not False
         or post_e49_preflight.get("active_generalist_process_touched") is not False
-        or post_e49_preflight.get("recipe_changed") is not False
+        or post_e49_preflight.get("recipe_changed") is not True
+        or post_e49_preflight.get("active_generalist_recipe_changed") is not False
+        or post_e49_preflight.get("post_e49_optimizer_steps") != 97_061
         or post_e49_preflight.get("candidate_count") != 1
         or post_e49_preflight.get("fallback_registered") is not False
         or post_e49_preflight.get("external_learned_state_imported") is not False
@@ -381,22 +542,22 @@ def verify_evidence_receipts(
             "scheduler_horizon_optimizer_step": 238272,
         }
         or not isinstance(preflight_sources, dict)
-        or preflight_sources.get("final-tactics-c10-r23-e49.json")
+        or preflight_sources.get("final-tactics-c10-r25-acc4-e2-naf-tail.json")
         != sha256(tactics_path)
         or preflight_sources.get(
-            "FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+            "FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
         )
-        != sha256(amendment_path)
+        != sha256(r25_amendment_path)
         or preflight_sources.get("r24-deployment-receipt.json")
         != sha256(ROOT / "evidence/scheduler-amendment-deployment-receipt.json")
-        or preflight_sources.get("controller.py") != R24_CONTROLLER_SHA256
-        or preflight_sources.get("train.py") != R24_TRAIN_SHA256
+        or preflight_sources.get("controller.py") != R25_CONTROLLER_SHA256
+        or preflight_sources.get("train.py") != R25_TRAIN_SHA256
         or preflight_sources.get("promptmr_production.py")
-        != R24_PRODUCTION_SHA256
+        != R25_PRODUCTION_SHA256
         or preflight_sources.get("vessl_train_post_refiner.py")
-        != R23_POST_TRAINER_SHA256
+        != R25_POST_TRAINER_SHA256
         or preflight_sources.get("vessl_build_routed_promptmr_checkpoint.py")
-        != R23_BUILDER_SHA256
+        != R25_BUILDER_SHA256
         or not specialist_parser_valid
         or not isinstance(preflight_post, dict)
         or preflight_post.get("parser") != "PASS"
@@ -407,7 +568,8 @@ def verify_evidence_receipts(
         or post_flags.get("--variant") != "NAF_S"
         or post_flags.get("--views") != ["identity", "flip_lr"]
         or post_flags.get("--epochs") != "21"
-        or post_flags.get("--optimizer-steps") != "93567"
+        or post_flags.get("--optimizer-steps") != "91231"
+        or post_flags.get("--lr-horizon-optimizer-steps") != "93567"
         or post_flags.get("--peak-lr") != "0.0001"
         or post_flags.get("--seed") != "430"
         or not isinstance(preflight_builder, dict)
@@ -417,7 +579,57 @@ def verify_evidence_receipts(
         or builder_flags.get("--tta-views") != "acc8_identity_flip_lr"
         or builder_flags.get("--output") != "/root/result/final/best_model.pt"
     ):
-        fail("post-E49 command/parser preflight receipt is invalid")
+        diagnostic = {
+            "schema": post_e49_preflight.get("schema"),
+            "state": post_e49_preflight.get("state"),
+            "cpu_only": post_e49_preflight.get("cpu_only"),
+            "cuda_initialized": post_e49_preflight.get("cuda_initialized"),
+            "remote_process_read": post_e49_preflight.get("remote_process_read"),
+            "remote_process_changed": post_e49_preflight.get("remote_process_changed"),
+            "active_generalist_process_touched": post_e49_preflight.get(
+                "active_generalist_process_touched"
+            ),
+            "recipe_changed": post_e49_preflight.get("recipe_changed"),
+            "candidate_count": post_e49_preflight.get("candidate_count"),
+            "fallback_registered": post_e49_preflight.get(
+                "fallback_registered"
+            ),
+            "external_learned_state_imported": post_e49_preflight.get(
+                "external_learned_state_imported"
+            ),
+            "leaderboard_data_used": post_e49_preflight.get(
+                "leaderboard_data_used"
+            ),
+            "official_evaluation_executed": post_e49_preflight.get(
+                "official_evaluation_executed"
+            ),
+            "chain": post_e49_preflight.get("chain"),
+            "handoff": preflight_handoff,
+            "source_hashes_observed": preflight_sources,
+            "source_hashes_expected": {
+                "final-tactics-c10-r25-acc4-e2-naf-tail.json": sha256(
+                    tactics_path
+                ),
+                "FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json": sha256(
+                    r25_amendment_path
+                ),
+                "r24-deployment-receipt.json": sha256(
+                    ROOT / "evidence/scheduler-amendment-deployment-receipt.json"
+                ),
+                "controller.py": R25_CONTROLLER_SHA256,
+                "train.py": R25_TRAIN_SHA256,
+                "promptmr_production.py": R25_PRODUCTION_SHA256,
+                "vessl_train_post_refiner.py": R25_POST_TRAINER_SHA256,
+                "vessl_build_routed_promptmr_checkpoint.py": R25_BUILDER_SHA256,
+            },
+            "specialist_parser_valid": specialist_parser_valid,
+            "post_refiner": preflight_post,
+            "final_builder": preflight_builder,
+        }
+        fail(
+            "post-E49 command/parser preflight receipt is invalid: "
+            + json.dumps(diagnostic, sort_keys=True, separators=(",", ":"))
+        )
 
     generalist = json_object("evidence/generalist-e49-receipt.json")
     if (
@@ -435,9 +647,10 @@ def verify_evidence_receipts(
 
     specialist_contracts = {
         "acc4": {
-            "optimizer_steps": 2336,
-            "lr_horizon_optimizer_steps": 2336,
-            "peak_lr": 0.00001,
+            "optimizer_steps": 4672,
+            "lr_horizon_optimizer_steps": 35040,
+            "peak_lr": 0.000025,
+            "source_epoch": 1,
             "loss_family": "exact_upstream_ssim",
             "mraugment": "conservative_immediate",
             "training_pool": "organizer_train_acc4",
@@ -446,6 +659,7 @@ def verify_evidence_receipts(
             "optimizer_steps": 1158,
             "lr_horizon_optimizer_steps": 2315,
             "peak_lr": 0.00005,
+            "source_epoch": 0,
             "loss_family": "r10_image_masked_ssim_valid_windows_mean",
             "mraugment": "off",
             "training_pool": "organizer_real_acc8_only",
@@ -453,8 +667,9 @@ def verify_evidence_receipts(
     }
     for route, expected in specialist_contracts.items():
         receipt = json_object(f"evidence/{route}-specialist-receipt.json")
+        raw_terminal_path = ROOT / f"evidence/raw/{route}-terminal.json"
         if (
-            receipt.get("schema") != "fastmri-r23-specialist-receipt-v1"
+            receipt.get("schema") != "fastmri-r25-specialist-receipt-v1"
             or receipt.get("state") != "PASS"
             or receipt.get("route") != route
             or receipt.get("checkpoint_sha256") != source_hashes[route]
@@ -462,7 +677,7 @@ def verify_evidence_receipts(
             != source_hashes["generalist"]
             or receipt.get("parent_epoch") != 49
             or receipt.get("parent_optimizer_step") != 228928
-            or receipt.get("source_epoch") != 0
+            or receipt.get("source_epoch") != expected["source_epoch"]
             or receipt.get("optimizer_steps") != expected["optimizer_steps"]
             or receipt.get("lr_horizon_optimizer_steps")
             != expected["lr_horizon_optimizer_steps"]
@@ -474,6 +689,8 @@ def verify_evidence_receipts(
             or receipt.get("trained_on_vessl") is not True
             or receipt.get("external_learned_state_imported") is not False
             or receipt.get("leaderboard_data_used") is not False
+            or receipt.get("source_terminal_sha256")
+            != sha256(raw_terminal_path)
         ):
             fail(f"{route.upper()} specialist evidence receipt is invalid")
 
@@ -488,7 +705,8 @@ def verify_evidence_receipts(
         or naf.get("variant") != "NAF_S"
         or naf.get("epochs") != 21
         or naf.get("parent_epoch") != 49
-        or naf.get("optimizer_steps") != 93567
+        or naf.get("optimizer_steps") != 91231
+        or naf.get("lr_horizon_optimizer_steps") != 93567
         or naf.get("loss_family")
         != "winner_foreground_ssim_l1_sqrt_area_plus_official384_bbox05_v2"
         or naf.get("bbox_loss_coefficient") != 0.5
@@ -501,7 +719,7 @@ def verify_evidence_receipts(
 
     policy = json_object("evidence/policy-receipt.json")
     if (
-        policy.get("schema") != "fastmri-r23-policy-receipt-v1"
+        policy.get("schema") != "fastmri-r25-policy-receipt-v1"
         or policy.get("state") != "PASS"
         or policy.get("candidate_count") != 1
         or policy.get("final_package_count") != 1
@@ -521,10 +739,15 @@ def verify_evidence_receipts(
         or policy.get("learned_state_source") != "VESSL_ONLY"
         or policy.get("external_learned_state_imported") is not False
         or policy.get("leaderboard_data_used_for_training_or_selection") is not False
+        or policy.get("controller_receipt_sha256")
+        != sha256(raw_controller_path)
         or policy.get("scheduler_deployment_receipt_sha256")
         != sha256(
             ROOT / "evidence/scheduler-amendment-deployment-receipt.json"
         )
+        or policy.get("r25_deployment_receipt_sha256")
+        != sha256(r25_deployment_path)
+        or policy.get("r25_amendment_sha256") != sha256(r25_amendment_path)
         or policy.get("post_e49_command_parser_preflight_sha256")
         != sha256(post_e49_preflight_path)
     ):
@@ -605,7 +828,7 @@ if args.submission_ready and not (
     fail("official evaluation receipt is missing")
 
 required = {
-    "schema": "fastmri-r23-single-final-package-v1",
+    "schema": "fastmri-r25-single-final-package-v1",
     "state": "SEALED",
     "candidate_count": 1,
     "final_package_count": 1,
@@ -658,7 +881,7 @@ if args.evaluation_in_progress:
         fail(f"invalid official evaluation start marker: {error}")
     if (
         not isinstance(start, dict)
-        or start.get("schema") != "fastmri-r23-official-evaluation-start-v1"
+        or start.get("schema") != "fastmri-r25-official-evaluation-start-v1"
         or start.get("state") != "STARTED"
         or start.get("attempt") != 1
         or start.get("command") != "bash run_official_evaluation_once.sh"
@@ -729,7 +952,7 @@ if args.submission_ready:
     scores = receipt.get("scores")
     log_path = ROOT / str(receipt.get("log", ""))
     if (
-        receipt.get("schema") != "fastmri-r23-official-evaluation-receipt-v1"
+        receipt.get("schema") != "fastmri-r25-official-evaluation-receipt-v1"
         or receipt.get("state") != "PASS"
         or receipt.get("attempt") != 1
         or receipt.get("official_evaluation_attempt_count") != 1
@@ -742,7 +965,7 @@ if args.submission_ready:
         or float(receipt["started_unix"]) >= 1787237940
         or float(receipt["completed_unix"]) > 1787237940
         or float(receipt["completed_unix"]) < float(receipt["started_unix"])
-        or start.get("schema") != "fastmri-r23-official-evaluation-start-v1"
+        or start.get("schema") != "fastmri-r25-official-evaluation-start-v1"
         or start.get("state") != "STARTED"
         or start.get("attempt") != 1
         or start.get("command") != receipt.get("command")

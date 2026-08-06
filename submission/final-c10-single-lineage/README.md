@@ -1,4 +1,4 @@
-# Final C10 R23/R24 E49 single-lineage package
+# Final C10 R25 E49 single-lineage package
 
 This directory is the only final submission package for the 2026 SNU FastMRI
 Challenge. It contains one VESSL-only routed model and the source, environment,
@@ -28,7 +28,7 @@ verify_package.py
 package-manifest.json
 best_model.pt
 project/                         # exact inference project snapshot
-reproduction/                    # exact R23 recipe and R24 scheduler sources/contracts
+reproduction/                    # exact R23 parent, R24 boundary, and R25 sources/contracts
 evidence/                        # lineage, policy, package, and evaluation receipts
 ```
 
@@ -38,9 +38,11 @@ After all VESSL artifacts and receipts have been copied into this directory,
 runs the complete semantic verifier. It refuses pre-existing evaluation output,
 symlinks, or more than one learned-state file.
 
-Before sealing, `materialize_r23_evidence.py` converts the raw VESSL controller,
+Before sealing, `materialize_r23_evidence.py` (a legacy filename retained for
+tooling compatibility) converts the raw VESSL controller,
 E49, specialist-terminal, and NAF_S receipts into the normalized evidence files.
-It cross-checks every source hash and the R24 post-E49 command/parser preflight
+It cross-checks every source hash, the R24 parent boundary, the R25 deployment,
+and the R25 post-E49 command/parser preflight
 against `best_model.pt`, and refuses an admission fallback, a non-E49 parent,
 or an incomplete specialist budget. When explicit component receipt paths are
 omitted, their content-addressed run directories are read from the sealed final
@@ -49,9 +51,11 @@ controller receipt.
 ```bash
 python materialize_r23_evidence.py \
   --controller-receipt \
-    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1/receipt.json \
+    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R25_ACC4_E2_NAF_TAIL_R1/receipt.json \
   --scheduler-deployment-receipt \
-    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1/r24-deployment-receipt.json
+    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1/r24-deployment-receipt.json \
+  --r25-deployment-receipt \
+    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R25_ACC4_E2_NAF_TAIL_R1/r25-deployment-receipt.json
 ```
 
 The command is intentionally one-shot: existing normalized evidence is never
@@ -85,19 +89,19 @@ autocast, activation checkpointing, and CPU-offloaded AdamW implementation.
 Do not enable TF32, EMA, SWA, a separate GradScaler, external learned state, or
 another GPU.
 
-## Fixed R23/R24 lineage
+## Fixed R25 lineage
 
 | Component | Sealed contract |
 |---|---|
 | Generalist | compact PromptMR+ R2/C10/H0, fresh VESSL initialization, seed 430 |
 | Scheduler | one-epoch warmup and cosine horizon E51/238,272 steps |
-| R24 boundary fix | equal warmup/horizon specialist boundary is one linear warmup epoch with zero cosine tail |
+| Parent contracts | R23 E49 handoff plus the R24 equal-boundary scheduler fix |
 | Generalist handoff | exact atomic E49 checkpoint, optimizer step 228,928 |
 | Generalist data | organizer train only; validation forwards 0 |
-| ACC4 specialist | E1, 2,336 steps, peak LR 1e-5, exact upstream SSIM |
+| ACC4 specialist | E2 prefix, 4,672 steps, 35,040-step LR horizon, peak LR 2.5e-5, exact upstream SSIM |
 | ACC8 specialist | first 1,158/2,315 cosine-horizon steps, peak LR 5e-5 |
 | ACC8 specialist data | organizer real ACC8 only, no MR augmentation |
-| NAF_S | fresh 72,625-parameter refiner, 93,567 steps (20.027 epoch-equivalent) |
+| NAF_S | fresh 72,625-parameter refiner, 91,231 steps on a fixed 93,567-step LR horizon (19.527 epoch-equivalent) |
 | NAF_S data | organizer train plus organizer validation used only as training data |
 | NAF_S objective | foreground SSIM + L1 + official-384 bbox SSIM, bbox coefficient 0.5 |
 | NAF_S input | outputs of the actual routed ACC4/ACC8 specialists |
@@ -108,7 +112,8 @@ The generalist process is launched with `--num-epochs 51`; this defines the
 unchanged scheduler horizon. The R23 boundary controller waits for the atomic
 E49 file `checkpoint-last-000228928.pt`, verifies and hash-seals it, and only
 then stops the trainer. No optimizer, scheduler, sampler, RNG, EMA, or SWA
-state is rewritten. All downstream components bind to that E49 hash.
+state is rewritten. The R25 CPU controller preserves that live trainer and all
+downstream components bind to the exact E49 hash.
 
 Only organizer train data updates the C10 generalist and both specialists.
 Organizer validation is appended as training data only for the terminal NAF_S
@@ -170,8 +175,9 @@ bash reproduce_final.sh
 
 1. fresh C10 training on the E51 cosine horizon;
 2. exact E49/228,928 boundary hash-seal;
-3. fresh ACC4-2,336 and ACC8-1,158 specialist runs from the E49 model;
-4. C10 freeze verification and fresh NAF_S-93,567 training;
+3. fresh ACC4-4,672 and ACC8-1,158 specialist runs from the E49 model;
+4. C10 freeze verification and fresh NAF_S-91,231 training on its sealed
+   93,567-step LR horizon;
 5. construction of exactly one routed `best_model.pt`;
 6. package and policy verification.
 

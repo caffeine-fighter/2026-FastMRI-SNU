@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize normalized R23/R24 evidence from authoritative VESSL receipts."""
+"""Materialize normalized R25 evidence from authoritative VESSL receipts."""
 
 from __future__ import annotations
 
@@ -16,28 +16,36 @@ import torch
 
 ROOT = Path(__file__).resolve().parent
 EVIDENCE = ROOT / "evidence"
-TACTICS = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+PARENT_TACTICS = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+TACTICS = ROOT / "reproduction/final-tactics-c10-r25-acc4-e2-naf-tail.json"
 SCHEDULER_AMENDMENT = (
     ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
 )
-POST_E49_PREFLIGHT = (
-    ROOT / "reproduction/R24_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
+R25_AMENDMENT = (
+    ROOT / "reproduction/FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
 )
+POST_E49_PREFLIGHT = (
+    ROOT / "reproduction/R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
+)
+R25_CPU_PREFLIGHT = ROOT / "reproduction/R25_CPU_PREFLIGHT.json"
 MODEL = ROOT / "best_model.pt"
 R24_PRODUCTION_SHA256 = (
     "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
 )
-R24_CONTROLLER_SHA256 = (
-    "929e53558cbb976f011d9ab925980c12a8b39be49b283a2de71621f45c18ce31"
+R25_PRODUCTION_SHA256 = (
+    "ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
 )
-R24_TRAIN_SHA256 = (
-    "95465b1b09189af87359a39518559f1759fdbeb881a4abb35b1f7b7faa832e47"
+R25_CONTROLLER_SHA256 = (
+    "78718ea26e1049546627710c515a7e5d7dd78c11c6ccd8b06b0075de28048b55"
 )
-R23_POST_TRAINER_SHA256 = (
-    "23ea62bf1e95772e5d1b00392718dff0604d554f638eb354793bb0613f1b6428"
+R25_TRAIN_SHA256 = (
+    "ae559aea9d13a35af00c3fc9c37d70471b273f740577d6056fa17728d3ab950b"
 )
-R23_BUILDER_SHA256 = (
-    "3d5263fc93e631c2b769201b9f547a6bfa8ca9b03270fc92ebd6287ffe6530a7"
+R25_POST_TRAINER_SHA256 = (
+    "399410e2e4b9155a95d5cf0bef344d896bab7e4e9c140c0e8abb7475cd405e17"
+)
+R25_BUILDER_SHA256 = (
+    "cf9aafb064d9e4aa2b04f35f7faf293970ea2f055059780950e91d213c42c8e7"
 )
 
 
@@ -78,6 +86,16 @@ def atomic_json(path: Path, value: object) -> None:
     os.replace(temporary, path)
 
 
+def atomic_bytes(path: Path, value: bytes) -> None:
+    """Install an already hash-sealed artifact without reserializing it."""
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    with temporary.open("xb") as handle:
+        handle.write(value)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--controller-receipt", type=Path, required=True)
 parser.add_argument(
@@ -89,6 +107,15 @@ parser.add_argument(
         "r24-deployment-receipt.json"
     ),
 )
+parser.add_argument(
+    "--r25-deployment-receipt",
+    type=Path,
+    default=Path(
+        "/root/result/"
+        "VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R25_ACC4_E2_NAF_TAIL_R1/"
+        "r25-deployment-receipt.json"
+    ),
+)
 parser.add_argument("--generalist-receipt", type=Path)
 parser.add_argument("--acc4-terminal", type=Path)
 parser.add_argument("--acc8-terminal", type=Path)
@@ -97,11 +124,18 @@ args = parser.parse_args()
 
 if not all(
     path.is_file()
-    for path in (MODEL, TACTICS, SCHEDULER_AMENDMENT, POST_E49_PREFLIGHT)
+    for path in (
+        MODEL,
+        PARENT_TACTICS,
+        TACTICS,
+        SCHEDULER_AMENDMENT,
+        R25_AMENDMENT,
+        POST_E49_PREFLIGHT,
+        R25_CPU_PREFLIGHT,
+    )
 ):
     raise SystemExit(
-        "R23_EVIDENCE_REFUSED: model, sealed tactics, R24 amendment, or "
-        "post-E49 preflight is absent"
+        "R25_EVIDENCE_REFUSED: model or sealed R23/R24/R25 evidence is absent"
     )
 outputs = {
     "generalist": EVIDENCE / "generalist-e49-receipt.json",
@@ -111,9 +145,10 @@ outputs = {
     "policy": EVIDENCE / "policy-receipt.json",
     "admission": EVIDENCE / "inference-admission-receipt.json",
     "scheduler": EVIDENCE / "scheduler-amendment-deployment-receipt.json",
+    "r25_deployment": EVIDENCE / "r25-amendment-deployment-receipt.json",
 }
 if any(path.exists() for path in outputs.values()):
-    raise SystemExit("R23_EVIDENCE_REFUSED: normalized evidence already exists")
+    raise SystemExit("R25_EVIDENCE_REFUSED: normalized evidence already exists")
 
 try:
     model = torch.load(MODEL, map_location="cpu", weights_only=True)
@@ -127,15 +162,31 @@ try:
     ]
 except Exception as error:
     raise SystemExit(
-        f"R23_EVIDENCE_REFUSED: invalid routed model: {type(error).__name__}: {error}"
+        f"R25_EVIDENCE_REFUSED: invalid routed model: {type(error).__name__}: {error}"
     ) from error
 
 tactics_envelope = load(TACTICS)
 tactics = tactics_envelope.get("selected_recipe")
+parent_tactics_envelope = load(PARENT_TACTICS)
 controller = load(args.controller_receipt)
 scheduler_amendment = load(SCHEDULER_AMENDMENT)
 scheduler_deployment = load(args.scheduler_deployment_receipt)
+r25_amendment = load(R25_AMENDMENT)
+r25_deployment = load(args.r25_deployment_receipt)
 post_e49_preflight = load(POST_E49_PREFLIGHT)
+r25_cpu_preflight = load(R25_CPU_PREFLIGHT)
+
+reproduction_sources = {
+    "controller.py": R25_CONTROLLER_SHA256,
+    "specialist/train.py": R25_TRAIN_SHA256,
+    "specialist/promptmr_production.py": R25_PRODUCTION_SHA256,
+    "vessl_train_post_refiner.py": R25_POST_TRAINER_SHA256,
+    "vessl_build_routed_promptmr_checkpoint.py": R25_BUILDER_SHA256,
+}
+for relative, expected in reproduction_sources.items():
+    path = ROOT / "reproduction" / relative
+    if not path.is_file() or sha256(path) != expected:
+        raise SystemExit(f"R25_EVIDENCE_REFUSED: reproduction source drifted: {relative}")
 
 
 def controller_artifact(
@@ -148,7 +199,7 @@ def controller_artifact(
     run_value = controller.get(run_key)
     if not isinstance(run_value, str) or not run_value:
         raise SystemExit(
-            f"R23_EVIDENCE_REFUSED: controller is missing {run_key}"
+            f"R25_EVIDENCE_REFUSED: controller is missing {run_key}"
         )
     return Path(run_value) / filename
 
@@ -190,7 +241,7 @@ if (
     != "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
     or scheduler_amendment.get("state") != "SEALED"
     or scheduler_amendment.get("parent", {}).get("r23_tactics_sha256")
-    != sha256(TACTICS)
+    != sha256(PARENT_TACTICS)
     or not isinstance(amendment, dict)
     or amendment.get("equal_boundary_semantics")
     != "ONE_EPOCH_LINEAR_WARMUP_WITH_ZERO_COSINE_TAIL"
@@ -212,7 +263,8 @@ if (
     != "ACTIVE_CURRENT_C10_PRESERVED_R24_SCHEDULER_FIX_ARMED"
     or scheduler_deployment.get("r24_amendment_sha256")
     != sha256(SCHEDULER_AMENDMENT)
-    or scheduler_deployment.get("r23_tactics_sha256") != sha256(TACTICS)
+    or scheduler_deployment.get("r23_tactics_sha256")
+    != sha256(PARENT_TACTICS)
     or scheduler_deployment.get("scheduler_boundary_fixed") is not True
     or scheduler_deployment.get("scheduler_cpu_preflight") != "PASS"
     or scheduler_deployment.get("trainer_signal_sent") is not False
@@ -227,16 +279,85 @@ if (
     or deployment_sources.get("promptmr_production.py")
     != R24_PRODUCTION_SHA256
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: R24 scheduler evidence is invalid")
+    raise SystemExit("R25_EVIDENCE_REFUSED: R24 parent evidence is invalid")
+
+r25_sources = r25_deployment.get("source_hashes")
+r25_preflight_hashes = r25_deployment.get("preflight_hashes")
+r25_policy = r25_amendment.get("policy")
+if (
+    r25_amendment.get("schema")
+    != "final-c10-single-lineage-r25-acc4-e2-naf-tail-amendment-v1"
+    or r25_amendment.get("state") != "SEALED"
+    or r25_amendment.get("parent", {}).get("r23_tactics_sha256")
+    != sha256(PARENT_TACTICS)
+    or r25_amendment.get("parent", {}).get("r24_scheduler_amendment_sha256")
+    != sha256(SCHEDULER_AMENDMENT)
+    or r25_amendment.get("amendment", {}).get(
+        "post_e49_total_optimizer_steps"
+    )
+    != 97_061
+    or r25_amendment.get("amendment", {}).get(
+        "active_generalist_process_touched"
+    )
+    is not False
+    or r25_amendment.get("amendment", {}).get(
+        "active_generalist_recipe_changed"
+    )
+    is not False
+    or not isinstance(r25_policy, dict)
+    or r25_policy.get("candidate_count") != 1
+    or r25_policy.get("fallback_registered") is not False
+    or r25_deployment.get("schema")
+    != "vessl-c10-single-lineage-r25-acc4-e2-naf-tail-deployment-v1"
+    or r25_deployment.get("state")
+    != "ACTIVE_CURRENT_C10_PRESERVED_R25_ACC4_E2_NAF_TAIL_ARMED"
+    or r25_deployment.get("parent_r24_deployment_receipt_sha256")
+    != sha256(args.scheduler_deployment_receipt)
+    or r25_deployment.get("r24_amendment_sha256")
+    != sha256(SCHEDULER_AMENDMENT)
+    or r25_deployment.get("r25_amendment_sha256") != sha256(R25_AMENDMENT)
+    or r25_deployment.get("r25_tactics_sha256") != sha256(TACTICS)
+    or r25_deployment.get("trainer_signal_sent") is not False
+    or r25_deployment.get("active_generalist_process_touched") is not False
+    or r25_deployment.get("active_generalist_recipe_changed") is not False
+    or r25_deployment.get("future_specialist_recipe_changed") is not True
+    or r25_deployment.get("post_e49_optimizer_step_budget_changed") is not False
+    or r25_deployment.get("post_e49_optimizer_steps") != 97_061
+    or r25_deployment.get("candidate_count") != 1
+    or r25_deployment.get("final_package_count") != 1
+    or r25_deployment.get("fallback_registered") is not False
+    or r25_deployment.get("official_evaluation_max_runs") != 1
+    or r25_deployment.get("cpu_preflight") != "PASS"
+    or not isinstance(r25_sources, dict)
+    or r25_sources.get("controller.py") != R25_CONTROLLER_SHA256
+    or r25_sources.get("train.py") != R25_TRAIN_SHA256
+    or r25_sources.get("promptmr_production.py") != R25_PRODUCTION_SHA256
+    or r25_sources.get("vessl_train_post_refiner.py")
+    != R25_POST_TRAINER_SHA256
+    or r25_sources.get("vessl_build_routed_promptmr_checkpoint.py")
+    != R25_BUILDER_SHA256
+    or not isinstance(r25_preflight_hashes, dict)
+    or r25_preflight_hashes.get("command_parser")
+    != sha256(POST_E49_PREFLIGHT)
+    or r25_preflight_hashes.get("cpu_contract") != sha256(R25_CPU_PREFLIGHT)
+    or r25_cpu_preflight.get("state") != "PASS"
+    or r25_cpu_preflight.get("post_e49_optimizer_steps") != 97_061
+    or r25_cpu_preflight.get("tactics_sha256") != sha256(TACTICS)
+    or r25_cpu_preflight.get("amendment_sha256") != sha256(R25_AMENDMENT)
+    or r25_cpu_preflight.get("command_preflight_sha256")
+    != sha256(POST_E49_PREFLIGHT)
+):
+    raise SystemExit("R25_EVIDENCE_REFUSED: R25 deployment evidence is invalid")
 
 expected_specialist_flags = {
     "acc4": {
         "--promptmr-train-acceleration": "acc4",
-        "--promptmr-stop-after-optimizer-steps": "2336",
-        "--promptmr-specialist-lr-horizon-optimizer-steps": "2336",
+        "--promptmr-stop-after-optimizer-steps": "4672",
+        "--promptmr-specialist-lr-horizon-optimizer-steps": "35040",
         "--promptmr-specialist-loss-family": "exact_upstream_ssim",
         "--promptmr-mraugment": "conservative_immediate",
-        "--lr": "1e-05",
+        "--lr": "2.5e-05",
+        "--num-epochs": "2",
     },
     "acc8": {
         "--promptmr-train-acceleration": "acc8",
@@ -274,14 +395,16 @@ builder_flags = (
 )
 if (
     post_e49_preflight.get("schema")
-    != "vessl-r24-post-e49-command-parser-preflight-v1"
+    != "vessl-r25-post-e49-command-parser-preflight-v1"
     or post_e49_preflight.get("state") != "PASS"
     or post_e49_preflight.get("cpu_only") is not True
     or post_e49_preflight.get("cuda_initialized") is not False
     or post_e49_preflight.get("remote_process_read") is not False
     or post_e49_preflight.get("remote_process_changed") is not False
     or post_e49_preflight.get("active_generalist_process_touched") is not False
-    or post_e49_preflight.get("recipe_changed") is not False
+    or post_e49_preflight.get("recipe_changed") is not True
+    or post_e49_preflight.get("active_generalist_recipe_changed") is not False
+    or post_e49_preflight.get("post_e49_optimizer_steps") != 97_061
     or post_e49_preflight.get("candidate_count") != 1
     or post_e49_preflight.get("fallback_registered") is not False
     or post_e49_preflight.get("external_learned_state_imported") is not False
@@ -303,20 +426,21 @@ if (
         "scheduler_horizon_optimizer_step": 238272,
     }
     or not isinstance(preflight_sources, dict)
-    or preflight_sources.get("final-tactics-c10-r23-e49.json") != sha256(TACTICS)
+    or preflight_sources.get("final-tactics-c10-r25-acc4-e2-naf-tail.json")
+    != sha256(TACTICS)
     or preflight_sources.get(
-        "FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
+        "FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
     )
-    != sha256(SCHEDULER_AMENDMENT)
+    != sha256(R25_AMENDMENT)
     or preflight_sources.get("r24-deployment-receipt.json")
     != sha256(args.scheduler_deployment_receipt)
-    or preflight_sources.get("controller.py") != R24_CONTROLLER_SHA256
-    or preflight_sources.get("train.py") != R24_TRAIN_SHA256
-    or preflight_sources.get("promptmr_production.py") != R24_PRODUCTION_SHA256
+    or preflight_sources.get("controller.py") != R25_CONTROLLER_SHA256
+    or preflight_sources.get("train.py") != R25_TRAIN_SHA256
+    or preflight_sources.get("promptmr_production.py") != R25_PRODUCTION_SHA256
     or preflight_sources.get("vessl_train_post_refiner.py")
-    != R23_POST_TRAINER_SHA256
+    != R25_POST_TRAINER_SHA256
     or preflight_sources.get("vessl_build_routed_promptmr_checkpoint.py")
-    != R23_BUILDER_SHA256
+    != R25_BUILDER_SHA256
     or not specialist_parser_valid
     or not isinstance(preflight_post, dict)
     or preflight_post.get("parser") != "PASS"
@@ -327,7 +451,8 @@ if (
     or post_flags.get("--variant") != "NAF_S"
     or post_flags.get("--views") != ["identity", "flip_lr"]
     or post_flags.get("--epochs") != "21"
-    or post_flags.get("--optimizer-steps") != "93567"
+    or post_flags.get("--optimizer-steps") != "91231"
+    or post_flags.get("--lr-horizon-optimizer-steps") != "93567"
     or post_flags.get("--peak-lr") != "0.0001"
     or post_flags.get("--seed") != "430"
     or not isinstance(preflight_builder, dict)
@@ -337,7 +462,7 @@ if (
     or builder_flags.get("--tta-views") != "acc8_identity_flip_lr"
     or builder_flags.get("--output") != "/root/result/final/best_model.pt"
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: post-E49 command preflight is invalid")
+    raise SystemExit("R25_EVIDENCE_REFUSED: post-E49 command preflight is invalid")
 
 if (
     tactics_envelope.get("state") != "SEALED"
@@ -362,7 +487,7 @@ if (
     or controller.get("all_final_learned_state_vessl_only") is not True
     or not isinstance(admission, dict)
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: controller final receipt is not exact R23")
+    raise SystemExit("R25_EVIDENCE_REFUSED: controller final receipt is not exact R25")
 
 if (
     admission.get("schema") != "vessl-final-lazy-router-admission-v2"
@@ -372,7 +497,7 @@ if (
     or admission.get("leaderboard_data_used") is not False
     or admission.get("official_reconstruction_path") is not True
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: final admission is not a VESSL PASS")
+    raise SystemExit("R25_EVIDENCE_REFUSED: final admission is not a VESSL PASS")
 
 if (
     generalist.get("schema") != "vessl-g10-generalist-terminal-checkpoint-v1"
@@ -383,14 +508,15 @@ if (
     or generalist.get("scheduler_horizon_epochs") != 51
     or generalist.get("scheduler_total_steps") != 238272
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: generalist receipt is not exact E49")
+    raise SystemExit("R25_EVIDENCE_REFUSED: generalist receipt is not exact E49")
 
 specialist_receipts = {}
 for route in ("acc4", "acc8"):
     recipe = tactics.get(f"{route}_specialist")
     terminal = terminals[route]
-    expected_steps = 2336 if route == "acc4" else 1158
-    expected_horizon = 2336 if route == "acc4" else 2315
+    expected_steps = 4672 if route == "acc4" else 1158
+    expected_horizon = 35040 if route == "acc4" else 2315
+    expected_epoch = 1 if route == "acc4" else 0
     checkpoint_path = controller.get(f"{route}_specialist_checkpoint")
     if (
         not isinstance(recipe, dict)
@@ -400,14 +526,14 @@ for route in ("acc4", "acc8"):
         or recipe.get("optimizer_steps") != expected_steps
         or recipe.get("lr_horizon_optimizer_steps") != expected_horizon
         or terminal.get("status") != "COMPLETED"
-        or terminal.get("epoch") != 0
+        or terminal.get("epoch") != expected_epoch
         or terminal.get("step") != expected_steps
         or terminal.get("exact_optimizer_step_budget") is not True
         or terminal.get("checkpoint") != checkpoint_path
     ):
-        raise SystemExit(f"R23_EVIDENCE_REFUSED: {route} terminal is invalid")
+        raise SystemExit(f"R25_EVIDENCE_REFUSED: {route} terminal is invalid")
     specialist_receipts[route] = {
-        "schema": "fastmri-r23-specialist-receipt-v1",
+        "schema": "fastmri-r25-specialist-receipt-v1",
         "state": "PASS",
         "route": route,
         "checkpoint": checkpoint_path,
@@ -415,7 +541,7 @@ for route in ("acc4", "acc8"):
         "parent_checkpoint_sha256": source_hashes["generalist"],
         "parent_epoch": 49,
         "parent_optimizer_step": 228928,
-        "source_epoch": 0,
+        "source_epoch": expected_epoch,
         "optimizer_steps": expected_steps,
         "lr_horizon_optimizer_steps": expected_horizon,
         "peak_lr": recipe["peak_lr"],
@@ -446,17 +572,18 @@ if (
     or naf.get("variant") != "NAF_S"
     or naf.get("epochs") != 21
     or naf.get("parent_epoch") != 49
-    or naf.get("optimizer_steps") != 93567
+    or naf.get("optimizer_steps") != 91231
+    or naf.get("lr_horizon_optimizer_steps") != 93567
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: NAF_S receipt is invalid")
+    raise SystemExit("R25_EVIDENCE_REFUSED: NAF_S receipt is invalid")
 
 policy = tactics.get("candidate_policy")
 augmentation = tactics.get("training_mask_augmentation")
 inference = tactics.get("inference")
 if not all(isinstance(value, dict) for value in (policy, augmentation, inference)):
-    raise SystemExit("R23_EVIDENCE_REFUSED: tactics policy is absent")
+    raise SystemExit("R25_EVIDENCE_REFUSED: tactics policy is absent")
 policy_receipt = {
-    "schema": "fastmri-r23-policy-receipt-v1",
+    "schema": "fastmri-r25-policy-receipt-v1",
     "state": "PASS",
     "candidate_count": 1,
     "final_package_count": policy.get("final_package_count"),
@@ -483,6 +610,8 @@ policy_receipt = {
     "scheduler_deployment_receipt_sha256": sha256(
         args.scheduler_deployment_receipt
     ),
+    "r25_deployment_receipt_sha256": sha256(args.r25_deployment_receipt),
+    "r25_amendment_sha256": sha256(R25_AMENDMENT),
     "post_e49_command_parser_preflight_sha256": sha256(POST_E49_PREFLIGHT),
 }
 
@@ -496,7 +625,7 @@ if (
     or policy_receipt["official_mask_unchanged"] is not True
     or policy_receipt["all_reconstruction_inside_recon_slice"] is not True
 ):
-    raise SystemExit("R23_EVIDENCE_REFUSED: normalized policy is invalid")
+    raise SystemExit("R25_EVIDENCE_REFUSED: normalized policy is invalid")
 
 EVIDENCE.mkdir(parents=True, exist_ok=True)
 payloads = {
@@ -507,11 +636,19 @@ payloads = {
     outputs["policy"]: policy_receipt,
     outputs["admission"]: admission,
     outputs["scheduler"]: scheduler_deployment,
+    outputs["r25_deployment"]: r25_deployment,
 }
 created = []
 try:
     for path, value in payloads.items():
-        atomic_json(path, value)
+        if path == outputs["scheduler"]:
+            # The post-E49 preflight binds the exact deployment-receipt bytes.
+            # Re-encoding equivalent JSON would silently change that SHA-256.
+            atomic_bytes(path, args.scheduler_deployment_receipt.read_bytes())
+        elif path == outputs["r25_deployment"]:
+            atomic_bytes(path, args.r25_deployment_receipt.read_bytes())
+        else:
+            atomic_json(path, value)
         created.append(path)
 except Exception:
     for path in created:
@@ -521,7 +658,7 @@ except Exception:
 print(
     json.dumps(
         {
-            "state": "R23_EVIDENCE_MATERIALIZED",
+            "state": "R25_EVIDENCE_MATERIALIZED",
             "best_model_sha256": model_sha,
             "files": {
                 path.relative_to(ROOT).as_posix(): sha256(path)

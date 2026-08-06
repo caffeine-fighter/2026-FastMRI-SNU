@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically seal the fully populated pre-evaluation R23 package."""
+"""Atomically seal the fully populated pre-evaluation R25 package."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ if not files:
 
 now = time.time()
 manifest = {
-    "schema": "fastmri-r23-single-final-package-v1",
+    "schema": "fastmri-r25-single-final-package-v1",
     "state": "SEALED",
     "candidate_count": 1,
     "final_package_count": 1,

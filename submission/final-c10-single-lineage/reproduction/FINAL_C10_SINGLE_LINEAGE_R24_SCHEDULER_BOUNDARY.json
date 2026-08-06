@@ -1,0 +1,62 @@
+{
+  "schema": "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1",
+  "state": "SEALED",
+  "created_kst": "2026-08-06T16:02:41+09:00",
+  "purpose": "MAKE_THE_SEALED_R23_E49_SPECIALISTS_EXECUTABLE_WITHOUT_CHANGING_THEIR_RECIPE_OR_STEP_BUDGET",
+  "parent": {
+    "r23_amendment_sha256": "fe7a44df249690fe8c5f5a6682d196259e9f742012e2de477c20ab38564897f330",
+    "r23_tactics_sha256": "d8f46dc0df7db2de718f11c7344cbd553609161d3e1eb791c61b2e296c06d699",
+    "selected_recipe_sha256": "c11d35fc121b096f5f5a8e9508503b1cb313bd980d9cf4316a3dacea6b2b80c1"
+  },
+  "confirmed_blocker": {
+    "prior_specialist_production_sha256": "fe95860beba10ae3fa9346bad5e01fc11e8f80cc00f9e2790a110d8fe3f4d326",
+    "prior_condition": "0 < warmup_steps < total_steps",
+    "acc4_sampler_steps": 2336,
+    "acc4_lr_horizon_steps": 2336,
+    "acc8_sampler_steps": 2315,
+    "acc8_lr_horizon_steps": 2315,
+    "failure": "WARMUP_EQUALS_TOTAL_STEPS_WAS_REJECTED_BEFORE_FIRST_OPTIMIZER_STEP"
+  },
+  "amendment": {
+    "schedule": "specialist_warmup1_cosine",
+    "new_condition": "0 < warmup_steps <= total_steps",
+    "equal_boundary_semantics": "ONE_EPOCH_LINEAR_WARMUP_WITH_ZERO_COSINE_TAIL",
+    "acc4": {
+      "optimizer_steps": 2336,
+      "warmup_steps": 2336,
+      "lr_horizon_optimizer_steps": 2336,
+      "peak_lr": 1e-05,
+      "final_factor": 1.0
+    },
+    "acc8": {
+      "optimizer_steps": 1158,
+      "warmup_steps": 2315,
+      "lr_horizon_optimizer_steps": 2315,
+      "peak_lr": 5e-05,
+      "checkpoint_recorded_factor_after_1158_scheduler_steps": 0.5006479481641468,
+      "checkpoint_recorded_lr_after_1158_scheduler_steps": 2.503239740820734e-05
+    },
+    "r23_recipe_changed": false,
+    "optimizer_step_budget_changed": false,
+    "learning_rate_changed": false,
+    "loss_changed": false,
+    "architecture_changed": false
+  },
+  "source_hashes": {
+    "controller.py": "929e53558cbb976f011d9ab925980c12a8b39be49b283a2de71621f45c18ce31",
+    "promptmr_production.py": "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b",
+    "train.py": "95465b1b09189af87359a39518559f1759fdbeb881a4abb35b1f7b7faa832e47",
+    "test_scheduler_boundary.py": "53a1d481931ea7be1383dc7724eff1b5bc3f9e1069e010102696739fde52a1f3"
+  },
+  "deployment_contract": {
+    "active_generalist_gpu_process_must_be_preserved": true,
+    "active_generalist_cmdline_must_be_preserved": true,
+    "active_generalist_start_ticks_must_be_preserved": true,
+    "cpu_controller_replacement_count": 1,
+    "new_final_run_created": false,
+    "candidate_count": 1,
+    "fallback_registered": false,
+    "external_learned_state_imported": false,
+    "leaderboard_data_used": false
+  }
+}
