@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically assemble and seal the only R25 final package on VESSL."""
+"""Atomically assemble and seal the only R29 final package on VESSL."""
 
 from __future__ import annotations
 
@@ -18,34 +18,17 @@ import uuid
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CONTROL = Path(
-    "/root/result/"
-    "VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R25_ACC4_E2_NAF_TAIL_R1"
+    "/root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R29_ZF_CONTEXT_R1"
 )
-DEFAULT_R24_CONTROL = Path(
-    "/root/result/"
-    "VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1"
-)
-DEFAULT_PROJECT = Path("/root/2026-FastMRI-SNU-promptmr-training")
+DEFAULT_PROJECT = Path("/root/2026-FastMRI-SNU-promptmr-plus")
 DEFAULT_HANDOFF = Path("/root/result/VESSL_SCORE_FREE_HANDOFFS")
-DEFAULT_STAGE = Path(
-    "/root/codex_ops/vessl_g10_architecture_dispatcher_r25_acc4_e2_naf_tail"
-)
-DEFAULT_SPECIALIST = Path(
-    "/root/codex_ops/terminal_legal_specialist_r13_acc4_e2"
-)
+DEFAULT_STAGE = Path("/root/codex_ops/vessl_g10_architecture_dispatcher_r29_zf_context")
+DEFAULT_SPECIALIST = Path("/root/codex_ops/terminal_legal_specialist_r13_acc4_e2")
 DEFAULT_PROVENANCE = Path(
-    "/root/result/EXP_FI_ACC8_CKPT_BASE_E30_R1/"
-    "fi-acc8-full-training/provenance.json"
+    "/root/result/EXP_FI_ACC8_CKPT_BASE_E30_R1/fi-acc8-full-training/provenance.json"
 )
 LEARNED_SUFFIXES = {".pt", ".pth", ".ckpt", ".safetensors"}
-SKIP_NAMES = {
-    ".git",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    "result",
-    "checkpoints",
-}
+SKIP_NAMES = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", "result", "checkpoints"}
 
 
 def fail(message: str) -> None:
@@ -74,15 +57,7 @@ def atomic_json(path: Path, value: object) -> None:
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     with temporary.open("xb") as handle:
         handle.write(
-            (
-                json.dumps(
-                    value,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    allow_nan=False,
-                )
-                + "\n"
-            ).encode()
+            (json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n").encode()
         )
         handle.flush()
         os.fsync(handle.fileno())
@@ -93,7 +68,7 @@ def stable_copy(source: Path, destination: Path) -> str:
     if not source.is_file() or source.is_symlink():
         fail(f"regular source file required: {source}")
     before = source.stat()
-    source_digest = sha256(source)
+    digest = sha256(source)
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
         fail(f"destination already exists: {destination}")
@@ -102,11 +77,16 @@ def stable_copy(source: Path, destination: Path) -> str:
     if (
         (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
         != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
-        or sha256(source) != source_digest
-        or sha256(destination) != source_digest
+        or sha256(source) != digest
+        or sha256(destination) != digest
     ):
         fail(f"source changed while copying: {source}")
-    return source_digest
+    return digest
+
+
+def replace_copy(source: Path, destination: Path) -> str:
+    destination.unlink(missing_ok=True)
+    return stable_copy(source, destination)
 
 
 def copy_source_tree(source: Path, destination: Path) -> dict[str, str]:
@@ -157,14 +137,10 @@ def validate_controller(value: dict, receipt_path: Path) -> None:
         or value.get("external_learned_state_imported") is not False
         or value.get("all_final_learned_state_vessl_only") is not True
     ):
-        fail(f"controller is not exact single-final R25: {receipt_path}")
+        fail(f"controller is not the exact single-final R29 run: {receipt_path}")
 
 
-def controller_run_file(
-    controller: dict,
-    run_key: str,
-    filename: str,
-) -> Path:
+def controller_file(controller: dict, run_key: str, filename: str) -> Path:
     value = controller.get(run_key)
     if not isinstance(value, str) or not value:
         fail(f"controller is missing {run_key}")
@@ -172,36 +148,16 @@ def controller_run_file(
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--output", type=Path, default=Path("/root/result/FINAL_C10_SINGLE_PACKAGE_R29"))
+parser.add_argument("--controller-receipt", type=Path, default=DEFAULT_CONTROL / "receipt.json")
 parser.add_argument(
-    "--output",
-    type=Path,
-    default=Path("/root/result/FINAL_C10_SINGLE_PACKAGE_R25"),
-)
-parser.add_argument(
-    "--controller-receipt",
-    type=Path,
-    default=DEFAULT_CONTROL / "receipt.json",
-)
-parser.add_argument(
-    "--scheduler-deployment-receipt",
-    type=Path,
-    default=DEFAULT_R24_CONTROL / "r24-deployment-receipt.json",
-)
-parser.add_argument(
-    "--r25-deployment-receipt",
-    type=Path,
-    default=DEFAULT_CONTROL / "r25-deployment-receipt.json",
+    "--r29-deployment-receipt", type=Path, default=DEFAULT_CONTROL / "r29-deployment-receipt.json"
 )
 parser.add_argument("--project-source", type=Path, default=DEFAULT_PROJECT)
 parser.add_argument("--handoff-root", type=Path, default=DEFAULT_HANDOFF)
 parser.add_argument("--stage", type=Path, default=DEFAULT_STAGE)
 parser.add_argument("--specialist-stage", type=Path, default=DEFAULT_SPECIALIST)
 parser.add_argument("--provenance", type=Path, default=DEFAULT_PROVENANCE)
-parser.add_argument(
-    "--post-e49-preflight",
-    type=Path,
-    default=ROOT / "reproduction/R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json",
-)
 args = parser.parse_args()
 
 output = args.output.resolve()
@@ -211,14 +167,12 @@ output.parent.mkdir(parents=True, exist_ok=True)
 controller = load_json(args.controller_receipt)
 validate_controller(controller, args.controller_receipt)
 
-final_checkpoint_raw = controller.get("final_checkpoint")
-final_checkpoint_sha = controller.get("final_checkpoint_sha256")
-if not isinstance(final_checkpoint_raw, str) or not isinstance(
-    final_checkpoint_sha, str
-):
+checkpoint_raw = controller.get("final_checkpoint")
+checkpoint_sha = controller.get("final_checkpoint_sha256")
+if not isinstance(checkpoint_raw, str) or not isinstance(checkpoint_sha, str):
     fail("controller final checkpoint binding is absent")
-final_checkpoint = Path(final_checkpoint_raw)
-if not final_checkpoint.is_file() or sha256(final_checkpoint) != final_checkpoint_sha:
+checkpoint = Path(checkpoint_raw)
+if not checkpoint.is_file() or sha256(checkpoint) != checkpoint_sha:
     fail("controller final checkpoint hash mismatch")
 
 snapshot = controller.get("inference_source_snapshot")
@@ -242,144 +196,87 @@ for item in snapshot_files:
     if not source.is_file() or sha256(source) != item.get("sha256"):
         fail(f"source snapshot hash mismatch: {source}")
 
-staging = Path(
-    tempfile.mkdtemp(prefix=".final-c10-r25-assembly-", dir=output.parent)
-)
+staging = Path(tempfile.mkdtemp(prefix=".final-c10-r29-assembly-", dir=output.parent))
 try:
     copy_skeleton(staging)
 
     project = staging / "project"
-    project_sources: dict[str, str] = {}
+    project_hashes: dict[str, str] = {}
     for name in ("recon_eval.py", "reconstruct.py"):
-        project_sources[name] = stable_copy(
-            args.project_source / name, project / name
-        )
+        project_hashes[name] = stable_copy(args.project_source / name, project / name)
     for name in ("utils", "third_party"):
-        for relative, digest in copy_source_tree(
-            args.project_source / name, project / name
-        ).items():
-            project_sources[f"{name}/{relative}"] = digest
+        for relative, digest in copy_source_tree(args.project_source / name, project / name).items():
+            project_hashes[f"{name}/{relative}"] = digest
 
     snapshot_destinations: dict[str, str] = {}
     for item in snapshot_files:
         relative = Path(item["path"])
-        destination_relative = (
-            Path("utils/learning/test_part.py")
-            if relative == Path("test_part.py")
-            else relative
-        )
-        destination = project / destination_relative
-        if destination.exists():
-            destination.unlink()
-        digest = stable_copy(snapshot_directory / relative, destination)
+        target_relative = Path("utils/learning/test_part.py") if relative == Path("test_part.py") else relative
+        destination = project / target_relative
+        digest = replace_copy(snapshot_directory / relative, destination)
         if digest != item["sha256"]:
             fail(f"snapshot overlay hash mismatch: {relative}")
-        snapshot_destinations[relative.as_posix()] = destination_relative.as_posix()
+        snapshot_destinations[relative.as_posix()] = target_relative.as_posix()
 
     reproduction = staging / "reproduction"
     reproduction_sources = {
-        "FINAL_C10_SINGLE_LINEAGE_R23_E49.json": (
-            args.handoff_root / "FINAL_C10_SINGLE_LINEAGE_R23_E49.json"
-        ),
-        "FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json": (
-            args.handoff_root
-            / "FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
-        ),
-        "FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json": (
-            args.handoff_root
-            / "FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
-        ),
-        "final-tactics-c10-r23-e49.json": (
-            args.handoff_root / "final-tactics-c10-r23-e49.json"
-        ),
-        "final-tactics-c10-r25-acc4-e2-naf-tail.json": (
-            args.handoff_root / "final-tactics-c10-r25-acc4-e2-naf-tail.json"
-        ),
-        "R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json": (
-            args.post_e49_preflight
-        ),
-        "R25_CPU_PREFLIGHT.json": (
-            ROOT / "reproduction/R25_CPU_PREFLIGHT.json"
-        ),
+        "FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json": args.handoff_root / "FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json",
+        "final-tactics-c10-r29-zf-context.json": args.handoff_root / "final-tactics-c10-r29-zf-context.json",
+        "FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json": args.stage / "FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json",
+        "R29_CPU_PREFLIGHT.json": args.stage / "R29_CPU_PREFLIGHT.json",
         "controller.py": args.stage / "controller.py",
         "generalist/train.py": args.stage / "train.py",
-        "generalist/promptmr_production.py": (
-            args.stage / "promptmr_production.py"
-        ),
+        "generalist/promptmr_production.py": args.stage / "promptmr_production.py",
         "specialist/train.py": args.specialist_stage / "train.py",
-        "specialist/promptmr_production.py": (
-            args.specialist_stage / "promptmr_production.py"
-        ),
-        "vessl_train_post_refiner.py": (
-            args.stage / "vessl_train_post_refiner.py"
-        ),
-        "vessl_build_routed_promptmr_checkpoint.py": (
-            args.stage / "vessl_build_routed_promptmr_checkpoint.py"
-        ),
+        "specialist/promptmr_production.py": args.specialist_stage / "promptmr_production.py",
+        "vessl_train_post_refiner.py": args.stage / "vessl_train_post_refiner.py",
+        "vessl_build_routed_promptmr_checkpoint.py": args.stage / "vessl_build_routed_promptmr_checkpoint.py",
+        "promptmr_post_refiner.py": args.stage / "promptmr_post_refiner.py",
+        "promptmr_router.py": args.stage / "promptmr_router.py",
+        "promptmr_mask_router.py": args.stage / "promptmr_mask_router.py",
+        "promptmr_legal_mask.py": args.stage / "promptmr_legal_mask.py",
+        "test_part.py": args.stage / "test_part.py",
+        "preflight_r29.py": args.stage / "preflight_r29.py",
         "organizer-data-provenance.json": args.provenance,
         "inference-source-snapshot-manifest.json": snapshot_manifest,
     }
-    reproduction_hashes: dict[str, str] = {}
-    for relative, source in reproduction_sources.items():
-        destination = reproduction / relative
-        if destination.exists():
-            destination.unlink()
-        reproduction_hashes[relative] = stable_copy(source, destination)
-
-    source_sum_paths = sorted(
-        path
-        for path in reproduction.rglob("*")
-        if path.is_file() and path.name != "source-sha256sums.txt"
+    reproduction_hashes = {
+        relative: replace_copy(source, reproduction / relative)
+        for relative, source in reproduction_sources.items()
+    }
+    source_files = sorted(
+        path for path in reproduction.rglob("*") if path.is_file() and path.name != "source-sha256sums.txt"
     )
-    sums = "".join(
-        f"{sha256(path)}  {path.relative_to(reproduction).as_posix()}\n"
-        for path in source_sum_paths
+    (reproduction / "source-sha256sums.txt").write_text(
+        "".join(f"{sha256(path)}  {path.relative_to(reproduction).as_posix()}\n" for path in source_files),
+        encoding="utf-8",
+        newline="\n",
     )
-    sums_path = reproduction / "source-sha256sums.txt"
-    sums_path.write_text(sums, encoding="utf-8", newline="\n")
 
     raw = staging / "evidence/raw"
     raw_sources = {
         "controller-final-receipt.json": args.controller_receipt,
-        "acc4-terminal.json": controller_run_file(
-            controller, "acc4_specialist_run", "terminal.json"
-        ),
-        "acc8-terminal.json": controller_run_file(
-            controller, "acc8_specialist_run", "terminal.json"
-        ),
+        "acc4-terminal.json": controller_file(controller, "acc4_specialist_run", "terminal.json"),
+        "acc8-terminal.json": controller_file(controller, "acc8_specialist_run", "terminal.json"),
     }
-    raw_hashes = {
-        relative: stable_copy(source, raw / relative)
-        for relative, source in raw_sources.items()
-    }
-    generalist_receipt = controller_run_file(
-        controller, "selected_run", "controller-terminal-checkpoint.json"
-    )
-    naf_receipt = controller_run_file(
-        controller, "post_refiner_run", "receipt.json"
-    )
+    raw_hashes = {name: stable_copy(source, raw / name) for name, source in raw_sources.items()}
+    generalist_receipt = controller_file(controller, "selected_run", "controller-terminal-checkpoint.json")
+    naf_receipt = controller_file(controller, "post_refiner_run", "receipt.json")
 
-    stable_copy(final_checkpoint, staging / "best_model.pt")
+    stable_copy(checkpoint, staging / "best_model.pt")
     atomic_json(
         staging / "evidence/assembly-receipt.json",
         {
-            "schema": "vessl-r25-single-final-package-assembly-v1",
+            "schema": "vessl-r29-single-final-package-assembly-v1",
             "state": "PASS",
             "candidate_count": 1,
             "fallback_registered": False,
             "controller_receipt_sha256": sha256(args.controller_receipt),
-            "r24_deployment_receipt_sha256": sha256(
-                args.scheduler_deployment_receipt
-            ),
-            "r25_deployment_receipt_sha256": sha256(
-                args.r25_deployment_receipt
-            ),
-            "final_checkpoint_sha256": final_checkpoint_sha,
-            "inference_source_snapshot_manifest_sha256": sha256(
-                snapshot_manifest
-            ),
+            "r29_deployment_receipt_sha256": sha256(args.r29_deployment_receipt),
+            "final_checkpoint_sha256": checkpoint_sha,
+            "inference_source_snapshot_manifest_sha256": sha256(snapshot_manifest),
             "snapshot_destinations": snapshot_destinations,
-            "project_source_hashes": project_sources,
+            "project_source_hashes": project_hashes,
             "reproduction_source_hashes": reproduction_hashes,
             "raw_receipt_hashes": raw_hashes,
             "created_unix": time.time(),
@@ -389,43 +286,29 @@ try:
     subprocess.run(
         [
             sys.executable,
-            str(staging / "materialize_r23_evidence.py"),
-            "--controller-receipt",
-            str(raw / "controller-final-receipt.json"),
-            "--scheduler-deployment-receipt",
-            str(args.scheduler_deployment_receipt),
-            "--r25-deployment-receipt",
-            str(args.r25_deployment_receipt),
-            "--generalist-receipt",
-            str(generalist_receipt),
-            "--acc4-terminal",
-            str(raw / "acc4-terminal.json"),
-            "--acc8-terminal",
-            str(raw / "acc8-terminal.json"),
-            "--naf-receipt",
-            str(naf_receipt),
+            str(staging / "materialize_r29_evidence.py"),
+            "--controller-receipt", str(raw / "controller-final-receipt.json"),
+            "--r29-deployment-receipt", str(args.r29_deployment_receipt),
+            "--generalist-receipt", str(generalist_receipt),
+            "--acc4-terminal", str(raw / "acc4-terminal.json"),
+            "--acc8-terminal", str(raw / "acc8-terminal.json"),
+            "--naf-receipt", str(naf_receipt),
         ],
         cwd=staging,
         check=True,
     )
-    subprocess.run(
-        [sys.executable, str(staging / "seal_package.py")],
-        cwd=staging,
-        check=True,
-    )
+    subprocess.run([sys.executable, str(staging / "seal_package.py")], cwd=staging, check=True)
     if output.exists():
         fail(f"single final output appeared during assembly: {output}")
     os.rename(staging, output)
     print(
         json.dumps(
             {
-                "state": "FINAL_C10_R25_SINGLE_PACKAGE_ASSEMBLED",
+                "state": "FINAL_C10_R29_SINGLE_PACKAGE_ASSEMBLED",
                 "output": str(output),
                 "candidate_count": 1,
-                "best_model_sha256": final_checkpoint_sha,
-                "package_manifest_sha256": sha256(
-                    output / "package-manifest.json"
-                ),
+                "best_model_sha256": checkpoint_sha,
+                "package_manifest_sha256": sha256(output / "package-manifest.json"),
             },
             sort_keys=True,
         )

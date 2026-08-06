@@ -3,17 +3,16 @@ set -euo pipefail
 
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGED_PROJECT="$PACKAGE_ROOT/project"
-PROJECT_ROOT="${PROJECT_ROOT:-/root/2026-FastMRI-SNU-promptmr-training}"
+PROJECT_ROOT="${PROJECT_ROOT:-/root/2026-FastMRI-SNU-promptmr-plus}"
 REPRO_ROOT="$PACKAGE_ROOT/reproduction"
 DATA_ROOT="${DATA_ROOT:-/root/Data}"
 RESULT_ROOT=/root/result
 MANIFEST="$REPRO_ROOT/organizer-data-provenance.json"
-R24_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R24_SCHEDULER_BOUNDARY.json"
-R25_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R25_ACC4_E2_NAF_TAIL.json"
-R25_POST_E49_PREFLIGHT="$REPRO_ROOT/R25_POST_E49_COMMAND_PARSER_PREFLIGHT.json"
-R25_SPECIALIST_PRODUCTION_SHA256="ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
-R25_POST_E49_PREFLIGHT_SHA256="1f1101120ebcdbf15d2e697de025b89947b80ffe50b92dc77a562d73a45eee97"
-RUN_NAME="EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_R25_REPRO"
+R29_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json"
+R29_RUNTIME="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json"
+R29_PREFLIGHT="$REPRO_ROOT/R29_CPU_PREFLIGHT.json"
+R29_SPECIALIST_PRODUCTION_SHA256="ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
+RUN_NAME="EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_R29_REPRO"
 RUN_DIR="$RESULT_ROOT/$RUN_NAME"
 E49_STEP=228928
 E49_CHECKPOINT="$RUN_DIR/checkpoints/checkpoint-last-000228928.pt"
@@ -26,9 +25,9 @@ fi
 test -f "$PROJECT_ROOT/recon_eval.py"
 test -f "$REPRO_ROOT/source-sha256sums.txt"
 test -f "$MANIFEST"
-test -f "$R24_AMENDMENT"
-test -f "$R25_AMENDMENT"
-test -f "$R25_POST_E49_PREFLIGHT"
+test -f "$R29_AMENDMENT"
+test -f "$R29_RUNTIME"
+test -f "$R29_PREFLIGHT"
 test -d "$DATA_ROOT/train/kspace"
 test -d "$DATA_ROOT/train/image"
 test -d "$DATA_ROOT/val/kspace"
@@ -36,10 +35,10 @@ test -d "$DATA_ROOT/val/image"
 mkdir -p "$RESULT_ROOT"
 for path in \
   "$RUN_DIR" \
-  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E2_S4672_SEED430_R25_REPRO" \
-  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R25_REPRO" \
-  "$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_R25_REPRO" \
-  "$RESULT_ROOT/final-r25-single-package"; do
+  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E2_S4672_SEED430_R29_REPRO" \
+  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R29_REPRO" \
+  "$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_ZF_R29_REPRO" \
+  "$RESULT_ROOT/final-r29-single-package"; do
   if test -e "$path"; then
     echo "refusing to overwrite existing reproduction lineage: $path" >&2
     exit 1
@@ -49,72 +48,42 @@ done
 cd "$REPRO_ROOT"
 sha256sum -c source-sha256sums.txt
 
-python - "$R24_AMENDMENT" "$R25_AMENDMENT" \
+python - "$R29_AMENDMENT" "$R29_RUNTIME" "$R29_PREFLIGHT" \
   "$REPRO_ROOT/specialist/promptmr_production.py" \
-  "$R25_SPECIALIST_PRODUCTION_SHA256" "$R25_POST_E49_PREFLIGHT" \
-  "$R25_POST_E49_PREFLIGHT_SHA256" <<'PY'
+  "$R29_SPECIALIST_PRODUCTION_SHA256" <<'PY'
 import hashlib
 import json
 from pathlib import Path
 import sys
 
-r24_amendment_path = Path(sys.argv[1])
-r25_amendment_path = Path(sys.argv[2])
-production_path = Path(sys.argv[3])
-expected_production = sys.argv[4]
-preflight_path = Path(sys.argv[5])
-expected_preflight = sys.argv[6]
-amendment = json.loads(r24_amendment_path.read_text(encoding="utf-8"))
-r25 = json.loads(r25_amendment_path.read_text(encoding="utf-8"))
+amendment_path = Path(sys.argv[1])
+runtime_path = Path(sys.argv[2])
+preflight_path = Path(sys.argv[3])
+production_path = Path(sys.argv[4])
+expected_production = sys.argv[5]
+amendment = json.loads(amendment_path.read_text(encoding="utf-8"))
+runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
 preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
-assert amendment["schema"] == (
-    "final-c10-single-lineage-r24-scheduler-boundary-amendment-v1"
-)
+assert amendment["schema"] == "final-c10-single-lineage-r29-zf-context-amendment-v1"
 assert amendment["state"] == "SEALED"
-assert amendment["amendment"]["equal_boundary_semantics"] == (
-    "ONE_EPOCH_LINEAR_WARMUP_WITH_ZERO_COSINE_TAIL"
-)
-assert amendment["amendment"]["r23_recipe_changed"] is False
-assert amendment["source_hashes"]["promptmr_production.py"] == (
-    "ea4695f5fada7c417323d9efad495544d0743ad1d35b3023c1a645a421d8688b"
-)
-assert r25["schema"] == "final-c10-single-lineage-r25-acc4-e2-naf-tail-amendment-v1"
-assert r25["state"] == "SEALED"
-assert r25["amendment"]["post_e49_total_optimizer_steps"] == 97061
-assert r25["source_hashes"]["promptmr_production.py"] == expected_production
+assert amendment["amendment"]["post_e49_total_optimizer_steps"] == 97061
+assert amendment["amendment"]["input_mode"] == "recon_zero_filled_residual"
+assert amendment["source_hashes"]["promptmr_production.py"] == expected_production
 assert hashlib.sha256(production_path.read_bytes()).hexdigest() == expected_production
-assert hashlib.sha256(preflight_path.read_bytes()).hexdigest() == expected_preflight
-assert preflight["schema"] == "vessl-r25-post-e49-command-parser-preflight-v1"
+assert runtime["schema"] == "final-c10-single-lineage-r29-inference-amendment-v1"
+assert runtime["state"] == "SEALED"
+assert preflight["schema"] == "vessl-r29-zf-context-cpu-preflight-v1"
 assert preflight["state"] == "PASS"
 assert preflight["cpu_only"] is True
 assert preflight["cuda_initialized"] is False
-assert preflight["remote_process_changed"] is False
 assert preflight["active_generalist_process_touched"] is False
-assert preflight["recipe_changed"] is True
-assert preflight["active_generalist_recipe_changed"] is False
 assert preflight["post_e49_optimizer_steps"] == 97061
 assert preflight["candidate_count"] == 1
 assert preflight["fallback_registered"] is False
-assert preflight["handoff"] == {
-    "epoch": 49,
-    "optimizer_step": 228928,
-    "scheduler_horizon_epoch": 51,
-    "scheduler_horizon_optimizer_step": 238272,
-}
-assert all(
-    entry["parser"] == "PASS"
-    for entry in preflight["specialists"].values()
-)
-assert preflight["post_refiner"]["parser"] == "PASS"
-assert preflight["post_refiner"]["main_c10_frozen"] is True
-assert preflight["post_refiner"]["optimizer_scope"] == "naf_s_only"
-assert preflight["post_refiner"]["bbox_loss_coefficient"] == 0.5
-assert preflight["post_refiner"]["flags"]["--optimizer-steps"] == "91231"
-assert preflight["post_refiner"]["flags"]["--lr-horizon-optimizer-steps"] == "93567"
-assert preflight["final_builder"]["parser"] == "PASS"
-assert preflight["final_builder"]["candidate_count"] == 1
-print("R24_PARENT_SCHEDULER_REPRODUCTION_SOURCE_OK")
-print("R25_POST_E49_COMMAND_PARSER_PREFLIGHT_OK")
+assert preflight["actual_shipped_router_validation"] is True
+assert preflight["post_refiner_command_parser"] is True
+assert preflight["unknown_mask_outer_tta"] == ["identity"]
+print("R29_ZF_CONTEXT_REPRODUCTION_SOURCE_OK")
 PY
 
 install -m 0644 "$REPRO_ROOT/generalist/train.py" "$PROJECT_ROOT/train.py"
@@ -178,7 +147,7 @@ install -m 0644 "$REPRO_ROOT/specialist/train.py" "$PROJECT_ROOT/train.py"
 install -m 0644 "$REPRO_ROOT/specialist/promptmr_production.py" \
   "$PROJECT_ROOT/utils/learning/promptmr_production.py"
 
-ACC4_RUN="EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E2_S4672_SEED430_R25_REPRO"
+ACC4_RUN="EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E2_S4672_SEED430_R29_REPRO"
 ACC4_DIR="$RESULT_ROOT/$ACC4_RUN"
 python -u train.py \
   --model-family promptmr-plus --promptmr-production --promptmr-rung R2 \
@@ -199,7 +168,7 @@ python -u train.py \
   --promptmr-vessl-model-only-import-sha256 "$C10_SHA256" \
   >"$RESULT_ROOT/acc4-specialist.log" 2>&1
 
-ACC8_RUN="EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R25_REPRO"
+ACC8_RUN="EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R29_REPRO"
 ACC8_DIR="$RESULT_ROOT/$ACC8_RUN"
 python -u train.py \
   --model-family promptmr-plus --promptmr-production --promptmr-rung R2 \
@@ -236,13 +205,14 @@ install -m 0644 "$REPRO_ROOT/generalist/train.py" "$PROJECT_ROOT/train.py"
 install -m 0644 "$REPRO_ROOT/generalist/promptmr_production.py" \
   "$PROJECT_ROOT/utils/learning/promptmr_production.py"
 
-NAF_DIR="$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_R25_REPRO"
+NAF_DIR="$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_ZF_R29_REPRO"
 python -u "$REPRO_ROOT/vessl_train_post_refiner.py" \
   --base-checkpoint "$E49_CHECKPOINT" --base-checkpoint-sha256 "$C10_SHA256" \
   --acc4-checkpoint "$ACC4_CHECKPOINT" --acc4-checkpoint-sha256 "$ACC4_SHA256" \
   --acc8-checkpoint "$ACC8_CHECKPOINT" --acc8-checkpoint-sha256 "$ACC8_SHA256" \
   --variant NAF_S --views identity flip_lr --epochs 21 \
   --optimizer-steps 91231 --lr-horizon-optimizer-steps 93567 \
+  --input-mode recon_zero_filled_residual \
   --output-dir "$NAF_DIR" \
   --train-root "$DATA_ROOT/train" --trusted-data-manifest "$MANIFEST" \
   --extra-train-root "$DATA_ROOT/val" --extra-trusted-data-manifest "$MANIFEST" \
@@ -258,7 +228,7 @@ print(Path(json.loads(Path(sys.argv[1]).read_text())["checkpoint"]).resolve())
 PY
 )"
 NAF_SHA256="$(sha256sum "$NAF_CHECKPOINT" | awk '{print $1}')"
-FINAL_DIR="$RESULT_ROOT/final-r25-single-package"
+FINAL_DIR="$RESULT_ROOT/final-r29-single-package"
 mkdir -p "$FINAL_DIR"
 python -u "$REPRO_ROOT/vessl_build_routed_promptmr_checkpoint.py" \
   --generalist-checkpoint "$E49_CHECKPOINT" --generalist-sha256 "$C10_SHA256" \
@@ -270,4 +240,4 @@ python -u "$REPRO_ROOT/vessl_build_routed_promptmr_checkpoint.py" \
   --output "$FINAL_DIR/best_model.pt"
 
 test -f "$FINAL_DIR/best_model.pt"
-echo "R25_REPRODUCTION_COMPLETE $FINAL_DIR/best_model.pt"
+echo "R29_REPRODUCTION_COMPLETE $FINAL_DIR/best_model.pt"
