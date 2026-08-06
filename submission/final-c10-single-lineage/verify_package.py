@@ -15,7 +15,9 @@ STRUCTURE = (
     "README.md",
     "requirements.txt",
     "recon_eval.sh",
+    "record_official_evaluation.py",
     "reproduce_final.sh",
+    "run_official_evaluation_once.sh",
     "verify_package.py",
 )
 FINAL_STRUCTURE = (
@@ -296,6 +298,61 @@ if "best_model.pt" not in files:
     fail("best_model.pt is not sealed by the manifest")
 
 source_hashes = verify_routed_model(model_path)
+
+if args.submission_ready:
+    receipt_path = ROOT / "evidence/official-evaluation-receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    start_path = ROOT / "evidence/official-evaluation-start.json"
+    start = (
+        json.loads(start_path.read_text(encoding="utf-8"))
+        if start_path.is_file()
+        else {}
+    )
+    scores = receipt.get("scores")
+    log_path = ROOT / str(receipt.get("log", ""))
+    if (
+        receipt.get("schema") != "fastmri-r23-official-evaluation-receipt-v1"
+        or receipt.get("state") != "PASS"
+        or receipt.get("attempt") != 1
+        or receipt.get("official_evaluation_attempt_count") != 1
+        or receipt.get("return_code") != 0
+        or receipt.get("command") != "bash run_official_evaluation_once.sh"
+        or receipt.get("best_model_sha256") != sha256(model_path)
+        or receipt.get("leaderboard_data_used_for_training_or_selection") is not False
+        or not isinstance(receipt.get("started_unix"), (int, float))
+        or not isinstance(receipt.get("completed_unix"), (int, float))
+        or float(receipt["started_unix"]) >= 1787237940
+        or float(receipt["completed_unix"]) > 1787237940
+        or float(receipt["completed_unix"]) < float(receipt["started_unix"])
+        or start.get("schema") != "fastmri-r23-official-evaluation-start-v1"
+        or start.get("state") != "STARTED"
+        or start.get("attempt") != 1
+        or start.get("command") != receipt.get("command")
+        or start.get("best_model_sha256") != receipt.get("best_model_sha256")
+        or start.get("started_unix") != receipt.get("started_unix")
+        or not isinstance(scores, dict)
+        or set(scores)
+        != {
+            "ssim_full",
+            "ssim_bbox",
+            "recon_time_seconds",
+            "ssim_full_acc4",
+            "ssim_full_acc8",
+            "ssim_bbox_acc4",
+            "ssim_bbox_acc8",
+        }
+        or any(
+            not isinstance(value, (int, float)) or not 0.0 <= float(value) <= 1.0
+            for key, value in scores.items()
+            if key.startswith("ssim")
+        )
+        or not isinstance(scores.get("recon_time_seconds"), (int, float))
+        or float(scores["recon_time_seconds"]) <= 0.0
+        or not log_path.is_file()
+        or log_path.is_symlink()
+        or receipt.get("log_sha256") != sha256(log_path)
+    ):
+        fail("official evaluation receipt is invalid")
 
 print(
     json.dumps(

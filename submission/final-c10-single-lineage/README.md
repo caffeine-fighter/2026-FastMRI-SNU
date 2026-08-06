@@ -19,7 +19,9 @@ The sealed package has the following layout:
 README.md
 requirements.txt
 recon_eval.sh
+record_official_evaluation.py
 reproduce_final.sh
+run_official_evaluation_once.sh
 verify_package.py
 package-manifest.json
 best_model.pt
@@ -71,7 +73,7 @@ another GPU.
 | NAF_S objective | foreground SSIM + L1 + official-384 bbox SSIM, bbox coefficient 0.5 |
 | NAF_S input | outputs of the actual routed ACC4/ACC8 specialists |
 | Final model | one routed checkpoint, candidate count 1, no fallback |
-| Official evaluation | one `bash recon_eval.sh` invocation |
+| Team official evaluation | one `bash run_official_evaluation_once.sh` invocation |
 
 The generalist process is launched with `--num-epochs 51`; this defines the
 unchanged scheduler horizon. The R23 boundary controller waits for the atomic
@@ -150,17 +152,28 @@ registered source differs from `reproduction/source-sha256sums.txt`.
 
 ## Official evaluation
 
-The inference entry point required by the organizer is one command:
+The repeatable inference entry point required by the organizer is one command:
 
 ```bash
 bash recon_eval.sh
 ```
 
-The wrapper first verifies the sealed manifest and the unique checkpoint, then
-places that checkpoint at the organizer's fixed result path and invokes the
-unmodified `project/recon_eval.py` once. The organizer may repeat timing 30
-times internally and use its fastest execution. This package does not launch
-additional official runs or candidates.
+This wrapper verifies the sealed manifest and unique checkpoint, places that
+checkpoint at the organizer's fixed result path, and invokes the unmodified
+`project/recon_eval.py`. It remains repeatable so the organizer can execute it
+30 times and use the fastest timing result.
+
+Our one allowed official evaluation is run with:
+
+```bash
+bash run_official_evaluation_once.sh
+```
+
+That outer wrapper has a fail-closed start record preventing a second team
+evaluation. It atomically seals the output metrics, log hash, model hash,
+timestamps, and attempt count into the package manifest and official
+evaluation receipt. It does not prevent the organizer from rerunning
+`recon_eval.sh` after submission.
 
 SSIM is the ranking value. Reconstruction time is relevant only under the
 organizer's exact-SSIM tie rule.
