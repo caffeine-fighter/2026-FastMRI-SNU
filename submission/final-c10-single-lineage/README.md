@@ -22,6 +22,7 @@ recon_eval.sh
 record_official_evaluation.py
 reproduce_final.sh
 run_official_evaluation_once.sh
+materialize_r23_evidence.py
 seal_package.py
 verify_package.py
 package-manifest.json
@@ -36,6 +37,24 @@ After all VESSL artifacts and receipts have been copied into this directory,
 `python seal_package.py` creates that manifest exactly once and immediately
 runs the complete semantic verifier. It refuses pre-existing evaluation output,
 symlinks, or more than one learned-state file.
+
+Before sealing, `materialize_r23_evidence.py` converts the raw VESSL controller,
+E49, specialist-terminal, and NAF_S receipts into the normalized evidence files.
+It cross-checks every source hash against `best_model.pt` and refuses an
+admission fallback, a non-E49 parent, or an incomplete specialist budget.
+
+```bash
+python materialize_r23_evidence.py \
+  --controller-receipt /root/result/final-controller-receipt.json \
+  --generalist-receipt /root/result/generalist-e49-receipt.json \
+  --acc4-terminal /root/result/acc4-specialist-terminal.json \
+  --acc8-terminal /root/result/acc8-specialist-terminal.json \
+  --naf-receipt /root/result/naf-s-training-receipt.json
+```
+
+The command is intentionally one-shot: existing normalized evidence is never
+overwritten. Run it only after `best_model.pt` and the raw receipts have been
+copied into their final package locations, and before `python seal_package.py`.
 `verify_package.py` rejects an unsealed manifest, a second learned-state file,
 `candidate_count != 1`, a fallback, an E51 parent, or a hash mismatch. It also
 loads `best_model.pt` with PyTorch's safe weights-only loader and verifies the

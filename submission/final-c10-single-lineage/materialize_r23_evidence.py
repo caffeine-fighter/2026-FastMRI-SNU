@@ -1,0 +1,291 @@
+#!/usr/bin/env python3
+"""Materialize normalized R23 evidence from authoritative VESSL receipts."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+import uuid
+
+import torch
+
+
+ROOT = Path(__file__).resolve().parent
+EVIDENCE = ROOT / "evidence"
+TACTICS = ROOT / "reproduction/final-tactics-c10-r23-e49.json"
+MODEL = ROOT / "best_model.pt"
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(16 * 1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def load(path: Path) -> dict:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"invalid JSON {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise RuntimeError(f"JSON object required: {path}")
+    return value
+
+
+def atomic_json(path: Path, value: object) -> None:
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    with temporary.open("xb") as handle:
+        handle.write(
+            (
+                json.dumps(
+                    value,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+                + "\n"
+            ).encode()
+        )
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--controller-receipt", type=Path, required=True)
+parser.add_argument("--generalist-receipt", type=Path, required=True)
+parser.add_argument("--acc4-terminal", type=Path, required=True)
+parser.add_argument("--acc8-terminal", type=Path, required=True)
+parser.add_argument("--naf-receipt", type=Path, required=True)
+args = parser.parse_args()
+
+if not MODEL.is_file() or not TACTICS.is_file():
+    raise SystemExit("R23_EVIDENCE_REFUSED: model or sealed tactics is absent")
+outputs = {
+    "generalist": EVIDENCE / "generalist-e49-receipt.json",
+    "acc4": EVIDENCE / "acc4-specialist-receipt.json",
+    "acc8": EVIDENCE / "acc8-specialist-receipt.json",
+    "naf": EVIDENCE / "naf-s-training-receipt.json",
+    "policy": EVIDENCE / "policy-receipt.json",
+    "admission": EVIDENCE / "inference-admission-receipt.json",
+}
+if any(path.exists() for path in outputs.values()):
+    raise SystemExit("R23_EVIDENCE_REFUSED: normalized evidence already exists")
+
+try:
+    model = torch.load(MODEL, map_location="cpu", weights_only=True)
+    components = model["components"]
+    source_hashes = {
+        name: components[name]["source_checkpoint_sha256"]
+        for name in ("generalist", "acc4", "acc8")
+    }
+    source_hashes["post_refiner"] = model["post_refiner"][
+        "source_checkpoint_sha256"
+    ]
+except Exception as error:
+    raise SystemExit(
+        f"R23_EVIDENCE_REFUSED: invalid routed model: {type(error).__name__}: {error}"
+    ) from error
+
+tactics_envelope = load(TACTICS)
+tactics = tactics_envelope.get("selected_recipe")
+controller = load(args.controller_receipt)
+generalist = load(args.generalist_receipt)
+terminals = {"acc4": load(args.acc4_terminal), "acc8": load(args.acc8_terminal)}
+naf = load(args.naf_receipt)
+admission = controller.get("final_admission")
+model_sha = sha256(MODEL)
+
+if (
+    tactics_envelope.get("state") != "SEALED"
+    or not isinstance(tactics, dict)
+    or controller.get("schema") != "vessl-g10-architecture-dispatcher-receipt-v1"
+    or controller.get("state") != "PASS"
+    or controller.get("winner") != "R2_C10"
+    or controller.get("final_checkpoint_sha256") != model_sha
+    or controller.get("final_admission_mode") != "PRIMARY_REQUESTED"
+    or controller.get("tta_views") != "acc8_identity_flip_lr"
+    or controller.get("acc4_specialist_status") != "TRAINED_ON_VESSL_AND_ROUTED"
+    or controller.get("acc8_specialist_status") != "TRAINED_ON_VESSL_AND_ROUTED"
+    or controller.get("post_refiner_status") != "TRAINED_ON_VESSL_AND_PACKAGED"
+    or controller.get("acc4_specialist_checkpoint_sha256") != source_hashes["acc4"]
+    or controller.get("acc8_specialist_checkpoint_sha256") != source_hashes["acc8"]
+    or controller.get("post_refiner_checkpoint_sha256")
+    != source_hashes["post_refiner"]
+    or controller.get("fallback_checkpoint") is not None
+    or controller.get("fallback_checkpoint_sha256") is not None
+    or controller.get("leaderboard_data_read") is not False
+    or controller.get("external_learned_state_imported") is not False
+    or controller.get("all_final_learned_state_vessl_only") is not True
+    or not isinstance(admission, dict)
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: controller final receipt is not exact R23")
+
+if (
+    admission.get("schema") != "vessl-final-lazy-router-admission-v2"
+    or admission.get("state") != "PASS"
+    or admission.get("final_checkpoint_sha256") != model_sha
+    or admission.get("gpu") != "NVIDIA GeForce GTX 1080"
+    or admission.get("leaderboard_data_used") is not False
+    or admission.get("official_reconstruction_path") is not True
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: final admission is not a VESSL PASS")
+
+if (
+    generalist.get("schema") != "vessl-g10-generalist-terminal-checkpoint-v1"
+    or generalist.get("state") != "SEALED"
+    or generalist.get("checkpoint_sha256") != source_hashes["generalist"]
+    or generalist.get("epoch") != 49
+    or generalist.get("optimizer_step") != 228928
+    or generalist.get("scheduler_horizon_epochs") != 51
+    or generalist.get("scheduler_total_steps") != 238272
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: generalist receipt is not exact E49")
+
+specialist_receipts = {}
+for route in ("acc4", "acc8"):
+    recipe = tactics.get(f"{route}_specialist")
+    terminal = terminals[route]
+    expected_steps = 2336 if route == "acc4" else 1158
+    expected_horizon = 2336 if route == "acc4" else 2315
+    checkpoint_path = controller.get(f"{route}_specialist_checkpoint")
+    if (
+        not isinstance(recipe, dict)
+        or recipe.get("enabled") is not True
+        or recipe.get("late_branch_parent_epoch") != 49
+        or recipe.get("late_branch_parent_optimizer_step") != 228928
+        or recipe.get("optimizer_steps") != expected_steps
+        or recipe.get("lr_horizon_optimizer_steps") != expected_horizon
+        or terminal.get("status") != "COMPLETED"
+        or terminal.get("epoch") != 0
+        or terminal.get("step") != expected_steps
+        or terminal.get("exact_optimizer_step_budget") is not True
+        or terminal.get("checkpoint") != checkpoint_path
+    ):
+        raise SystemExit(f"R23_EVIDENCE_REFUSED: {route} terminal is invalid")
+    specialist_receipts[route] = {
+        "schema": "fastmri-r23-specialist-receipt-v1",
+        "state": "PASS",
+        "route": route,
+        "checkpoint": checkpoint_path,
+        "checkpoint_sha256": source_hashes[route],
+        "parent_checkpoint_sha256": source_hashes["generalist"],
+        "parent_epoch": 49,
+        "parent_optimizer_step": 228928,
+        "source_epoch": 0,
+        "optimizer_steps": expected_steps,
+        "lr_horizon_optimizer_steps": expected_horizon,
+        "peak_lr": recipe["peak_lr"],
+        "loss_family": recipe["loss_family"],
+        "mraugment": recipe["mraugment"],
+        "training_pool": (
+            "organizer_train_acc4"
+            if route == "acc4"
+            else "organizer_real_acc8_only"
+        ),
+        "validation_forward_count": 0,
+        "trained_on_vessl": True,
+        "external_learned_state_imported": False,
+        "leaderboard_data_used": False,
+        "source_terminal_sha256": sha256(
+            args.acc4_terminal if route == "acc4" else args.acc8_terminal
+        ),
+        "controller_receipt_sha256": sha256(args.controller_receipt),
+    }
+
+if (
+    naf.get("schema") != "vessl-post-refiner-training-receipt-v1"
+    or naf.get("state") != "PASS"
+    or naf.get("checkpoint_sha256") != source_hashes["post_refiner"]
+    or naf.get("base_checkpoint_sha256") != source_hashes["generalist"]
+    or naf.get("routed_branch_sha256")
+    != {"acc4": source_hashes["acc4"], "acc8": source_hashes["acc8"]}
+    or naf.get("variant") != "NAF_S"
+    or naf.get("epochs") != 21
+    or naf.get("parent_epoch") != 49
+    or naf.get("optimizer_steps") != 93567
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: NAF_S receipt is invalid")
+
+policy = tactics.get("candidate_policy")
+augmentation = tactics.get("training_mask_augmentation")
+inference = tactics.get("inference")
+if not all(isinstance(value, dict) for value in (policy, augmentation, inference)):
+    raise SystemExit("R23_EVIDENCE_REFUSED: tactics policy is absent")
+policy_receipt = {
+    "schema": "fastmri-r23-policy-receipt-v1",
+    "state": "PASS",
+    "candidate_count": 1,
+    "final_package_count": policy.get("final_package_count"),
+    "fallback_registered": policy.get("fallback_registered"),
+    "official_evaluation_max_runs": policy.get("official_evaluation_max_runs"),
+    "routing_input": "input_kspace_mask_only",
+    "routing_features": ["mask_density", "acs_width", "period_residue", "offset"],
+    "unknown_or_mismatch_route": "generalist",
+    "routing_forbidden_inputs": [
+        "filename", "image", "bbox", "target", "leaderboard_result"
+    ],
+    "augmentation_schema": augmentation.get("schema"),
+    "augmentation_inference_enabled": augmentation.get("inference_enabled"),
+    "official_mask_unchanged": augmentation.get("official_mask_unchanged"),
+    "validation_used_for_checkpoint_selection": False,
+    "learned_state_source": "VESSL_ONLY",
+    "external_learned_state_imported": False,
+    "leaderboard_data_used_for_training_or_selection": False,
+    "all_reconstruction_inside_recon_slice": inference.get(
+        "all_reconstruction_inside_recon_slice"
+    ),
+    "tactics_sha256": sha256(TACTICS),
+    "controller_receipt_sha256": sha256(args.controller_receipt),
+}
+
+if (
+    policy_receipt["final_package_count"] != 1
+    or policy_receipt["fallback_registered"] is not False
+    or policy_receipt["official_evaluation_max_runs"] != 1
+    or policy_receipt["augmentation_schema"]
+    != "acc4-to-acc8-pair-mask-augmentation-v1"
+    or policy_receipt["augmentation_inference_enabled"] is not False
+    or policy_receipt["official_mask_unchanged"] is not True
+    or policy_receipt["all_reconstruction_inside_recon_slice"] is not True
+):
+    raise SystemExit("R23_EVIDENCE_REFUSED: normalized policy is invalid")
+
+EVIDENCE.mkdir(parents=True, exist_ok=True)
+payloads = {
+    outputs["generalist"]: generalist,
+    outputs["acc4"]: specialist_receipts["acc4"],
+    outputs["acc8"]: specialist_receipts["acc8"],
+    outputs["naf"]: naf,
+    outputs["policy"]: policy_receipt,
+    outputs["admission"]: admission,
+}
+created = []
+try:
+    for path, value in payloads.items():
+        atomic_json(path, value)
+        created.append(path)
+except Exception:
+    for path in created:
+        path.unlink(missing_ok=True)
+    raise
+
+print(
+    json.dumps(
+        {
+            "state": "R23_EVIDENCE_MATERIALIZED",
+            "best_model_sha256": model_sha,
+            "files": {
+                path.relative_to(ROOT).as_posix(): sha256(path)
+                for path in payloads
+            },
+        },
+        sort_keys=True,
+    )
+)

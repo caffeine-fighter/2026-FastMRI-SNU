@@ -18,6 +18,7 @@ STRUCTURE = (
     "record_official_evaluation.py",
     "reproduce_final.sh",
     "run_official_evaluation_once.sh",
+    "materialize_r23_evidence.py",
     "seal_package.py",
     "verify_package.py",
 )
