@@ -22,6 +22,7 @@ recon_eval.sh
 record_official_evaluation.py
 reproduce_final.sh
 run_official_evaluation_once.sh
+seal_package.py
 verify_package.py
 package-manifest.json
 best_model.pt
@@ -31,6 +32,10 @@ evidence/                        # lineage, policy, package, and evaluation rece
 ```
 
 `package-manifest.json` records SHA-256 and byte size for every submitted file.
+After all VESSL artifacts and receipts have been copied into this directory,
+`python seal_package.py` creates that manifest exactly once and immediately
+runs the complete semantic verifier. It refuses pre-existing evaluation output,
+symlinks, or more than one learned-state file.
 `verify_package.py` rejects an unsealed manifest, a second learned-state file,
 `candidate_count != 1`, a fallback, an E51 parent, or a hash mismatch. It also
 loads `best_model.pt` with PyTorch's safe weights-only loader and verifies the

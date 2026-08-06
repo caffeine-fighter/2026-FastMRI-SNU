@@ -18,6 +18,7 @@ STRUCTURE = (
     "record_official_evaluation.py",
     "reproduce_final.sh",
     "run_official_evaluation_once.sh",
+    "seal_package.py",
     "verify_package.py",
 )
 FINAL_STRUCTURE = (
@@ -380,6 +381,8 @@ required = {
     "generalist_handoff_epoch": 49,
     "generalist_handoff_optimizer_step": 228928,
     "scheduler_horizon_epoch": 51,
+    "hard_deadline_unix": 1787237940,
+    "hard_deadline_kst": "2026-08-20T23:59:00+09:00",
     "external_learned_state_imported": False,
     "leaderboard_data_used_for_training_or_selection": False,
 }
