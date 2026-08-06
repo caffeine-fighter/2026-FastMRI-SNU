@@ -4,16 +4,17 @@ set -euo pipefail
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 EVIDENCE_ROOT="$PACKAGE_ROOT/evidence"
 EVALUATION_LOG="$EVIDENCE_ROOT/official-evaluation.log"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 cd "$PACKAGE_ROOT"
-python verify_package.py
-python record_official_evaluation.py start
+"$PYTHON_BIN" verify_package.py
+"$PYTHON_BIN" record_official_evaluation.py start
 
 set +e
 bash recon_eval.sh 2>&1 | tee "$EVALUATION_LOG"
 evaluation_return_code="${PIPESTATUS[0]}"
 set -e
 
-python record_official_evaluation.py finish \
+"$PYTHON_BIN" record_official_evaluation.py finish \
   --return-code "$evaluation_return_code"
-python verify_package.py --submission-ready
+"$PYTHON_BIN" verify_package.py --submission-ready

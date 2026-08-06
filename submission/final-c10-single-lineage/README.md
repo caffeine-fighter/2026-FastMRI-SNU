@@ -1,4 +1,4 @@
-# Final C10 R23 E49 single-lineage package
+# Final C10 R23/R24 E49 single-lineage package
 
 This directory is the only final submission package for the 2026 SNU FastMRI
 Challenge. It contains one VESSL-only routed model and the source, environment,
@@ -28,7 +28,7 @@ verify_package.py
 package-manifest.json
 best_model.pt
 project/                         # exact inference project snapshot
-reproduction/                    # exact R23 training sources and contracts
+reproduction/                    # exact R23 recipe and R24 scheduler sources/contracts
 evidence/                        # lineage, policy, package, and evaluation receipts
 ```
 
@@ -40,16 +40,18 @@ symlinks, or more than one learned-state file.
 
 Before sealing, `materialize_r23_evidence.py` converts the raw VESSL controller,
 E49, specialist-terminal, and NAF_S receipts into the normalized evidence files.
-It cross-checks every source hash against `best_model.pt` and refuses an
-admission fallback, a non-E49 parent, or an incomplete specialist budget.
+It cross-checks every source hash and the R24 post-E49 command/parser preflight
+against `best_model.pt`, and refuses an admission fallback, a non-E49 parent,
+or an incomplete specialist budget. When explicit component receipt paths are
+omitted, their content-addressed run directories are read from the sealed final
+controller receipt.
 
 ```bash
 python materialize_r23_evidence.py \
-  --controller-receipt /root/result/final-controller-receipt.json \
-  --generalist-receipt /root/result/generalist-e49-receipt.json \
-  --acc4-terminal /root/result/acc4-specialist-terminal.json \
-  --acc8-terminal /root/result/acc8-specialist-terminal.json \
-  --naf-receipt /root/result/naf-s-training-receipt.json
+  --controller-receipt \
+    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1/receipt.json \
+  --scheduler-deployment-receipt \
+    /root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R24_SCHEDULER_FIX_R1/r24-deployment-receipt.json
 ```
 
 The command is intentionally one-shot: existing normalized evidence is never
@@ -83,12 +85,13 @@ autocast, activation checkpointing, and CPU-offloaded AdamW implementation.
 Do not enable TF32, EMA, SWA, a separate GradScaler, external learned state, or
 another GPU.
 
-## Fixed R23 lineage
+## Fixed R23/R24 lineage
 
 | Component | Sealed contract |
 |---|---|
 | Generalist | compact PromptMR+ R2/C10/H0, fresh VESSL initialization, seed 430 |
 | Scheduler | one-epoch warmup and cosine horizon E51/238,272 steps |
+| R24 boundary fix | equal warmup/horizon specialist boundary is one linear warmup epoch with zero cosine tail |
 | Generalist handoff | exact atomic E49 checkpoint, optimizer step 228,928 |
 | Generalist data | organizer train only; validation forwards 0 |
 | ACC4 specialist | E1, 2,336 steps, peak LR 1e-5, exact upstream SSIM |
@@ -200,6 +203,13 @@ evaluation. It atomically seals the output metrics, log hash, model hash,
 timestamps, and attempt count into the package manifest and official
 evaluation receipt. It does not prevent the organizer from rerunning
 `recon_eval.sh` after submission.
+
+During the one team evaluation, `recon_eval.sh` invokes the verifier in its
+strict `--evaluation-in-progress` mode. That mode permits only the exact
+attempt-1 start marker and the live log in addition to the pre-evaluation
+manifest; all sealed files, model semantics, and lineage receipts are still
+verified. Normal organizer runs before or after that interval use the ordinary
+sealed-package verifier.
 
 SSIM is the ranking value. Reconstruction time is relevant only under the
 organizer's exact-SSIM tie rule.

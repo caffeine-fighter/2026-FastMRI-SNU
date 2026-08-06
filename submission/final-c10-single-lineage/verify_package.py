@@ -572,7 +572,15 @@ parser.add_argument(
     action="store_true",
     help="also require the official evaluation or submission receipt",
 )
+parser.add_argument(
+    "--evaluation-in-progress",
+    action="store_true",
+    help="allow only the sealed attempt-1 start marker and its live log",
+)
 args = parser.parse_args()
+
+if args.submission_ready and args.evaluation_in_progress:
+    fail("submission-ready and evaluation-in-progress are mutually exclusive")
 
 for relative in STRUCTURE:
     if not (ROOT / relative).is_file():
@@ -635,10 +643,39 @@ unsafe_links = sorted(
 if unsafe_links:
     fail(f"symlinks are forbidden: {unsafe_links}")
 sealed_files = set(files)
-if actual_files != sealed_files:
+evaluation_generated: set[str] = set()
+if args.evaluation_in_progress:
+    start_relative = "evidence/official-evaluation-start.json"
+    log_relative = "evidence/official-evaluation.log"
+    receipt_relative = "evidence/official-evaluation-receipt.json"
+    start_path = ROOT / start_relative
+    receipt_path = ROOT / receipt_relative
+    if not start_path.is_file() or receipt_path.exists():
+        fail("evaluation-in-progress requires one start marker and no receipt")
+    try:
+        start = json.loads(start_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"invalid official evaluation start marker: {error}")
+    if (
+        not isinstance(start, dict)
+        or start.get("schema") != "fastmri-r23-official-evaluation-start-v1"
+        or start.get("state") != "STARTED"
+        or start.get("attempt") != 1
+        or start.get("command") != "bash run_official_evaluation_once.sh"
+        or start.get("best_model_sha256") != sha256(model_path)
+        or start.get("pre_evaluation_manifest_sha256") != sha256(manifest_path)
+        or not isinstance(start.get("started_unix"), (int, float))
+        or float(start["started_unix"]) >= 1787237940
+    ):
+        fail("official evaluation start marker is not exact attempt 1")
+    evaluation_generated = {start_relative}
+    if (ROOT / log_relative).is_file():
+        evaluation_generated.add(log_relative)
+
+if actual_files != sealed_files | evaluation_generated:
     fail(
         "manifest coverage mismatch: "
-        f"unsealed={sorted(actual_files - sealed_files)}, "
+        f"unsealed={sorted(actual_files - sealed_files - evaluation_generated)}, "
         f"missing={sorted(sealed_files - actual_files)}"
     )
 for relative, contract in files.items():

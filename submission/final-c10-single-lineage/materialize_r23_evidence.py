@@ -89,10 +89,10 @@ parser.add_argument(
         "r24-deployment-receipt.json"
     ),
 )
-parser.add_argument("--generalist-receipt", type=Path, required=True)
-parser.add_argument("--acc4-terminal", type=Path, required=True)
-parser.add_argument("--acc8-terminal", type=Path, required=True)
-parser.add_argument("--naf-receipt", type=Path, required=True)
+parser.add_argument("--generalist-receipt", type=Path)
+parser.add_argument("--acc4-terminal", type=Path)
+parser.add_argument("--acc8-terminal", type=Path)
+parser.add_argument("--naf-receipt", type=Path)
 args = parser.parse_args()
 
 if not all(
@@ -136,9 +136,44 @@ controller = load(args.controller_receipt)
 scheduler_amendment = load(SCHEDULER_AMENDMENT)
 scheduler_deployment = load(args.scheduler_deployment_receipt)
 post_e49_preflight = load(POST_E49_PREFLIGHT)
-generalist = load(args.generalist_receipt)
-terminals = {"acc4": load(args.acc4_terminal), "acc8": load(args.acc8_terminal)}
-naf = load(args.naf_receipt)
+
+
+def controller_artifact(
+    explicit: Path | None,
+    run_key: str,
+    filename: str,
+) -> Path:
+    if explicit is not None:
+        return explicit
+    run_value = controller.get(run_key)
+    if not isinstance(run_value, str) or not run_value:
+        raise SystemExit(
+            f"R23_EVIDENCE_REFUSED: controller is missing {run_key}"
+        )
+    return Path(run_value) / filename
+
+
+generalist_receipt_path = controller_artifact(
+    args.generalist_receipt,
+    "selected_run",
+    "controller-terminal-checkpoint.json",
+)
+terminal_paths = {
+    "acc4": controller_artifact(
+        args.acc4_terminal, "acc4_specialist_run", "terminal.json"
+    ),
+    "acc8": controller_artifact(
+        args.acc8_terminal, "acc8_specialist_run", "terminal.json"
+    ),
+}
+naf_receipt_path = controller_artifact(
+    args.naf_receipt,
+    "post_refiner_run",
+    "receipt.json",
+)
+generalist = load(generalist_receipt_path)
+terminals = {route: load(path) for route, path in terminal_paths.items()}
+naf = load(naf_receipt_path)
 admission = controller.get("final_admission")
 model_sha = sha256(MODEL)
 
@@ -396,7 +431,7 @@ for route in ("acc4", "acc8"):
         "external_learned_state_imported": False,
         "leaderboard_data_used": False,
         "source_terminal_sha256": sha256(
-            args.acc4_terminal if route == "acc4" else args.acc8_terminal
+            terminal_paths[route]
         ),
         "controller_receipt_sha256": sha256(args.controller_receipt),
     }
