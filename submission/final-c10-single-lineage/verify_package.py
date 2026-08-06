@@ -174,13 +174,165 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or post.get("routed_branch_sha256")
         != {"acc4": source_hashes["acc4"], "acc8": source_hashes["acc8"]}
         or post.get("sampler_policy") != "equal_acc_real_acc8_real80_virtual20_v1"
+        or not isinstance(post.get("source_checkpoint_sha256"), str)
+        or len(post["source_checkpoint_sha256"]) != 64
         or not isinstance(post.get("post_refiner_state"), dict)
     ):
         fail("best_model.pt NAF_S component is not exact frozen-C10 R23")
+    source_hashes["post_refiner"] = post["source_checkpoint_sha256"]
     forbidden = {"optimizer", "scheduler", "rng_state", "ema", "swa", "scaler"}
     if forbidden.intersection(value):
         fail("best_model.pt contains forbidden training state")
     return source_hashes
+
+
+def json_object(relative: str) -> dict:
+    try:
+        value = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"invalid JSON evidence {relative}: {error}")
+    if not isinstance(value, dict):
+        fail(f"JSON evidence is not an object: {relative}")
+    return value
+
+
+def verify_evidence_receipts(
+    source_hashes: dict[str, str], model_sha256: str
+) -> None:
+    generalist = json_object("evidence/generalist-e49-receipt.json")
+    if (
+        generalist.get("schema") != "vessl-g10-generalist-terminal-checkpoint-v1"
+        or generalist.get("state") != "SEALED"
+        or generalist.get("checkpoint_sha256") != source_hashes["generalist"]
+        or generalist.get("epoch") != 49
+        or generalist.get("optimizer_step") != 228928
+        or generalist.get("scheduler_horizon_epochs") != 51
+        or generalist.get("scheduler_total_steps") != 238272
+        or generalist.get("leaderboard_data_used") is not False
+        or generalist.get("external_learned_state_imported") is not False
+    ):
+        fail("E49 generalist evidence receipt is invalid")
+
+    specialist_contracts = {
+        "acc4": {
+            "optimizer_steps": 2336,
+            "lr_horizon_optimizer_steps": 2336,
+            "peak_lr": 0.00001,
+            "loss_family": "exact_upstream_ssim",
+            "mraugment": "conservative_immediate",
+            "training_pool": "organizer_train_acc4",
+        },
+        "acc8": {
+            "optimizer_steps": 1158,
+            "lr_horizon_optimizer_steps": 2315,
+            "peak_lr": 0.00005,
+            "loss_family": "r10_image_masked_ssim_valid_windows_mean",
+            "mraugment": "off",
+            "training_pool": "organizer_real_acc8_only",
+        },
+    }
+    for route, expected in specialist_contracts.items():
+        receipt = json_object(f"evidence/{route}-specialist-receipt.json")
+        if (
+            receipt.get("schema") != "fastmri-r23-specialist-receipt-v1"
+            or receipt.get("state") != "PASS"
+            or receipt.get("route") != route
+            or receipt.get("checkpoint_sha256") != source_hashes[route]
+            or receipt.get("parent_checkpoint_sha256")
+            != source_hashes["generalist"]
+            or receipt.get("parent_epoch") != 49
+            or receipt.get("parent_optimizer_step") != 228928
+            or receipt.get("source_epoch") != 0
+            or receipt.get("optimizer_steps") != expected["optimizer_steps"]
+            or receipt.get("lr_horizon_optimizer_steps")
+            != expected["lr_horizon_optimizer_steps"]
+            or receipt.get("peak_lr") != expected["peak_lr"]
+            or receipt.get("loss_family") != expected["loss_family"]
+            or receipt.get("mraugment") != expected["mraugment"]
+            or receipt.get("training_pool") != expected["training_pool"]
+            or receipt.get("validation_forward_count") != 0
+            or receipt.get("trained_on_vessl") is not True
+            or receipt.get("external_learned_state_imported") is not False
+            or receipt.get("leaderboard_data_used") is not False
+        ):
+            fail(f"{route.upper()} specialist evidence receipt is invalid")
+
+    naf = json_object("evidence/naf-s-training-receipt.json")
+    if (
+        naf.get("schema") != "vessl-post-refiner-training-receipt-v1"
+        or naf.get("state") != "PASS"
+        or naf.get("checkpoint_sha256") != source_hashes["post_refiner"]
+        or naf.get("base_checkpoint_sha256") != source_hashes["generalist"]
+        or naf.get("routed_branch_sha256")
+        != {"acc4": source_hashes["acc4"], "acc8": source_hashes["acc8"]}
+        or naf.get("variant") != "NAF_S"
+        or naf.get("epochs") != 21
+        or naf.get("parent_epoch") != 49
+        or naf.get("optimizer_steps") != 93567
+        or naf.get("loss_family")
+        != "winner_foreground_ssim_l1_sqrt_area_plus_official384_bbox05_v2"
+        or naf.get("bbox_loss_coefficient") != 0.5
+        or naf.get("training_data") != "organizer_train_plus_val_final"
+        or naf.get("validation_used_for_checkpoint_selection") is not False
+        or naf.get("leaderboard_data_read") is not False
+        or naf.get("external_learned_state_imported") is not False
+    ):
+        fail("NAF_S training evidence receipt is invalid")
+
+    policy = json_object("evidence/policy-receipt.json")
+    if (
+        policy.get("schema") != "fastmri-r23-policy-receipt-v1"
+        or policy.get("state") != "PASS"
+        or policy.get("candidate_count") != 1
+        or policy.get("final_package_count") != 1
+        or policy.get("fallback_registered") is not False
+        or policy.get("official_evaluation_max_runs") != 1
+        or policy.get("routing_input") != "input_kspace_mask_only"
+        or policy.get("routing_features")
+        != ["mask_density", "acs_width", "period_residue", "offset"]
+        or policy.get("unknown_or_mismatch_route") != "generalist"
+        or policy.get("routing_forbidden_inputs")
+        != ["filename", "image", "bbox", "target", "leaderboard_result"]
+        or policy.get("augmentation_schema")
+        != "acc4-to-acc8-pair-mask-augmentation-v1"
+        or policy.get("augmentation_inference_enabled") is not False
+        or policy.get("official_mask_unchanged") is not True
+        or policy.get("validation_used_for_checkpoint_selection") is not False
+        or policy.get("learned_state_source") != "VESSL_ONLY"
+        or policy.get("external_learned_state_imported") is not False
+        or policy.get("leaderboard_data_used_for_training_or_selection") is not False
+    ):
+        fail("augmentation/dispatch/single-candidate policy receipt is invalid")
+
+    admission = json_object("evidence/inference-admission-receipt.json")
+    runtime = admission.get("runtime_contract")
+    records = admission.get("records")
+    if (
+        admission.get("schema") != "vessl-final-lazy-router-admission-v2"
+        or admission.get("state") != "PASS"
+        or admission.get("final_checkpoint_sha256") != model_sha256
+        or admission.get("gpu") != "NVIDIA GeForce GTX 1080"
+        or admission.get("memory_limit_mib") != 8192
+        or not isinstance(admission.get("nvml_exclusive_device_peak_mib"), (int, float))
+        or float(admission["nvml_exclusive_device_peak_mib"]) > 8192
+        or admission.get("leaderboard_data_used") is not False
+        or admission.get("official_reconstruction_path") is not True
+        or not isinstance(runtime, dict)
+        or runtime.get("training_frame_height") != 384
+        or runtime.get("sensitivity_coil_batch_size") != 8
+        or runtime.get("alignment_inside_timed_recon_slice") is not True
+        or not isinstance(records, dict)
+        or set(records) != {"acc4", "acc8"}
+    ):
+        fail("GTX1080 inference admission receipt is invalid")
+    for route in ("acc4", "acc8"):
+        canaries = records[route].get("stress_canaries")
+        if (
+            not isinstance(canaries, list)
+            or not canaries
+            or any(item.get("finite") is not True for item in canaries)
+        ):
+            fail(f"{route.upper()} max-shape inference canary is invalid")
 
 
 parser = argparse.ArgumentParser()
@@ -298,6 +450,7 @@ if "best_model.pt" not in files:
     fail("best_model.pt is not sealed by the manifest")
 
 source_hashes = verify_routed_model(model_path)
+verify_evidence_receipts(source_hashes, sha256(model_path))
 
 if args.submission_ready:
     receipt_path = ROOT / "evidence/official-evaluation-receipt.json"
