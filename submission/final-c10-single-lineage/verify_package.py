@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 
 
@@ -22,13 +23,11 @@ STRUCTURE = (
     "reproduce_final.sh",
     "run_official_evaluation_once.sh",
     "assemble_final_package.py",
+    "build_submission_archive.py",
     "materialize_r30_evidence.py",
     "seal_package.py",
+    "submission_audit.py",
     "verify_package.py",
-    "reproduction/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json",
-    "reproduction/final-tactics-c10-r30-neighbor-zf.json",
-    "reproduction/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json",
-    "reproduction/R30_CPU_PREFLIGHT.json",
 )
 FINAL_STRUCTURE = (
     "best_model.pt",
@@ -43,7 +42,6 @@ FINAL_STRUCTURE = (
     "project/utils/learning/promptmr_post_refiner.py",
     "project/utils/model/promptmr_plus_adapter.py",
     "project/third_party/promptmr_plus/SOURCE_MANIFEST.json",
-    "reproduction/controller.py",
     "reproduction/generalist/train.py",
     "reproduction/generalist/promptmr_production.py",
     "reproduction/specialist/train.py",
@@ -55,10 +53,28 @@ FINAL_STRUCTURE = (
     "reproduction/promptmr_mask_router.py",
     "reproduction/promptmr_legal_mask.py",
     "reproduction/test_part.py",
-    "reproduction/preflight_r30.py",
     "reproduction/organizer-data-provenance.json",
-    "reproduction/inference-source-snapshot-manifest.json",
+    "reproduction/portability-receipt.json",
     "reproduction/source-sha256sums.txt",
+    "evidence/raw/contracts/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json",
+    "evidence/raw/contracts/final-tactics-c10-r30-neighbor-zf.json",
+    "evidence/raw/contracts/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json",
+    "evidence/raw/contracts/R30_CPU_PREFLIGHT.json",
+    "evidence/raw/contracts/inference-source-snapshot-manifest.json",
+    "evidence/raw/training_source/controller.py",
+    "evidence/raw/training_source/generalist/train.py",
+    "evidence/raw/training_source/generalist/promptmr_production.py",
+    "evidence/raw/training_source/specialist/train.py",
+    "evidence/raw/training_source/specialist/promptmr_production.py",
+    "evidence/raw/training_source/vessl_train_post_refiner.py",
+    "evidence/raw/training_source/vessl_build_routed_promptmr_checkpoint.py",
+    "evidence/raw/training_source/promptmr_post_refiner.py",
+    "evidence/raw/training_source/promptmr_router.py",
+    "evidence/raw/training_source/promptmr_mask_router.py",
+    "evidence/raw/training_source/promptmr_legal_mask.py",
+    "evidence/raw/training_source/test_part.py",
+    "evidence/raw/training_source/preflight_r30.py",
+    "evidence/raw/organizer-data-provenance-original.json",
     "evidence/assembly-receipt.json",
     "evidence/raw/controller-final-receipt.json",
     "evidence/raw/acc4-terminal.json",
@@ -71,8 +87,16 @@ FINAL_STRUCTURE = (
     "evidence/inference-admission-receipt.json",
     "evidence/r30-amendment-deployment-receipt.json",
     "evidence/evidence-materialization-receipt.json",
+    "evidence/training_logs/generalist.log",
+    "evidence/training_logs/acc4_specialist.log",
+    "evidence/training_logs/acc8_specialist.log",
+    "evidence/training_logs/naf_s.log",
+    "evidence/environment/pip_freeze.txt",
+    "SHA256SUMS",
 )
 LEARNED_SUFFIXES = {".pt", ".pth", ".ckpt", ".safetensors"}
+SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9._-]+$")
+RESIDUAL_NAMES = {"__MACOSX", ".DS_Store", "Thumbs.db", "__pycache__"}
 
 
 def fail(message: str) -> None:
@@ -96,6 +120,99 @@ def json_object(relative: str) -> dict:
     if not isinstance(value, dict):
         fail(f"JSON object required: {relative}")
     return value
+
+
+def verify_portable_tree() -> None:
+    for path in ROOT.rglob("*"):
+        relative = path.relative_to(ROOT)
+        for component in relative.parts:
+            if component in RESIDUAL_NAMES:
+                fail(f"residual packaging path is forbidden: {relative.as_posix()}")
+            if SAFE_COMPONENT.fullmatch(component) is None:
+                fail(f"unsafe filename component: {relative.as_posix()}")
+        if path.is_symlink():
+            fail(f"symlink is forbidden: {relative.as_posix()}")
+
+
+def verify_sha256sums(files: dict) -> None:
+    checksum_path = ROOT / "SHA256SUMS"
+    try:
+        lines = checksum_path.read_text(encoding="ascii").splitlines()
+    except (OSError, UnicodeError) as error:
+        fail(f"invalid SHA256SUMS: {error}")
+    records: dict[str, str] = {}
+    for line in lines:
+        match = re.fullmatch(r"([0-9a-f]{64})  ([A-Za-z0-9._/-]+)", line)
+        if match is None:
+            fail(f"malformed SHA256SUMS line: {line!r}")
+        digest, relative = match.groups()
+        if relative in records or "\\" in relative or relative.startswith("/"):
+            fail(f"unsafe or duplicate SHA256SUMS path: {relative}")
+        records[relative] = digest
+    expected = set(files) - {"SHA256SUMS"}
+    if set(records) != expected:
+        fail("SHA256SUMS coverage mismatch")
+    for relative, expected_digest in records.items():
+        path = ROOT / relative
+        if not path.is_file() or path.is_symlink() or sha256(path) != expected_digest:
+            fail(f"SHA256SUMS mismatch: {relative}")
+
+
+def verify_portable_reproduction() -> None:
+    reproduction = ROOT / "reproduction"
+    sums_path = reproduction / "source-sha256sums.txt"
+    records: dict[str, str] = {}
+    for line in sums_path.read_text(encoding="ascii").splitlines():
+        match = re.fullmatch(r"([0-9a-f]{64})  ([A-Za-z0-9._/-]+)", line)
+        if match is None:
+            fail(f"malformed reproduction checksum line: {line!r}")
+        digest, relative = match.groups()
+        if relative in records:
+            fail(f"duplicate reproduction checksum path: {relative}")
+        records[relative] = digest
+    actual = {
+        path.relative_to(reproduction).as_posix()
+        for path in reproduction.rglob("*")
+        if path.is_file() and path != sums_path
+    }
+    if set(records) != actual:
+        fail("portable reproduction checksum coverage mismatch")
+    for relative, digest in records.items():
+        if sha256(reproduction / relative) != digest:
+            fail(f"portable reproduction checksum mismatch: {relative}")
+
+    receipt = json_object("reproduction/portability-receipt.json")
+    files = receipt.get("files")
+    if (
+        receipt.get("schema") != "fastmri-r30-path-portability-receipt-v1"
+        or receipt.get("state") != "PASS"
+        or receipt.get("numeric_recipe_changed") is not False
+        or receipt.get("model_architecture_changed") is not False
+        or receipt.get("data_identity_changed") is not False
+        or not isinstance(files, dict)
+        or not files
+    ):
+        fail("path-portability receipt is invalid")
+    for relative, record in files.items():
+        if not isinstance(record, dict):
+            fail(f"invalid path-portability record: {relative}")
+        portable = reproduction / relative
+        original = ROOT / "evidence/raw/training_source" / relative
+        if (
+            not portable.is_file()
+            or not original.is_file()
+            or sha256(portable) != record.get("portable_sha256")
+            or sha256(original) != record.get("original_sha256")
+            or int(record.get("path_only_rewrite_count", -1)) < 0
+        ):
+            fail(f"path-portability source binding mismatch: {relative}")
+    original_provenance = ROOT / "evidence/raw/organizer-data-provenance-original.json"
+    portable_provenance = reproduction / "organizer-data-provenance.json"
+    if (
+        sha256(original_provenance) != receipt.get("original_provenance_sha256")
+        or sha256(portable_provenance) != receipt.get("portable_provenance_sha256")
+    ):
+        fail("path-portability provenance binding mismatch")
 
 
 def verify_routed_model(path: Path) -> dict[str, str]:
@@ -243,10 +360,10 @@ def verify_routed_model(path: Path) -> dict[str, str]:
 
 
 def verify_static_contracts() -> dict:
-    amendment = json_object("reproduction/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json")
-    tactics = json_object("reproduction/final-tactics-c10-r30-neighbor-zf.json")
-    runtime = json_object("reproduction/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json")
-    preflight = json_object("reproduction/R30_CPU_PREFLIGHT.json")
+    amendment = json_object("evidence/raw/contracts/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json")
+    tactics = json_object("evidence/raw/contracts/final-tactics-c10-r30-neighbor-zf.json")
+    runtime = json_object("evidence/raw/contracts/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json")
+    preflight = json_object("evidence/raw/contracts/R30_CPU_PREFLIGHT.json")
     change = amendment.get("amendment")
     policy = amendment.get("policy")
     if (
@@ -281,17 +398,17 @@ def verify_static_contracts() -> dict:
         fail("R30 contracts or CPU preflight are invalid")
 
     source_paths = {
-        "controller.py": ROOT / "reproduction/controller.py",
-        "train.py": ROOT / "reproduction/specialist/train.py",
-        "promptmr_production.py": ROOT / "reproduction/specialist/promptmr_production.py",
-        "vessl_train_post_refiner.py": ROOT / "reproduction/vessl_train_post_refiner.py",
-        "vessl_build_routed_promptmr_checkpoint.py": ROOT / "reproduction/vessl_build_routed_promptmr_checkpoint.py",
-        "promptmr_post_refiner.py": ROOT / "reproduction/promptmr_post_refiner.py",
-        "promptmr_router.py": ROOT / "reproduction/promptmr_router.py",
-        "promptmr_mask_router.py": ROOT / "reproduction/promptmr_mask_router.py",
-        "promptmr_legal_mask.py": ROOT / "reproduction/promptmr_legal_mask.py",
-        "test_part.py": ROOT / "reproduction/test_part.py",
-        "preflight_r30.py": ROOT / "reproduction/preflight_r30.py",
+        "controller.py": ROOT / "evidence/raw/training_source/controller.py",
+        "train.py": ROOT / "evidence/raw/training_source/specialist/train.py",
+        "promptmr_production.py": ROOT / "evidence/raw/training_source/specialist/promptmr_production.py",
+        "vessl_train_post_refiner.py": ROOT / "evidence/raw/training_source/vessl_train_post_refiner.py",
+        "vessl_build_routed_promptmr_checkpoint.py": ROOT / "evidence/raw/training_source/vessl_build_routed_promptmr_checkpoint.py",
+        "promptmr_post_refiner.py": ROOT / "evidence/raw/training_source/promptmr_post_refiner.py",
+        "promptmr_router.py": ROOT / "evidence/raw/training_source/promptmr_router.py",
+        "promptmr_mask_router.py": ROOT / "evidence/raw/training_source/promptmr_mask_router.py",
+        "promptmr_legal_mask.py": ROOT / "evidence/raw/training_source/promptmr_legal_mask.py",
+        "test_part.py": ROOT / "evidence/raw/training_source/test_part.py",
+        "preflight_r30.py": ROOT / "evidence/raw/training_source/preflight_r30.py",
     }
     hashes = amendment.get("source_hashes")
     if not isinstance(hashes, dict):
@@ -383,6 +500,7 @@ if args.submission_ready and args.evaluation_in_progress:
 for relative in STRUCTURE:
     if not (ROOT / relative).is_file():
         fail(f"missing {relative}")
+verify_portable_tree()
 if args.structure_only:
     print("FINAL_R30_PACKAGE_STRUCTURE_OK")
     raise SystemExit(0)
@@ -408,7 +526,7 @@ required_manifest = {
     "hard_deadline_unix": DEADLINE,
     "hard_deadline_kst": "2026-08-20T23:59:00+09:00",
     "external_learned_state_imported": False,
-    "leaderboard_data_used_for_training_or_selection": False,
+    "leaderboard_data_read_by_training_or_routing": False,
 }
 for key, expected in required_manifest.items():
     if manifest.get(key) != expected:
@@ -424,6 +542,8 @@ actual_files = {
 }
 if any(path.is_symlink() for path in ROOT.rglob("*")):
     fail("symlinks are forbidden")
+if any("\\" in relative or relative.startswith("/") for relative in files):
+    fail("manifest contains a non-POSIX or absolute path")
 generated: set[str] = set()
 if args.evaluation_in_progress:
     start_relative = "evidence/official-evaluation-start.json"
@@ -457,6 +577,40 @@ for relative, record in files.items():
 for relative in FINAL_STRUCTURE:
     if relative not in files:
         fail(f"required artifact is not sealed: {relative}")
+verify_sha256sums(files)
+verify_portable_reproduction()
+
+for relative in (
+    "evidence/training_logs/generalist.log",
+    "evidence/training_logs/acc4_specialist.log",
+    "evidence/training_logs/acc8_specialist.log",
+    "evidence/training_logs/naf_s.log",
+    "evidence/environment/pip_freeze.txt",
+):
+    evidence_path = ROOT / relative
+    if evidence_path.stat().st_size < 256 or b"\0" in evidence_path.read_bytes()[:64 * 1024]:
+        fail(f"training/environment evidence is empty or non-text: {relative}")
+
+normalize_name = lambda value: re.sub(r"[-_.]+", "-", value.strip().lower())
+requirements = {}
+for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines():
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or stripped.startswith("--"):
+        continue
+    if "==" not in stripped:
+        fail(f"requirements entry is not pinned: {stripped}")
+    name, version = stripped.split("==", 1)
+    requirements[normalize_name(name)] = version.lower()
+freeze = {}
+for line in (ROOT / "evidence/environment/pip_freeze.txt").read_text(
+    encoding="utf-8", errors="replace"
+).splitlines():
+    if "==" in line:
+        name, version = line.split("==", 1)
+        freeze[normalize_name(name)] = version.strip().lower()
+for name, version in requirements.items():
+    if freeze.get(name) != version:
+        fail(f"requirements/pip-freeze mismatch: {name}")
 
 learned = sorted(
     path.relative_to(ROOT).as_posix()
@@ -482,7 +636,7 @@ if args.submission_ready:
         or receipt.get("official_evaluation_attempt_count") != 1
         or receipt.get("return_code") != 0
         or receipt.get("best_model_sha256") != sha256(model_path)
-        or receipt.get("leaderboard_data_used_for_training_or_selection") is not False
+        or receipt.get("leaderboard_data_access_scope") != "official_evaluation_only"
         or float(receipt.get("completed_unix", DEADLINE + 1)) > DEADLINE
         or start.get("schema") != "fastmri-r30-official-evaluation-start-v1"
         or start.get("started_unix") != receipt.get("started_unix")

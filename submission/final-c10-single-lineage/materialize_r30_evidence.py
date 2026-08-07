@@ -16,11 +16,12 @@ import uuid
 ROOT = Path(__file__).resolve().parent
 REPRO = ROOT / "reproduction"
 EVIDENCE = ROOT / "evidence"
+RAW = EVIDENCE / "raw"
 MODEL = ROOT / "best_model.pt"
-TACTICS = REPRO / "final-tactics-c10-r30-neighbor-zf.json"
-AMENDMENT = REPRO / "FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json"
-RUNTIME = REPRO / "FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
-PREFLIGHT = REPRO / "R30_CPU_PREFLIGHT.json"
+TACTICS = RAW / "contracts/final-tactics-c10-r30-neighbor-zf.json"
+AMENDMENT = RAW / "contracts/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json"
+RUNTIME = RAW / "contracts/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
+PREFLIGHT = RAW / "contracts/R30_CPU_PREFLIGHT.json"
 INPUT_MODE = "recon_zero_filled_residual_neighbor_zf"
 ZF_DEFINITION = "rss(fftshift(ifft2(ifftshift(masked_kspace),norm=ortho)))"
 
@@ -141,17 +142,17 @@ if (
     fail("sealed R30 contract or CPU preflight is invalid")
 
 source_paths = {
-    "controller.py": REPRO / "controller.py",
-    "train.py": REPRO / "specialist/train.py",
-    "promptmr_production.py": REPRO / "specialist/promptmr_production.py",
-    "vessl_train_post_refiner.py": REPRO / "vessl_train_post_refiner.py",
-    "vessl_build_routed_promptmr_checkpoint.py": REPRO / "vessl_build_routed_promptmr_checkpoint.py",
-    "promptmr_post_refiner.py": REPRO / "promptmr_post_refiner.py",
-    "promptmr_router.py": REPRO / "promptmr_router.py",
-    "promptmr_mask_router.py": REPRO / "promptmr_mask_router.py",
-    "promptmr_legal_mask.py": REPRO / "promptmr_legal_mask.py",
-    "test_part.py": REPRO / "test_part.py",
-    "preflight_r30.py": REPRO / "preflight_r30.py",
+    "controller.py": RAW / "training_source/controller.py",
+    "train.py": RAW / "training_source/specialist/train.py",
+    "promptmr_production.py": RAW / "training_source/specialist/promptmr_production.py",
+    "vessl_train_post_refiner.py": RAW / "training_source/vessl_train_post_refiner.py",
+    "vessl_build_routed_promptmr_checkpoint.py": RAW / "training_source/vessl_build_routed_promptmr_checkpoint.py",
+    "promptmr_post_refiner.py": RAW / "training_source/promptmr_post_refiner.py",
+    "promptmr_router.py": RAW / "training_source/promptmr_router.py",
+    "promptmr_mask_router.py": RAW / "training_source/promptmr_mask_router.py",
+    "promptmr_legal_mask.py": RAW / "training_source/promptmr_legal_mask.py",
+    "test_part.py": RAW / "training_source/test_part.py",
+    "preflight_r30.py": RAW / "training_source/preflight_r30.py",
 }
 sealed_sources = amendment.get("source_hashes")
 if not isinstance(sealed_sources, dict):
@@ -298,7 +299,7 @@ policy_receipt = {
     },
     "learned_state_source": "VESSL_ONLY",
     "external_learned_state_imported": False,
-    "leaderboard_data_used_for_training_or_selection": False,
+    "leaderboard_data_read_by_training_or_routing": False,
     "tactics_sha256": sha256(TACTICS),
     "amendment_sha256": sha256(AMENDMENT),
     "runtime_sha256": sha256(RUNTIME),

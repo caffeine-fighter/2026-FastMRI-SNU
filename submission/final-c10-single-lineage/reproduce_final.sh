@@ -3,14 +3,16 @@ set -euo pipefail
 
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGED_PROJECT="$PACKAGE_ROOT/project"
-PROJECT_ROOT="${PROJECT_ROOT:-/root/2026-FastMRI-SNU-promptmr-plus}"
 REPRO_ROOT="$PACKAGE_ROOT/reproduction"
-DATA_ROOT="${DATA_ROOT:-/root/Data}"
-RESULT_ROOT=/root/result
+RAW_EVIDENCE_ROOT="$PACKAGE_ROOT/evidence/raw"
+DATA_ROOT="${1:-${DATA_ROOT:-$PACKAGE_ROOT/data}}"
+OUT_DIR="${2:-${OUT_DIR:-$PACKAGE_ROOT/../fastmri_training_output}}"
+PROJECT_ROOT="$OUT_DIR/project"
+RESULT_ROOT="$OUT_DIR/result"
 MANIFEST="$REPRO_ROOT/organizer-data-provenance.json"
-R30_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json"
-R30_RUNTIME="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
-R30_PREFLIGHT="$REPRO_ROOT/R30_CPU_PREFLIGHT.json"
+R30_AMENDMENT="$RAW_EVIDENCE_ROOT/contracts/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json"
+R30_RUNTIME="$RAW_EVIDENCE_ROOT/contracts/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
+R30_PREFLIGHT="$RAW_EVIDENCE_ROOT/contracts/R30_CPU_PREFLIGHT.json"
 R30_SPECIALIST_PRODUCTION_SHA256="ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
 RUN_NAME="EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_R30_REPRO"
 RUN_DIR="$RESULT_ROOT/$RUN_NAME"
@@ -19,9 +21,8 @@ E49_CHECKPOINT="$RUN_DIR/checkpoints/checkpoint-last-000228928.pt"
 
 python "$PACKAGE_ROOT/verify_package.py" --structure-only
 test -d "$PACKAGED_PROJECT"
-if ! test -d "$PROJECT_ROOT"; then
-  cp -a -- "$PACKAGED_PROJECT" "$PROJECT_ROOT"
-fi
+mkdir -p "$PROJECT_ROOT"
+cp -a -- "$PACKAGED_PROJECT/." "$PROJECT_ROOT/"
 test -f "$PROJECT_ROOT/recon_eval.py"
 test -f "$REPRO_ROOT/source-sha256sums.txt"
 test -f "$MANIFEST"
@@ -33,6 +34,8 @@ test -d "$DATA_ROOT/train/image"
 test -d "$DATA_ROOT/val/kspace"
 test -d "$DATA_ROOT/val/image"
 mkdir -p "$RESULT_ROOT"
+export FASTMRI_RESULT_ROOT="$RESULT_ROOT"
+export FASTMRI_TRAIN_ROOT="$DATA_ROOT/train"
 for path in \
   "$RUN_DIR" \
   "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E3_S7008_SEED430_R30_REPRO" \
@@ -49,7 +52,7 @@ cd "$REPRO_ROOT"
 sha256sum -c source-sha256sums.txt
 
 python - "$R30_AMENDMENT" "$R30_RUNTIME" "$R30_PREFLIGHT" \
-  "$REPRO_ROOT/specialist/promptmr_production.py" \
+  "$RAW_EVIDENCE_ROOT/training_source/specialist/promptmr_production.py" \
   "$R30_SPECIALIST_PRODUCTION_SHA256" <<'PY'
 import hashlib
 import json

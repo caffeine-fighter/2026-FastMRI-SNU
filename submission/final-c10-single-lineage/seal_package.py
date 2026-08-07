@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "package-manifest.json"
 MODEL = ROOT / "best_model.pt"
+CHECKSUMS = ROOT / "SHA256SUMS"
 LEARNED_SUFFIXES = {".pt", ".pth", ".ckpt", ".safetensors"}
 KST = ZoneInfo("Asia/Seoul")
 HARD_DEADLINE_UNIX = 1_787_237_940
@@ -37,6 +38,8 @@ def fail(message: str) -> None:
 
 if MANIFEST.exists():
     fail("package-manifest.json already exists")
+if CHECKSUMS.exists():
+    fail("SHA256SUMS already exists")
 if time.time() >= HARD_DEADLINE_UNIX:
     fail("package sealing is after the hard deadline")
 if not MODEL.is_file() or MODEL.is_symlink():
@@ -62,6 +65,21 @@ learned = sorted(
 if learned != ["best_model.pt"]:
     fail(f"exactly one learned-state file is required, observed {learned}")
 
+checksum_lines = []
+for path in sorted(ROOT.rglob("*")):
+    if path.is_file() and path not in {MANIFEST, CHECKSUMS}:
+        checksum_lines.append(
+            f"{sha256(path)}  {path.relative_to(ROOT).as_posix()}\n"
+        )
+temporary_checksums = CHECKSUMS.with_name(
+    f".{CHECKSUMS.name}.{uuid.uuid4().hex}.tmp"
+)
+with temporary_checksums.open("xb") as handle:
+    handle.write("".join(checksum_lines).encode("ascii"))
+    handle.flush()
+    os.fsync(handle.fileno())
+os.replace(temporary_checksums, CHECKSUMS)
+
 files = {}
 for path in sorted(ROOT.rglob("*")):
     if path.is_file():
@@ -85,7 +103,7 @@ manifest = {
     "generalist_handoff_optimizer_step": 228928,
     "scheduler_horizon_epoch": 51,
     "external_learned_state_imported": False,
-    "leaderboard_data_used_for_training_or_selection": False,
+    "leaderboard_data_read_by_training_or_routing": False,
     "hard_deadline_unix": HARD_DEADLINE_UNIX,
     "hard_deadline_kst": "2026-08-20T23:59:00+09:00",
     "sealed_unix": now,
@@ -119,6 +137,7 @@ completed = subprocess.run(
 )
 if completed.returncode != 0:
     MANIFEST.unlink(missing_ok=True)
+    CHECKSUMS.unlink(missing_ok=True)
     sys.stderr.write(completed.stdout)
     sys.stderr.write(completed.stderr)
     fail("post-seal verification failed; generated manifest was removed")

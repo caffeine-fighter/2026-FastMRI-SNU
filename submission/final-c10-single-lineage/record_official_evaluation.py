@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent
 EVIDENCE = ROOT / "evidence"
 MANIFEST = ROOT / "package-manifest.json"
 MODEL = ROOT / "best_model.pt"
+CHECKSUMS = ROOT / "SHA256SUMS"
 START = EVIDENCE / "official-evaluation-start.json"
 RECEIPT = EVIDENCE / "official-evaluation-receipt.json"
 LOG = EVIDENCE / "official-evaluation.log"
@@ -60,6 +61,23 @@ def load_json(path: Path) -> dict:
     if not isinstance(value, dict):
         raise RuntimeError(f"JSON object required: {path}")
     return value
+
+
+def write_checksums() -> None:
+    lines = []
+    for path in sorted(ROOT.rglob("*")):
+        if (
+            path.is_file()
+            and path not in {MANIFEST, CHECKSUMS}
+            and path.relative_to(ROOT).parts[0] != "result"
+        ):
+            lines.append(f"{sha256(path)}  {path.relative_to(ROOT).as_posix()}\n")
+    temporary = CHECKSUMS.with_name(f".{CHECKSUMS.name}.{uuid.uuid4().hex}.tmp")
+    with temporary.open("xb") as handle:
+        handle.write("".join(lines).encode("ascii"))
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, CHECKSUMS)
 
 
 def package_files() -> set[str]:
@@ -163,7 +181,7 @@ def finish(return_code: int) -> int:
         "log": LOG.relative_to(ROOT).as_posix(),
         "log_sha256": sha256(LOG),
         "scores": scores,
-        "leaderboard_data_used_for_training_or_selection": False,
+        "leaderboard_data_access_scope": "official_evaluation_only",
         "official_evaluation_attempt_count": 1,
     }
     atomic_json(RECEIPT, receipt)
@@ -184,6 +202,11 @@ def finish(return_code: int) -> int:
             "sha256": sha256(path),
             "bytes": path.stat().st_size,
         }
+    write_checksums()
+    files[CHECKSUMS.relative_to(ROOT).as_posix()] = {
+        "sha256": sha256(CHECKSUMS),
+        "bytes": CHECKSUMS.stat().st_size,
+    }
     atomic_json(MANIFEST, manifest)
     print(f"OFFICIAL_EVALUATION_ATTEMPT_1_{state}")
     return 0 if state == "PASS" else return_code or 1

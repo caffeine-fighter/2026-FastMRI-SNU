@@ -1,195 +1,237 @@
-# Final C10 R30 neighbor-ZF single-lineage package
+# 2026 SNU FastMRI final package
 
-This directory is the only final submission package for the 2026 SNU FastMRI
-Challenge. It contains one VESSL-only routed model and the exact source,
-environment, commands, contracts, and receipts needed to reproduce it. There is
-no fallback model, ensemble candidate, validation-selected checkpoint, or
-learned state imported from local or RunPod runs.
+This package contains one VESSL-trained, acceleration-routed PromptMR+ C10
+checkpoint and the code and evidence needed to reproduce it. The only learned
+state in the package is `best_model.pt`; there is no fallback checkpoint,
+ensemble, model soup, optimizer state, EMA, SWA, or external learned state.
 
-The reproduction target is equality with every submitted SSIM item after
-rounding to four decimal places. The authoritative score evidence is
-`evidence/official-evaluation-receipt.json` after the one team evaluation.
+The organizer inference entry point is `recon_eval.sh`. The end-to-end training
+entry point is `reproduce_final.sh`. Both accept data and output locations at
+runtime and require no source-code edits.
 
-## Package layout and verification
+## Quick verification
 
-```text
-README.md
-requirements.txt
-recon_eval.sh
-reproduce_final.sh
-run_official_evaluation_once.sh
-verify_package.py
-package-manifest.json
-best_model.pt
-project/                         # exact timed-inference source snapshot
-reproduction/                    # exact training source and sealed contracts
-evidence/                        # lineage, policy, assembly, and evaluation receipts
-```
-
-`package-manifest.json` records SHA-256 and byte size for every submitted file.
-Run the semantic verifier before inference:
-
-```bash
-python verify_package.py
-```
-
-The verifier fails closed unless all of the following are true:
-
-- exactly one learned-state file exists: `best_model.pt`;
-- `candidate_count=1`, no fallback, and at most one team official evaluation;
-- the embedded E49/ACC4/ACC8/NAF_S source hashes match the VESSL receipts;
-- the actual shipped `project/utils/learning/promptmr_router.py` accepts the
-  checkpoint contract;
-- the R30 source, deployment, CPU-preflight, and inference snapshot hashes match;
-- no optimizer, scheduler, scaler, RNG, EMA, or SWA state is packaged.
-
-`materialize_r30_evidence.py` normalizes the authoritative VESSL receipts before
-`seal_package.py` creates the manifest. Both operations are one-shot and refuse
-to overwrite prior evidence or a prior package.
-
-## Pinned environment
-
-- VESSL Ubuntu, one NVIDIA GeForce GTX 1080 with 8,192 MiB VRAM
-- Python 3.10.12
-- CUDA 12.1 and PyTorch 2.3.1+cu121
-- seed 430, batch size 1, FP32 command-line contract
+Use Python 3.10 in a clean Linux/VESSL environment:
 
 ```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+sha256sum -c SHA256SUMS
 python verify_package.py
+python submission_audit.py
 ```
 
-Do not enable TF32, EMA, SWA, a separate GradScaler, a second GPU, or external
-learned state. The training implementation uses FP32 master parameters with its
-sealed activation/checkpointing and CPU-offloaded AdamW behavior.
+`SHA256SUMS` covers every sealed package file except itself and
+`package-manifest.json`. The manifest independently records the SHA-256 and byte
+length of every sealed file, including `SHA256SUMS`. The final archive has a
+separate `.tar.gz.sha256` sidecar.
 
-## Exact training lineage
+## Inference and scoring
 
-| Component | Sealed R30 contract |
-|---|---|
-| Generalist | compact PromptMR+ R2/C10/H0, fresh VESSL initialization, seed 430 |
-| Generalist scheduler | warmup E1, cosine horizon E51 / 238,272 optimizer steps |
-| Generalist handoff | atomic E49 checkpoint at optimizer step 228,928 |
-| ACC4 specialist | 7,008 steps (E3 hard stop), LR horizon 35,040, peak LR 2.5e-5 |
-| ACC8 specialist | 1,158 steps, LR horizon 2,315, peak LR 5e-5 |
-| Shared post-refiner | fresh neighbor-ZF NAF_S, 73,489 parameters, main C10 frozen |
-| NAF_S schedule | 88,895 steps on a fixed 93,567-step LR horizon |
-| NAF_S objective | foreground SSIM + L1 + official-384 bbox SSIM, bbox coefficient 0.5 |
-| Final artifact | one routed checkpoint; candidate count 1; no fallback |
+The exact organizer-compatible command is:
 
-The active generalist is launched with `--num-epochs 51`; this is the unchanged
-cosine scheduler horizon, not the handoff epoch. The controller waits for and
-hash-seals `checkpoint-last-000228928.pt`, verifies epoch 49, and only then
-stops the generalist. It never rewrites optimizer, scheduler, sampler, or RNG
-state. Both specialists start from that exact E49 model, and NAF_S is then
-trained with every C10 parameter frozen.
+```bash
+bash recon_eval.sh "$DATA_ROOT" "$OUT_DIR"
+```
 
-The generalist and specialists use organizer train data. Organizer validation is
-appended only as ordinary training data for the terminal NAF_S full push. There
-is no validation loop, early stopping, checkpoint selection, or leaderboard/test
-target access.
+`DATA_ROOT` must contain `acc4/` and `acc8/`. `OUT_DIR` is writable scratch
+space. If arguments are omitted, the script uses the relative locations
+`data/leaderboard` and `../fastmri_eval_output`. The script verifies the package,
+creates a disposable runtime tree under `OUT_DIR`, places the single checkpoint
+at the fixed location expected by the unmodified organizer harness, and runs
+the packaged `project/recon_eval.py`.
 
-The post-E49 budget remains exactly 97,061 optimizer steps. R30 moves 2,336
-steps from the nearly flat NAF_S cosine tail to ACC4 E3; the sealed local ACC4
-probe improved ACC4 quality from 0.94770 at E2 to 0.94775 at E3, while E4
-collapsed to 0.94590 and is therefore forbidden.
+For the team's one recorded final evaluation, use:
 
-## R30 adjacent zero-filled context
+```bash
+bash run_official_evaluation_once.sh "$DATA_ROOT" "$OUT_DIR"
+```
 
-NAF_S receives five image-domain channels:
+That wrapper is intentionally one-shot. It records the model hash, complete
+evaluation log, per-acceleration SSIM values, reconstruction time, timestamps,
+and return code in `evidence/`. The organizer may independently run
+`recon_eval.sh` any number of times. Training and mask routing do not read
+leaderboard data; the evaluation harness receives it only for scoring.
 
-1. routed PromptMR reconstruction;
-2. current-slice zero-filled RSS image computed from the input masked k-space;
-3. reconstruction minus the current-slice zero-filled image;
-4. previous-slice zero-filled RSS image;
-5. next-slice zero-filled RSS image.
+## Routing table
 
-The zero-filled definition is
-`rss(fftshift(ifft2(ifftshift(masked_kspace), norm=ortho)))`. It is center
-cropped or zero padded to the reconstruction frame. All five channels share the
-detached reconstruction `amax` normalization. No target, bbox, filename, or
-leaderboard information enters this input. Neighbor slices come only from the
-same official masked-k-space volume; the first and last slice replicate their
-nearest available neighbor. The current-slice ZF matched probe was positive for
-every ACC4/ACC8 full/bbox cell and every tested seed. The adjacent extension adds
-only 864 stem weights and retains a zero-initialized output head, so its initial
-output is exactly the routed reconstruction. The adjacent extension itself was
-promoted on expected value rather than a transferred local learned state.
+All routing is performed inside the officially timed `recon_slice()` call and
+uses only the mask derived from the input k-space.
 
-## Mask, augmentation, and dispatch policy
+| Input mask | PromptMR component | Outer views | Post-refiner |
+|---|---|---|---|
+| Exact legal ACC4 | ACC4 specialist | identity | shared neighbor-ZF NAF_S |
+| Exact legal ACC8 | ACC8 specialist | identity, left-right flip | shared neighbor-ZF NAF_S |
+| Unknown or mismatched | E49 generalist | identity | shared neighbor-ZF NAF_S |
 
-Training uses legal native-width Cartesian ACC4/ACC8 masks with ACS width
-`round(native_width * 0.08)`. The ACS region is retained. For each legal ACC4
-example, acquired non-ACS lines are divided into two complementary virtual ACC8
-masks while the original ACC4 example remains. The epoch sampler and optimizer
-step budget are defined before augmentation.
+Mask density, ACS width, period, residue, and offset determine the exact route.
+Filename, image field, target, bbox annotation, and score are not routing inputs.
+`prep_volume()` loads input only. PromptMR, zero-filled context construction,
+NAF_S, view restoration, and averaging all execute inside `recon_slice()`.
 
-Augmentation is never applied to source-target pairing, inference, official
-masks, or evaluation. Routing uses only the input k-space mask:
+## End-to-end training
 
-- exact legal ACC4 selects the ACC4 specialist and identity outer view;
-- exact legal ACC8 selects the ACC8 specialist and identity plus left-right
-  full-pipeline views;
-- unknown or mismatched masks select the E49 generalist and identity only.
+Organizer data must have this layout:
 
-Mask classification occurs inside the official timed `recon_slice()` call.
-Filename, image, target, bbox annotation, and leaderboard result are forbidden
-routing inputs. `prep_volume()` only loads input. Training-frame alignment,
-all PromptMR forwards, ZF construction, NAF_S, TTA restoration, and averaging
-also occur inside `recon_slice()`. Previous/current/next k-space receives the
-same outer-TTA transform before each ZF image is constructed.
+```text
+DATA_ROOT/
+  train/
+    kspace/
+    image/
+  val/
+    kspace/
+    image/
+```
 
-At most one PromptMR expert is resident on CUDA. The active expert remains
-resident across consecutive same-route volumes and is offloaded only on an
-actual route change. Sensitivity estimation uses coil micro-batches of eight.
-
-## Reproduce training
-
-Mount organizer data at `/root/Data` with train and validation `kspace/` and
-`image/` directories. Start with clean result paths and do not copy a previous
-checkpoint into the lineage.
+Start from an empty writable output directory on one NVIDIA GeForce GTX 1080:
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0
 export PYTHONHASHSEED=430
-export DATA_ROOT=/root/Data
-export PROJECT_ROOT=/root/2026-FastMRI-SNU-promptmr-plus
-bash reproduce_final.sh
+bash reproduce_final.sh "$DATA_ROOT" "$OUT_DIR"
 ```
 
-The script performs the complete fixed sequence:
+The runner refuses to overwrite an existing lineage. It performs this fixed
+sequence:
 
-1. fresh C10 training on the E51 cosine horizon;
-2. exact E49/228,928 hash-sealed handoff;
-3. ACC4-7,008 and ACC8-1,158 specialist training from E49;
-4. frozen-C10 neighbor-ZF NAF_S training for 88,895 steps;
-5. construction and verification of exactly one routed `best_model.pt`.
+1. Fresh FP32 PromptMR+ R2/C10/H0 training with seed 430 and batch size 1.
+2. Atomic E49 handoff at optimizer step 228,928 on the unchanged E51 cosine
+   horizon.
+3. ACC4 specialist training for 7,008 optimizer steps with a 35,040-step LR
+   horizon and peak LR 2.5e-5.
+4. ACC8 specialist training for 1,158 optimizer steps with a 2,315-step LR
+   horizon and peak LR 5e-5.
+5. Frozen-C10, neighbor-ZF NAF_S training for 88,895 optimizer steps on a
+   93,567-step LR horizon.
+6. Construction of exactly one routed `best_model.pt`.
 
-It fails if a result path exists, a sealed source hash differs, the E49 boundary
-is absent, a component budget differs, or another candidate appears.
+The generalist and specialists use organizer train data. Organizer validation
+is appended as ordinary training data only for the terminal NAF_S full push.
+There is no validation loop, early stopping, or validation-based checkpoint
+choice in this lineage. Training code does not access test targets.
 
-## Inference and official evaluation
+The legal-mask augmentation retains the original ACC4 example and partitions
+its acquired non-ACS lines into two complementary virtual ACC8 examples while
+preserving ACS. The sampler and optimizer-step budget are defined before this
+augmentation. No augmentation is applied during inference or official scoring.
 
-The organizer-compatible repeatable entry point is:
+The NAF_S input channels are the routed reconstruction, current zero-filled RSS,
+their residual, previous-slice zero-filled RSS, and next-slice zero-filled RSS.
+Neighbor slices are from the same masked-k-space volume, with nearest-slice
+replication at volume boundaries. Every C10 parameter remains frozen while the
+73,489-parameter refiner is trained.
+
+## Reproducibility evidence
+
+The final assembly refuses to run unless all four real VESSL logs and the real
+VESSL environment snapshot are supplied:
+
+- `evidence/training_logs/generalist.log`
+- `evidence/training_logs/acc4_specialist.log`
+- `evidence/training_logs/acc8_specialist.log`
+- `evidence/training_logs/naf_s.log`
+- `evidence/environment/pip_freeze.txt`
+
+The package also includes hash-bound E49, specialist, NAF_S, policy, assembly,
+and inference-admission receipts. `package-manifest.json` binds all evidence to
+the single final checkpoint.
+
+`evidence/raw/` preserves the exact VESSL contracts and source hashes, including
+their historical server locations. Those files are immutable evidence and are
+never executed by either entry point. The runnable copies under `reproduction/`
+replace only server-location literals with `DATA_ROOT`, `OUT_DIR`,
+`FASTMRI_TRAIN_ROOT`, and `FASTMRI_RESULT_ROOT`; the path-only transformation is
+hash-bound in `reproduction/portability-receipt.json` and changes no numeric
+recipe or architecture.
+
+Random initialization, sampler order, legal-mask generation, augmentation,
+Python hashing, and cuDNN deterministic mode are fixed by seed 430. The expected
+result is reproduction to the organizer's four displayed decimal places on the
+pinned VESSL GTX1080 environment. Bit identity is not promised across different
+GPU architectures, CUDA versions, or PyTorch builds.
+
+## Pinned environment
+
+- Ubuntu on VESSL
+- NVIDIA GeForce GTX 1080, 8,192 MiB
+- Python 3.10.12
+- CUDA 12.1
+- PyTorch 2.3.1+cu121
+- NumPy 1.24.4 (NumPy major version 1)
+- seed 430, batch size 1, FP32
+
+`requirements.txt` is the install specification. The actual final server state
+is preserved separately in `evidence/environment/pip_freeze.txt`.
+
+## Directory tree
+
+```text
+final_package/
+  README.md
+  requirements.txt
+  recon_eval.sh
+  reproduce_final.sh
+  run_official_evaluation_once.sh
+  best_model.pt
+  SHA256SUMS
+  package-manifest.json
+  project/
+    recon_eval.py
+    reconstruct.py
+    utils/
+    third_party/
+  reproduction/
+    generalist/
+    specialist/
+    organizer-data-provenance.json
+    source-sha256sums.txt
+    vessl_train_post_refiner.py
+    vessl_build_routed_promptmr_checkpoint.py
+  evidence/
+    training_logs/
+    environment/
+    raw/
+      contracts/
+      training_source/
+    official-evaluation-receipt.json
+  verify_package.py
+  submission_audit.py
+  build_submission_archive.py
+```
+
+Packaging helpers and receipts are included because they verify lineage and
+integrity; generated reconstruction outputs, caches, demo files, local research
+artifacts, and extra checkpoints are excluded.
+
+## Linux-safe archive
+
+After the one official evaluation has passed, build the upload archive with an
+ASCII team slug:
 
 ```bash
-bash recon_eval.sh
+python build_submission_archive.py --team-slug TEAM_NAME --output-dir ..
 ```
 
-It verifies the package, places `best_model.pt` at the organizer's fixed model
-path, and executes the unmodified packaged `recon_eval.py`. It remains
-repeatable so the organizer may run inference 30 times and use the fastest run.
+This creates `2026_FastMRI_TEAM_NAME.tar.gz` and
+`2026_FastMRI_TEAM_NAME.tar.gz.sha256`. The builder uses POSIX member names,
+forbids symlinks and unsafe filenames, extracts the archive into a fresh
+temporary directory, and reruns the submission-ready audit there.
 
-Our team evaluation is executed exactly once, between 2026-08-20 22:00 and
-23:00 KST when training and packaging have completed:
+The explanation video and presentation are separate attachments named
+`2026_FastMRI_TEAM_NAME.mp4` and `2026_FastMRI_TEAM_NAME.pdf` (or an accepted
+presentation extension); they are not mixed into the model archive.
 
-```bash
-bash run_official_evaluation_once.sh
+## Submission handoff
+
+Before sending the email, copy the score and time from
+`evidence/official-evaluation-receipt.json`, verify the archive sidecar, and use
+the organizer's exact title format:
+
+```text
+[최종제출] TEAM_NAME – iabengXXX
 ```
 
-The wrapper atomically records attempt 1, model and log hashes, per-item SSIM,
-reconstruction time, timestamps, and completion before the hard deadline of
-2026-08-20 23:59 KST. It prevents a second team evaluation but does not prevent
-the organizer from rerunning `recon_eval.sh` after submission. Reconstruction
-time is used only under the organizer's identical-SSIM tie rule.
+The email body must state the public score, Full, Bbox, ms/slice, certificate
+preference, and whether the model is provided by server, attachment, or both.
+When leaving the package on VESSL, state its exact server artifact path and the
+archive SHA-256. Replace every placeholder and omit braces in the actual email.
