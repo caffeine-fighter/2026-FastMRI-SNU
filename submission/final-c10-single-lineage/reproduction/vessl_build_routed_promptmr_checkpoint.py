@@ -49,8 +49,8 @@ R19_BBOX_LOSS_FAMILY = (
     "winner_foreground_ssim_l1_sqrt_area_plus_official384_bbox05_v2"
 )
 R19_PLAIN_LOSS_FAMILY = "winner_foreground_ssim_l1_sqrt_area_v1"
-R29_INPUT_MODE = "recon_zero_filled_residual"
-R29_ZERO_FILLED_DEFINITION = (
+R30_INPUT_MODE = "recon_zero_filled_residual_neighbor_zf"
+R30_ZERO_FILLED_DEFINITION = (
     "rss(fftshift(ifft2(ifftshift(masked_kspace),norm=ortho)))"
 )
 
@@ -300,13 +300,22 @@ def post_refiner_component(
     views = checkpoint.get("views")
     module_sha256 = checkpoint.get("post_refiner_module_sha256")
     mask_conditioned = bool(checkpoint.get("mask_conditioned", False))
-    expected_parameter_count = REGISTERED_REFINERS.get(variant, -1) + (
-        MASK_CONDITIONER_PARAMETERS.get(variant, 0)
-        if mask_conditioned
-        else 0
+    neighbor_zf = checkpoint.get("input_mode") == R30_INPUT_MODE
+    expected_parameter_count = (
+        REGISTERED_REFINERS.get(variant, -1)
+        + (864 if neighbor_zf and variant == "NAF_S" else 0)
+        + (
+            MASK_CONDITIONER_PARAMETERS.get(variant, 0)
+            if mask_conditioned
+            else 0
+        )
     )
     expected_trainable_scope = (
-        "naf_s_plus_mask_conditioner" if mask_conditioned else "naf_s_only"
+        "naf_s_plus_mask_conditioner"
+        if mask_conditioned
+        else "naf_s_plus_adjacent_zf_stem"
+        if neighbor_zf
+        else "naf_s_only"
     )
     if (
         checkpoint.get("schema") != "vessl-base-once-post-refiner-v1"
@@ -433,18 +442,25 @@ def post_refiner_component(
                 != "main_c10_e49_all_parameters"
                 or checkpoint.get("main_parameters_updated") is not False
                 or checkpoint.get("views_batched") is not True
-                or int(checkpoint.get("optimizer_step", -1)) != 91_231
+                or int(checkpoint.get("optimizer_step", -1)) != 88_895
                 or int(
                     checkpoint.get("lr_horizon_optimizer_steps", -1)
                 )
                 != 93_567
-                or checkpoint.get("input_mode") != R29_INPUT_MODE
+                or checkpoint.get("input_mode") != R30_INPUT_MODE
                 or checkpoint.get("zero_filled_definition")
-                != R29_ZERO_FILLED_DEFINITION
+                != R30_ZERO_FILLED_DEFINITION
                 or checkpoint.get("normalization")
                 != "shared_detached_reconstruction_amax"
                 or checkpoint.get("spatial_match")
                 != "center_crop_then_zero_pad"
+                or checkpoint.get("adjacent_slice_context")
+                != {
+                    "count": 3,
+                    "positions": ["previous", "current", "next"],
+                    "boundary_policy": "replicate_nearest_slice",
+                    "source": "same_volume_masked_kspace_only",
+                }
                 or int(checkpoint.get("steps_per_epoch", -1)) != 4_672
                 or checkpoint.get("partial_terminal_epoch") is not True
                 or checkpoint.get("training_data")

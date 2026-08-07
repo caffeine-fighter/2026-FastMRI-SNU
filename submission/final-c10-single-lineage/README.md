@@ -1,4 +1,4 @@
-# Final C10 R29 ZF-context single-lineage package
+# Final C10 R30 neighbor-ZF single-lineage package
 
 This directory is the only final submission package for the 2026 SNU FastMRI
 Challenge. It contains one VESSL-only routed model and the exact source,
@@ -40,10 +40,10 @@ The verifier fails closed unless all of the following are true:
 - the embedded E49/ACC4/ACC8/NAF_S source hashes match the VESSL receipts;
 - the actual shipped `project/utils/learning/promptmr_router.py` accepts the
   checkpoint contract;
-- the R29 source, deployment, CPU-preflight, and inference snapshot hashes match;
+- the R30 source, deployment, CPU-preflight, and inference snapshot hashes match;
 - no optimizer, scheduler, scaler, RNG, EMA, or SWA state is packaged.
 
-`materialize_r29_evidence.py` normalizes the authoritative VESSL receipts before
+`materialize_r30_evidence.py` normalizes the authoritative VESSL receipts before
 `seal_package.py` creates the manifest. Both operations are one-shot and refuse
 to overwrite prior evidence or a prior package.
 
@@ -66,15 +66,15 @@ sealed activation/checkpointing and CPU-offloaded AdamW behavior.
 
 ## Exact training lineage
 
-| Component | Sealed R29 contract |
+| Component | Sealed R30 contract |
 |---|---|
 | Generalist | compact PromptMR+ R2/C10/H0, fresh VESSL initialization, seed 430 |
 | Generalist scheduler | warmup E1, cosine horizon E51 / 238,272 optimizer steps |
 | Generalist handoff | atomic E49 checkpoint at optimizer step 228,928 |
-| ACC4 specialist | 4,672 steps, LR horizon 35,040, peak LR 2.5e-5 |
+| ACC4 specialist | 7,008 steps (E3 hard stop), LR horizon 35,040, peak LR 2.5e-5 |
 | ACC8 specialist | 1,158 steps, LR horizon 2,315, peak LR 5e-5 |
-| Shared post-refiner | fresh NAF_S, 72,625 parameters, main C10 frozen |
-| NAF_S schedule | 91,231 steps on a fixed 93,567-step LR horizon |
+| Shared post-refiner | fresh neighbor-ZF NAF_S, 73,489 parameters, main C10 frozen |
+| NAF_S schedule | 88,895 steps on a fixed 93,567-step LR horizon |
 | NAF_S objective | foreground SSIM + L1 + official-384 bbox SSIM, bbox coefficient 0.5 |
 | Final artifact | one routed checkpoint; candidate count 1; no fallback |
 
@@ -90,22 +90,32 @@ appended only as ordinary training data for the terminal NAF_S full push. There
 is no validation loop, early stopping, checkpoint selection, or leaderboard/test
 target access.
 
-## R29 zero-filled context
+The post-E49 budget remains exactly 97,061 optimizer steps. R30 moves 2,336
+steps from the nearly flat NAF_S cosine tail to ACC4 E3; the sealed local ACC4
+probe improved ACC4 quality from 0.94770 at E2 to 0.94775 at E3, while E4
+collapsed to 0.94590 and is therefore forbidden.
 
-NAF_S receives three image-domain channels with unchanged architecture and
-parameter count:
+## R30 adjacent zero-filled context
+
+NAF_S receives five image-domain channels:
 
 1. routed PromptMR reconstruction;
-2. zero-filled RSS image computed from the input masked k-space;
-3. reconstruction minus zero-filled image.
+2. current-slice zero-filled RSS image computed from the input masked k-space;
+3. reconstruction minus the current-slice zero-filled image;
+4. previous-slice zero-filled RSS image;
+5. next-slice zero-filled RSS image.
 
 The zero-filled definition is
 `rss(fftshift(ifft2(ifftshift(masked_kspace), norm=ortho)))`. It is center
-cropped or zero padded to the reconstruction frame. All three channels share the
+cropped or zero padded to the reconstruction frame. All five channels share the
 detached reconstruction `amax` normalization. No target, bbox, filename, or
-leaderboard information enters this input. The local score-free matched probe
-was positive for every ACC4/ACC8 full/bbox cell and every tested seed while
-retaining exactly 72,625 NAF_S parameters.
+leaderboard information enters this input. Neighbor slices come only from the
+same official masked-k-space volume; the first and last slice replicate their
+nearest available neighbor. The current-slice ZF matched probe was positive for
+every ACC4/ACC8 full/bbox cell and every tested seed. The adjacent extension adds
+only 864 stem weights and retains a zero-initialized output head, so its initial
+output is exactly the routed reconstruction. The adjacent extension itself was
+promoted on expected value rather than a transferred local learned state.
 
 ## Mask, augmentation, and dispatch policy
 
@@ -127,7 +137,8 @@ Mask classification occurs inside the official timed `recon_slice()` call.
 Filename, image, target, bbox annotation, and leaderboard result are forbidden
 routing inputs. `prep_volume()` only loads input. Training-frame alignment,
 all PromptMR forwards, ZF construction, NAF_S, TTA restoration, and averaging
-also occur inside `recon_slice()`.
+also occur inside `recon_slice()`. Previous/current/next k-space receives the
+same outer-TTA transform before each ZF image is constructed.
 
 At most one PromptMR expert is resident on CUDA. The active expert remains
 resident across consecutive same-route volumes and is offloaded only on an
@@ -151,8 +162,8 @@ The script performs the complete fixed sequence:
 
 1. fresh C10 training on the E51 cosine horizon;
 2. exact E49/228,928 hash-sealed handoff;
-3. ACC4-4,672 and ACC8-1,158 specialist training from E49;
-4. frozen-C10 NAF_S ZF-context training for 91,231 steps;
+3. ACC4-7,008 and ACC8-1,158 specialist training from E49;
+4. frozen-C10 neighbor-ZF NAF_S training for 88,895 steps;
 5. construction and verification of exactly one routed `best_model.pt`.
 
 It fails if a result path exists, a sealed source hash differs, the E49 boundary

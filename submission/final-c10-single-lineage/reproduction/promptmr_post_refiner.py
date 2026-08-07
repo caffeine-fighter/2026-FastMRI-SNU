@@ -1,10 +1,10 @@
 """Small image-domain NAF refiner used after the routed main reconstruction.
 
-The main PromptMR reconstruction is evaluated once.  R29 derives a
-physics-correct zero-filled RSS image from the same, already transformed
-masked k-space and applies one shared, batched residual refiner to the
-registered views.  Optional conditioning consumes only the mask-derived
-route exposed by the already-validated acceleration router.
+The main PromptMR reconstruction is evaluated once.  R30 derives
+physics-correct zero-filled RSS images from the current and immediately
+adjacent masked k-space slices and applies one shared, batched residual
+refiner to the registered views.  Optional conditioning consumes only the
+mask-derived route exposed by the already-validated acceleration router.
 """
 
 from __future__ import annotations
@@ -29,7 +29,12 @@ MASK_CONDITION_ROUTE_COUNT = 3
 MASK_CONDITION_STRENGTH = 0.1
 INPUT_MODE_DIRECTIONAL = "recon_horizontal_vertical"
 INPUT_MODE_ZF_CONTEXT = "recon_zero_filled_residual"
-NAF_INPUT_MODES = (INPUT_MODE_DIRECTIONAL, INPUT_MODE_ZF_CONTEXT)
+INPUT_MODE_NEIGHBOR_ZF = "recon_zero_filled_residual_neighbor_zf"
+NAF_INPUT_MODES = (
+    INPUT_MODE_DIRECTIONAL,
+    INPUT_MODE_ZF_CONTEXT,
+    INPUT_MODE_NEIGHBOR_ZF,
+)
 ZERO_FILLED_DEFINITION = (
     "rss(fftshift(ifft2(ifftshift(masked_kspace),norm=ortho)))"
 )
@@ -265,8 +270,14 @@ class NAFResidualImageRefiner(nn.Module):
         self.input_mode = str(input_mode)
         self.channels = channels
         self.maximum_residual_fraction = float(maximum_residual_fraction)
+        input_channels = 5 if self.input_mode == INPUT_MODE_NEIGHBOR_ZF else 3
+        self.input_channels = input_channels
         self.stem = nn.Conv2d(
-            3, channels, kernel_size=3, padding=1, padding_mode="reflect"
+            input_channels,
+            channels,
+            kernel_size=3,
+            padding=1,
+            padding_mode="reflect",
         )
         self.blocks = nn.ModuleList(_NAFBlock(channels) for _ in range(blocks))
         self.mask_conditioner = (
@@ -285,10 +296,14 @@ class NAFResidualImageRefiner(nn.Module):
         nn.init.zeros_(self.head.weight)
         nn.init.zeros_(self.head.bias)
         observed = sum(parameter.numel() for parameter in self.parameters())
-        expected = int(spec["parameter_count"]) + (
-            MASK_CONDITION_ROUTE_COUNT * (blocks + 1) * 2 * channels
-            if self.mask_conditioned
-            else 0
+        expected = (
+            int(spec["parameter_count"])
+            + (input_channels - 3) * channels * 3 * 3
+            + (
+                MASK_CONDITION_ROUTE_COUNT * (blocks + 1) * 2 * channels
+                if self.mask_conditioned
+                else 0
+            )
         )
         if observed != expected:
             raise RuntimeError(f"{variant} parameter drift: {observed} != {expected}")
@@ -361,25 +376,47 @@ class NAFResidualImageRefiner(nn.Module):
         self,
         normalized_image: torch.Tensor,
         normalized_zero_filled: torch.Tensor | None = None,
+        normalized_neighbor_zero_filled: torch.Tensor | None = None,
         acceleration_condition: int | torch.Tensor | None = None,
     ) -> torch.Tensor:
         _validate_input(normalized_image)
-        if self.input_mode == INPUT_MODE_ZF_CONTEXT:
+        if self.input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF):
             if normalized_zero_filled is None:
                 raise ValueError("ZF-context NAF requires zero-filled input")
             _validate_input(normalized_zero_filled)
             if normalized_zero_filled.shape != normalized_image.shape:
                 raise ValueError("reconstruction and zero-filled shapes differ")
-            features = torch.cat(
-                (
-                    normalized_image,
-                    normalized_zero_filled,
-                    normalized_image - normalized_zero_filled,
-                ),
-                dim=1,
-            )
+            features = [
+                normalized_image,
+                normalized_zero_filled,
+                normalized_image - normalized_zero_filled,
+            ]
+            if self.input_mode == INPUT_MODE_NEIGHBOR_ZF:
+                if (
+                    not torch.is_tensor(normalized_neighbor_zero_filled)
+                    or normalized_neighbor_zero_filled.ndim != 4
+                    or normalized_neighbor_zero_filled.shape[0]
+                    != normalized_image.shape[0]
+                    or normalized_neighbor_zero_filled.shape[1] != 2
+                    or normalized_neighbor_zero_filled.shape[-2:]
+                    != normalized_image.shape[-2:]
+                    or not normalized_neighbor_zero_filled.is_floating_point()
+                    or not bool(
+                        torch.isfinite(normalized_neighbor_zero_filled).all().item()
+                    )
+                ):
+                    raise ValueError(
+                        "neighbor ZF context must be finite floating [B,2,H,W]"
+                    )
+                features.append(normalized_neighbor_zero_filled)
+            elif normalized_neighbor_zero_filled is not None:
+                raise ValueError("single-slice ZF NAF cannot receive neighbors")
+            features = torch.cat(features, dim=1)
         else:
-            if normalized_zero_filled is not None:
+            if (
+                normalized_zero_filled is not None
+                or normalized_neighbor_zero_filled is not None
+            ):
                 raise ValueError("directional NAF cannot receive zero-filled input")
             features = _directional_features(normalized_image)
         film = self._film_parameters(
@@ -426,6 +463,7 @@ class BaseOnceRefinerTTA(nn.Module):
             release()
 
     def forward(self, *args, **kwargs) -> torch.Tensor:
+        neighbor_masked_kspace = kwargs.pop("neighbor_masked_kspace", None)
         base = self.base_model(*args, **kwargs)
         if (
             not torch.is_tensor(base)
@@ -442,9 +480,11 @@ class BaseOnceRefinerTTA(nn.Module):
         normalized = (base_fp32 / scale).unsqueeze(1)
         viewed = torch.cat([_view(normalized, name) for name in self.views], dim=0)
         viewed_zero_filled = None
+        viewed_neighbor_zero_filled = None
         if (
             isinstance(self.refiner, NAFResidualImageRefiner)
-            and self.refiner.input_mode == INPUT_MODE_ZF_CONTEXT
+            and self.refiner.input_mode
+            in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
         ):
             prepared = args[0] if args else None
             masked_kspace = getattr(prepared, "kspace", None)
@@ -460,6 +500,36 @@ class BaseOnceRefinerTTA(nn.Module):
                 ],
                 dim=0,
             )
+            if self.refiner.input_mode == INPUT_MODE_NEIGHBOR_ZF:
+                if (
+                    not isinstance(neighbor_masked_kspace, (tuple, list))
+                    or len(neighbor_masked_kspace) != 2
+                ):
+                    raise ValueError(
+                        "neighbor-ZF NAF requires previous and next masked k-space"
+                    )
+                neighbor_images = []
+                for neighbor in neighbor_masked_kspace:
+                    neighbor_images.append(
+                        center_crop_or_zero_pad(
+                            zero_filled_rss(neighbor),
+                            tuple(base_fp32.shape[-2:]),
+                        )
+                    )
+                normalized_neighbors = (
+                    torch.stack(neighbor_images, dim=1) / scale.unsqueeze(1)
+                )
+                viewed_neighbor_zero_filled = torch.cat(
+                    [
+                        _view(normalized_neighbors, name)
+                        for name in self.views
+                    ],
+                    dim=0,
+                )
+            elif neighbor_masked_kspace is not None:
+                raise ValueError(
+                    "single-slice ZF NAF cannot receive neighbor k-space"
+                )
         if (
             isinstance(self.refiner, NAFResidualImageRefiner)
             and self.refiner.mask_conditioned
@@ -478,15 +548,18 @@ class BaseOnceRefinerTTA(nn.Module):
             residuals = self.refiner(
                 viewed,
                 normalized_zero_filled=viewed_zero_filled,
+                normalized_neighbor_zero_filled=viewed_neighbor_zero_filled,
                 acceleration_condition=acceleration_condition,
             )
         elif (
             isinstance(self.refiner, NAFResidualImageRefiner)
-            and self.refiner.input_mode == INPUT_MODE_ZF_CONTEXT
+            and self.refiner.input_mode
+            in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
         ):
             residuals = self.refiner(
                 viewed,
                 normalized_zero_filled=viewed_zero_filled,
+                normalized_neighbor_zero_filled=viewed_neighbor_zero_filled,
             )
         else:
             residuals = self.refiner(viewed)
@@ -543,6 +616,11 @@ def build_naf_contract(
         if mask_conditioned
         else 0
     )
+    context_parameters = (
+        2 * int(spec["channels"]) * 3 * 3
+        if input_mode == INPUT_MODE_NEIGHBOR_ZF
+        else 0
+    )
     return {
         "schema": "base-once-naf-refiner-tta-v1",
         "base_forward_count_per_slice": 1,
@@ -555,15 +633,23 @@ def build_naf_contract(
             "variant": variant,
             **spec,
             "parameter_count": int(spec["parameter_count"])
+            + context_parameters
             + conditioned_parameters,
+            "input_channels": 5 if input_mode == INPUT_MODE_NEIGHBOR_ZF else 3,
             "maximum_residual_fraction": 0.05,
             "zero_initialized_output": True,
             "input_mode": input_mode,
             "zero_filled_definition": (
                 ZERO_FILLED_DEFINITION
-                if input_mode == INPUT_MODE_ZF_CONTEXT
+                if input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
                 else None
             ),
+            "neighbor_context": {
+                "enabled": input_mode == INPUT_MODE_NEIGHBOR_ZF,
+                "offsets": [-1, 1],
+                "boundary": "replicate_nearest_slice",
+                "source": "same_volume_masked_kspace_only",
+            },
             "normalization": "shared_detached_reconstruction_amax",
             "spatial_match": "center_crop_then_zero_pad",
             "mask_conditioning": {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the one R29 ZF-context single-lineage package."""
+"""Fail-closed verifier for the one R30 neighbor-ZF single-lineage package."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parent
-INPUT_MODE = "recon_zero_filled_residual"
+INPUT_MODE = "recon_zero_filled_residual_neighbor_zf"
 ZF_DEFINITION = "rss(fftshift(ifft2(ifftshift(masked_kspace),norm=ortho)))"
 DEADLINE = 1_787_237_940
 STRUCTURE = (
@@ -22,13 +22,13 @@ STRUCTURE = (
     "reproduce_final.sh",
     "run_official_evaluation_once.sh",
     "assemble_final_package.py",
-    "materialize_r29_evidence.py",
+    "materialize_r30_evidence.py",
     "seal_package.py",
     "verify_package.py",
-    "reproduction/FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json",
-    "reproduction/final-tactics-c10-r29-zf-context.json",
-    "reproduction/FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json",
-    "reproduction/R29_CPU_PREFLIGHT.json",
+    "reproduction/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json",
+    "reproduction/final-tactics-c10-r30-neighbor-zf.json",
+    "reproduction/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json",
+    "reproduction/R30_CPU_PREFLIGHT.json",
 )
 FINAL_STRUCTURE = (
     "best_model.pt",
@@ -55,7 +55,7 @@ FINAL_STRUCTURE = (
     "reproduction/promptmr_mask_router.py",
     "reproduction/promptmr_legal_mask.py",
     "reproduction/test_part.py",
-    "reproduction/preflight_r29.py",
+    "reproduction/preflight_r30.py",
     "reproduction/organizer-data-provenance.json",
     "reproduction/inference-source-snapshot-manifest.json",
     "reproduction/source-sha256sums.txt",
@@ -69,7 +69,7 @@ FINAL_STRUCTURE = (
     "evidence/naf-s-training-receipt.json",
     "evidence/policy-receipt.json",
     "evidence/inference-admission-receipt.json",
-    "evidence/r29-amendment-deployment-receipt.json",
+    "evidence/r30-amendment-deployment-receipt.json",
     "evidence/evidence-materialization-receipt.json",
 )
 LEARNED_SUFFIXES = {".pt", ".pth", ".ckpt", ".safetensors"}
@@ -153,11 +153,11 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or contract.tta_views_by_acceleration
         != {4: ("identity",), 8: ("identity", "flip_lr")}
     ):
-        fail("best_model.pt outer routed contract is not exact R29")
+        fail("best_model.pt outer routed contract is not exact R30")
 
     expected = {
         "generalist": (None, "all", 228_928, 49),
-        "acc4": (4, "acc4", 4_672, 1),
+        "acc4": (4, "acc4", 7_008, 2),
         "acc8": (8, "acc8", 1_158, 0),
     }
     source_hashes: dict[str, str] = {}
@@ -199,10 +199,17 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or post.get("zero_filled_definition") != ZF_DEFINITION
         or post.get("normalization") != "shared_detached_reconstruction_amax"
         or post.get("spatial_match") != "center_crop_then_zero_pad"
+        or post.get("adjacent_slice_context")
+        != {
+            "count": 3,
+            "positions": ["previous", "current", "next"],
+            "boundary_policy": "replicate_nearest_slice",
+            "source": "same_volume_masked_kspace_only",
+        }
         or post.get("epoch") != 21
         or post.get("parent_epoch") != 49
         or post.get("late_branch_epochs") != [50, 70]
-        or post.get("optimizer_steps") != 91_231
+        or post.get("optimizer_steps") != 88_895
         or post.get("lr_horizon_optimizer_steps") != 93_567
         or post.get("steps_per_epoch") != 4_672
         or post.get("partial_terminal_epoch") is not True
@@ -213,10 +220,11 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or post.get("organizer_annotations_used_for_training") is not True
         or post.get("inference_annotation_access") is not False
         or post.get("validation_used_for_checkpoint_selection") is not False
-        or post.get("trainable_parameter_scope") != "naf_s_only"
+        or post.get("trainable_parameter_scope")
+        != "naf_s_plus_adjacent_zf_stem"
         or post.get("frozen_parameter_scope") != "main_c10_e49_all_parameters"
         or post.get("main_parameters_updated") is not False
-        or post.get("parameter_count") != 72_625
+        or post.get("parameter_count") != 73_489
         or post.get("trained_on_vessl") is not True
         or post.get("external_learned_state_imported") is not False
         or post.get("base_checkpoint_sha256") != source_hashes["generalist"]
@@ -227,7 +235,7 @@ def verify_routed_model(path: Path) -> dict[str, str]:
         or len(post["source_checkpoint_sha256"]) != 64
         or not isinstance(post.get("post_refiner_state"), dict)
     ):
-        fail("best_model.pt NAF_S component is not exact R29 ZF-context")
+        fail("best_model.pt NAF_S component is not exact R30 neighbor-ZF")
     source_hashes["post_refiner"] = post["source_checkpoint_sha256"]
     if {"optimizer", "scheduler", "rng_state", "ema", "swa", "scaler"}.intersection(checkpoint):
         fail("best_model.pt contains forbidden training state")
@@ -235,24 +243,27 @@ def verify_routed_model(path: Path) -> dict[str, str]:
 
 
 def verify_static_contracts() -> dict:
-    amendment = json_object("reproduction/FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json")
-    tactics = json_object("reproduction/final-tactics-c10-r29-zf-context.json")
-    runtime = json_object("reproduction/FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json")
-    preflight = json_object("reproduction/R29_CPU_PREFLIGHT.json")
+    amendment = json_object("reproduction/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json")
+    tactics = json_object("reproduction/final-tactics-c10-r30-neighbor-zf.json")
+    runtime = json_object("reproduction/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json")
+    preflight = json_object("reproduction/R30_CPU_PREFLIGHT.json")
     change = amendment.get("amendment")
     policy = amendment.get("policy")
     if (
-        amendment.get("schema") != "final-c10-single-lineage-r29-zf-context-amendment-v1"
+        amendment.get("schema") != "final-c10-single-lineage-r30-neighbor-zf-amendment-v1"
         or amendment.get("state") != "SEALED"
         or tactics.get("schema") != "vessl-final-tactics-scalar-handoff-v1"
         or tactics.get("state") != "SEALED"
-        or runtime.get("schema") != "final-c10-single-lineage-r29-inference-amendment-v1"
+        or runtime.get("schema") != "final-c10-single-lineage-r30-inference-amendment-v1"
         or runtime.get("state") != "SEALED"
-        or preflight.get("schema") != "vessl-r29-zf-context-cpu-preflight-v1"
+        or preflight.get("schema") != "vessl-r30-neighbor-zf-cpu-preflight-v1"
         or preflight.get("state") != "PASS"
         or preflight.get("cpu_only") is not True
         or preflight.get("cuda_initialized") is not False
         or preflight.get("actual_shipped_router_validation") is not True
+        or preflight.get("timed_neighbor_recon_slice_executed") is not True
+        or preflight.get("zero_initialized_output_identity") is not True
+        or preflight.get("naf_s_parameter_count") != 73_489
         or preflight.get("contract_mutations_rejected")
         != ["optimizer_steps", "lr_horizon_optimizer_steps", "input_mode"]
         or preflight.get("unknown_mask_outer_tta") != ["identity"]
@@ -267,7 +278,7 @@ def verify_static_contracts() -> dict:
         or policy.get("fallback_registered") is not False
         or policy.get("official_evaluation_max_runs") != 1
     ):
-        fail("R29 contracts or CPU preflight are invalid")
+        fail("R30 contracts or CPU preflight are invalid")
 
     source_paths = {
         "controller.py": ROOT / "reproduction/controller.py",
@@ -280,14 +291,14 @@ def verify_static_contracts() -> dict:
         "promptmr_mask_router.py": ROOT / "reproduction/promptmr_mask_router.py",
         "promptmr_legal_mask.py": ROOT / "reproduction/promptmr_legal_mask.py",
         "test_part.py": ROOT / "reproduction/test_part.py",
-        "preflight_r29.py": ROOT / "reproduction/preflight_r29.py",
+        "preflight_r30.py": ROOT / "reproduction/preflight_r30.py",
     }
     hashes = amendment.get("source_hashes")
     if not isinstance(hashes, dict):
-        fail("R29 source hash map is absent")
+        fail("R30 source hash map is absent")
     for name, path in source_paths.items():
         if not path.is_file() or sha256(path) != hashes.get(name):
-            fail(f"sealed R29 source mismatch: {name}")
+            fail(f"sealed R30 source mismatch: {name}")
     for name, relative in {
         "promptmr_post_refiner.py": "project/utils/learning/promptmr_post_refiner.py",
         "promptmr_router.py": "project/utils/learning/promptmr_router.py",
@@ -296,12 +307,12 @@ def verify_static_contracts() -> dict:
         "test_part.py": "project/utils/learning/test_part.py",
     }.items():
         if sha256(ROOT / relative) != hashes[name]:
-            fail(f"shipped inference source is not sealed R29: {relative}")
+            fail(f"shipped inference source is not sealed R30: {relative}")
     return amendment
 
 
 def verify_evidence(source_hashes: dict[str, str], model_sha: str) -> None:
-    deployment = json_object("evidence/r29-amendment-deployment-receipt.json")
+    deployment = json_object("evidence/r30-amendment-deployment-receipt.json")
     assembly = json_object("evidence/assembly-receipt.json")
     generalist = json_object("evidence/generalist-e49-receipt.json")
     acc4 = json_object("evidence/acc4-specialist-receipt.json")
@@ -312,8 +323,8 @@ def verify_evidence(source_hashes: dict[str, str], model_sha: str) -> None:
     materialized = json_object("evidence/evidence-materialization-receipt.json")
     controller = json_object("evidence/raw/controller-final-receipt.json")
     if (
-        deployment.get("schema") != "vessl-c10-single-lineage-r29-zf-context-deployment-v1"
-        or deployment.get("state") != "ACTIVE_CURRENT_C10_PRESERVED_R29_ZF_CONTEXT_ARMED"
+        deployment.get("schema") != "vessl-c10-single-lineage-r30-neighbor-zf-deployment-v1"
+        or deployment.get("state") != "ACTIVE_CURRENT_C10_PRESERVED_R30_NEIGHBOR_ZF_ARMED"
         or deployment.get("trainer_signal_sent") is not False
         or deployment.get("active_generalist_process_touched") is not False
         or deployment.get("active_generalist_recipe_changed") is not False
@@ -321,36 +332,36 @@ def verify_evidence(source_hashes: dict[str, str], model_sha: str) -> None:
         or deployment.get("post_e49_optimizer_steps") != 97_061
         or deployment.get("candidate_count") != 1
         or deployment.get("fallback_registered") is not False
-        or assembly.get("schema") != "vessl-r29-single-final-package-assembly-v1"
+        or assembly.get("schema") != "vessl-r30-single-final-package-assembly-v1"
         or assembly.get("state") != "PASS"
         or assembly.get("candidate_count") != 1
         or assembly.get("fallback_registered") is not False
         or assembly.get("final_checkpoint_sha256") != model_sha
-        or materialized.get("schema") != "fastmri-r29-evidence-materialization-v1"
+        or materialized.get("schema") != "fastmri-r30-evidence-materialization-v1"
         or materialized.get("state") != "PASS"
         or materialized.get("best_model_sha256") != model_sha
         or materialized.get("component_source_sha256") != source_hashes
     ):
-        fail("R29 deployment, assembly, or materialization evidence is invalid")
+        fail("R30 deployment, assembly, or materialization evidence is invalid")
     if (
         generalist.get("epoch") != 49
         or generalist.get("optimizer_step") != 228_928
         or generalist.get("checkpoint_sha256") != source_hashes["generalist"]
-        or acc4.get("schema") != "fastmri-r29-specialist-receipt-v1"
-        or acc4.get("optimizer_steps") != 4_672
+        or acc4.get("schema") != "fastmri-r30-specialist-receipt-v1"
+        or acc4.get("optimizer_steps") != 7_008
         or acc4.get("lr_horizon_optimizer_steps") != 35_040
         or acc4.get("checkpoint_sha256") != source_hashes["acc4"]
-        or acc8.get("schema") != "fastmri-r29-specialist-receipt-v1"
+        or acc8.get("schema") != "fastmri-r30-specialist-receipt-v1"
         or acc8.get("optimizer_steps") != 1_158
         or acc8.get("lr_horizon_optimizer_steps") != 2_315
         or acc8.get("checkpoint_sha256") != source_hashes["acc8"]
         or naf.get("checkpoint_sha256") != source_hashes["post_refiner"]
-        or naf.get("optimizer_steps") != 91_231
+        or naf.get("optimizer_steps") != 88_895
         or naf.get("lr_horizon_optimizer_steps") != 93_567
         or naf.get("input_mode") != INPUT_MODE
         or naf.get("zero_filled_definition") != ZF_DEFINITION
         or naf.get("main_parameters_updated") is not False
-        or policy.get("schema") != "fastmri-r29-policy-receipt-v1"
+        or policy.get("schema") != "fastmri-r30-policy-receipt-v1"
         or policy.get("candidate_count") != 1
         or policy.get("fallback_registered") is not False
         or policy.get("unknown_or_mismatch_route") != "generalist_identity"
@@ -359,7 +370,7 @@ def verify_evidence(source_hashes: dict[str, str], model_sha: str) -> None:
         or admission.get("state") != "PASS"
         or admission.get("final_checkpoint_sha256") != model_sha
     ):
-        fail("R29 lineage/component/policy evidence is invalid")
+        fail("R30 lineage/component/policy evidence is invalid")
 
 
 parser = argparse.ArgumentParser()
@@ -373,7 +384,7 @@ for relative in STRUCTURE:
     if not (ROOT / relative).is_file():
         fail(f"missing {relative}")
 if args.structure_only:
-    print("FINAL_R29_PACKAGE_STRUCTURE_OK")
+    print("FINAL_R30_PACKAGE_STRUCTURE_OK")
     raise SystemExit(0)
 
 manifest_path = ROOT / "package-manifest.json"
@@ -385,7 +396,7 @@ for relative in FINAL_STRUCTURE:
         fail(f"missing final artifact: {relative}")
 manifest = json_object("package-manifest.json")
 required_manifest = {
-    "schema": "fastmri-r29-single-final-package-v1",
+    "schema": "fastmri-r30-single-final-package-v1",
     "state": "SEALED",
     "candidate_count": 1,
     "final_package_count": 1,
@@ -421,7 +432,7 @@ if args.evaluation_in_progress:
     if (ROOT / receipt_relative).exists():
         fail("evaluation-in-progress cannot already have a receipt")
     if (
-        start.get("schema") != "fastmri-r29-official-evaluation-start-v1"
+        start.get("schema") != "fastmri-r30-official-evaluation-start-v1"
         or start.get("state") != "STARTED"
         or start.get("attempt") != 1
         or start.get("best_model_sha256") != sha256(model_path)
@@ -465,7 +476,7 @@ if args.submission_ready:
     scores = receipt.get("scores")
     log_path = ROOT / str(receipt.get("log", ""))
     if (
-        receipt.get("schema") != "fastmri-r29-official-evaluation-receipt-v1"
+        receipt.get("schema") != "fastmri-r30-official-evaluation-receipt-v1"
         or receipt.get("state") != "PASS"
         or receipt.get("attempt") != 1
         or receipt.get("official_evaluation_attempt_count") != 1
@@ -473,7 +484,7 @@ if args.submission_ready:
         or receipt.get("best_model_sha256") != sha256(model_path)
         or receipt.get("leaderboard_data_used_for_training_or_selection") is not False
         or float(receipt.get("completed_unix", DEADLINE + 1)) > DEADLINE
-        or start.get("schema") != "fastmri-r29-official-evaluation-start-v1"
+        or start.get("schema") != "fastmri-r30-official-evaluation-start-v1"
         or start.get("started_unix") != receipt.get("started_unix")
         or not isinstance(scores, dict)
         or set(scores)
@@ -489,7 +500,7 @@ if args.submission_ready:
 print(
     json.dumps(
         {
-            "state": "FINAL_R29_PACKAGE_OK",
+            "state": "FINAL_R30_PACKAGE_OK",
             "candidate_count": 1,
             "best_model_sha256": sha256(model_path),
             "component_source_sha256": source_hashes,

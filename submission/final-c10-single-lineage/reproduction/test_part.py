@@ -20,6 +20,7 @@ except ModuleNotFoundError:
 from utils.learning.promptmr_post_refiner import (
     BaseOnceRefinerTTA,
     INPUT_MODE_DIRECTIONAL,
+    INPUT_MODE_NEIGHBOR_ZF,
     NAFResidualImageRefiner,
     ResidualImageRefiner,
 )
@@ -328,6 +329,15 @@ def prep_volume(image_path, kspace_path, device):
 @torch.inference_mode()
 def recon_slice(model, ctx, s):
     base_kspace = ctx["volume"][s].unsqueeze(0)
+    refiner = getattr(model, "refiner", None)
+    needs_neighbor_zf = (
+        isinstance(refiner, NAFResidualImageRefiner)
+        and refiner.input_mode == INPUT_MODE_NEIGHBOR_ZF
+    )
+    previous_index = max(0, int(s) - 1)
+    next_index = min(int(ctx["num_slices"]) - 1, int(s) + 1)
+    previous_kspace = ctx["volume"][previous_index].unsqueeze(0)
+    next_kspace = ctx["volume"][next_index].unsqueeze(0)
     routed_base = getattr(model, "base_model", model)
     route, _ = select_component(
         ctx["mask"],
@@ -346,18 +356,36 @@ def recon_slice(model, ctx, s):
         kspace, mask = _transform_tta_input(
             base_kspace, ctx["mask"], view
         )
+        neighbor_masked_kspace = None
+        if needs_neighbor_zf:
+            transformed_previous, previous_mask = _transform_tta_input(
+                previous_kspace, ctx["mask"], view
+            )
+            transformed_next, next_mask = _transform_tta_input(
+                next_kspace, ctx["mask"], view
+            )
+            if not torch.equal(previous_mask, mask) or not torch.equal(
+                next_mask, mask
+            ):
+                raise RuntimeError("neighbor TTA mask parity failed")
+            neighbor_masked_kspace = (
+                transformed_previous,
+                transformed_next,
+            )
         prepared = PromptMRInput(
             kspace=kspace,
             mask=mask,
             num_low_frequencies=ctx["num_low_frequencies"],
             acceleration=declared_acceleration,
         )
-        output = model(
-            prepared,
-            crop_size=None,
-            use_checkpoint=False,
-            compute_sens_per_coil=True,
-        )[0]
+        forward_kwargs = {
+            "crop_size": None,
+            "use_checkpoint": False,
+            "compute_sens_per_coil": True,
+        }
+        if needs_neighbor_zf:
+            forward_kwargs["neighbor_masked_kspace"] = neighbor_masked_kspace
+        output = model(prepared, **forward_kwargs)[0]
         output = _restore_tta_output(output, view)
         outputs.append(output.to(dtype=torch.float32))
     averaged = torch.stack(outputs, dim=0).mean(dim=0)

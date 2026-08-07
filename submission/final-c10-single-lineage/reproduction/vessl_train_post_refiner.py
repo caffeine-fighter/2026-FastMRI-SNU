@@ -25,6 +25,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Sampler
 from utils.learning.promptmr_post_refiner import (
     BaseOnceRefinerTTA,
     INPUT_MODE_DIRECTIONAL,
+    INPUT_MODE_NEIGHBOR_ZF,
     INPUT_MODE_ZF_CONTEXT,
     NAF_REFINER_VARIANTS,
     NAFResidualImageRefiner,
@@ -172,7 +173,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask-conditioned", action="store_true")
     parser.add_argument(
         "--input-mode",
-        choices=(INPUT_MODE_DIRECTIONAL, INPUT_MODE_ZF_CONTEXT),
+        choices=(
+            INPUT_MODE_DIRECTIONAL,
+            INPUT_MODE_ZF_CONTEXT,
+            INPUT_MODE_NEIGHBOR_ZF,
+        ),
         default=INPUT_MODE_DIRECTIONAL,
     )
     parser.add_argument(
@@ -192,7 +197,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help=(
-            "Presealed LR horizon. The R25 path stops before this horizon "
+            "Presealed LR horizon. The R30 path stops before this horizon "
             "without compressing the cosine tail."
         ),
     )
@@ -265,20 +270,20 @@ def parse_args() -> argparse.Namespace:
             parser.error("the legacy deadline path requires exactly 91141 optimizer steps")
     elif args.epochs == 21:
         if (
-            args.optimizer_steps != 91_231
+            args.optimizer_steps != 88_895
             or args.lr_horizon_optimizer_steps != 93_567
-            or args.input_mode != INPUT_MODE_ZF_CONTEXT
+            or args.input_mode != INPUT_MODE_NEIGHBOR_ZF
         ):
             parser.error(
-                "the R25 terminal path requires stop=91231 and "
-                "LR-horizon=93567 optimizer steps with R29 ZF context"
+                "the R30 terminal path requires stop=88895 and "
+                "LR-horizon=93567 optimizer steps with adjacent ZF context"
             )
         if args.acc4_checkpoint is None or args.acc8_checkpoint is None:
-            parser.error("the R25 NAF_S path requires both routed specialists")
+            parser.error("the R30 NAF_S path requires both routed specialists")
     elif args.optimizer_steps is not None:
         parser.error("an optimizer-step override is not registered for this epoch path")
     if args.epochs != 21 and args.lr_horizon_optimizer_steps is not None:
-        parser.error("an independent LR horizon is registered only for R25")
+        parser.error("an independent LR horizon is registered only for R30")
     if (args.extra_train_root is None) != (
         args.extra_trusted_data_manifest is None
     ):
@@ -297,8 +302,17 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def registered_parameter_count(variant: str, mask_conditioned: bool) -> int:
-    return REGISTERED_REFINERS[variant] + (
+def registered_parameter_count(
+    variant: str,
+    mask_conditioned: bool,
+    input_mode: str = INPUT_MODE_DIRECTIONAL,
+) -> int:
+    context_parameters = (
+        2 * int(NAF_REFINER_VARIANTS[variant]["channels"]) * 3 * 3
+        if variant != "PLAIN_168K" and input_mode == INPUT_MODE_NEIGHBOR_ZF
+        else 0
+    )
+    return REGISTERED_REFINERS[variant] + context_parameters + (
         MASK_CONDITIONER_PARAMETERS.get(variant, 0)
         if mask_conditioned
         else 0
@@ -320,7 +334,11 @@ def make_refiner(
             input_mode=input_mode,
         )
     observed = sum(parameter.numel() for parameter in refiner.parameters())
-    if observed != registered_parameter_count(variant, mask_conditioned):
+    if observed != registered_parameter_count(
+        variant,
+        mask_conditioned,
+        input_mode,
+    ):
         raise RuntimeError("registered post-refiner parameter count drifted")
     return refiner
 
@@ -735,7 +753,7 @@ def validate_routed_branch(
         raise RuntimeError("routed branch SHA-256 mismatch")
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     config = checkpoint.get("config")
-    expected_step = {4: 4_672, 8: 1_158}[int(acceleration)]
+    expected_step = {4: 7_008, 8: 1_158}[int(acceleration)]
     expected_horizon = {4: 35_040, 8: 2_315}[int(acceleration)]
     expected_loss = {
         4: "exact_upstream_ssim",
@@ -913,6 +931,22 @@ def recovery_payload(
         "mask_conditioning": (
             MASK_CONDITIONING_CONTRACT if args.mask_conditioned else None
         ),
+        "input_mode": args.input_mode,
+        "zero_filled_definition": (
+            ZERO_FILLED_DEFINITION
+            if args.input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
+            else None
+        ),
+        "adjacent_slice_context": (
+            {
+                "count": 3,
+                "positions": ["previous", "current", "next"],
+                "boundary_policy": "replicate_nearest_slice",
+                "source": "same_volume_masked_kspace_only",
+            }
+            if args.input_mode == INPUT_MODE_NEIGHBOR_ZF
+            else None
+        ),
         "views": list(args.views),
         "epochs": args.epochs,
         "terminal_optimizer_steps": args.optimizer_steps,
@@ -984,11 +1018,12 @@ def main() -> int:
     if args.epochs == 21 and (
         args.variant != "NAF_S"
         or base_epoch != 49
-        or args.optimizer_steps != 91_231
+        or args.optimizer_steps != 88_895
         or args.lr_horizon_optimizer_steps != 93_567
+        or args.input_mode != INPUT_MODE_NEIGHBOR_ZF
     ):
         raise RuntimeError(
-            "the R25 terminal refiner must be NAF_S after sealed E49"
+            "the R30 terminal refiner must be NAF_S after sealed E49"
         )
     if args.epochs == 15 and (
         args.variant != "NAF_S" or base_epoch != 40
@@ -1056,7 +1091,7 @@ def main() -> int:
     train_dataset_raw = PromptMRProductionDataset(
         args.train_root,
         args.trusted_data_manifest,
-        num_adj_slices=1,
+        num_adj_slices=(3 if args.input_mode == INPUT_MODE_NEIGHBOR_ZF else 1),
         mraugment="off",
         legal_mask_family=True,
         legal_mask_seed=args.seed,
@@ -1072,7 +1107,7 @@ def main() -> int:
         extra_dataset_raw = PromptMRProductionDataset(
             args.extra_train_root,
             args.extra_trusted_data_manifest,
-            num_adj_slices=1,
+            num_adj_slices=(3 if args.input_mode == INPUT_MODE_NEIGHBOR_ZF else 1),
             mraugment="off",
             legal_mask_family=True,
             legal_mask_seed=args.seed,
@@ -1143,6 +1178,22 @@ def main() -> int:
             or bool(recovery.get("mask_conditioned", False))
             is not args.mask_conditioned
             or recovery.get("views") != list(args.views)
+            or recovery.get("input_mode") != args.input_mode
+            or recovery.get("zero_filled_definition") != (
+                ZERO_FILLED_DEFINITION
+                if args.input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
+                else None
+            )
+            or recovery.get("adjacent_slice_context") != (
+                {
+                    "count": 3,
+                    "positions": ["previous", "current", "next"],
+                    "boundary_policy": "replicate_nearest_slice",
+                    "source": "same_volume_masked_kspace_only",
+                }
+                if args.input_mode == INPUT_MODE_NEIGHBOR_ZF
+                else None
+            )
             or int(recovery.get("epochs", -1)) != args.epochs
             or recovery.get("terminal_optimizer_steps")
             != args.optimizer_steps
@@ -1225,7 +1276,17 @@ def main() -> int:
             "input_mode": args.input_mode,
             "zero_filled_definition": (
                 ZERO_FILLED_DEFINITION
-                if args.input_mode == INPUT_MODE_ZF_CONTEXT
+                if args.input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
+                else None
+            ),
+            "adjacent_slice_context": (
+                {
+                    "count": 3,
+                    "positions": ["previous", "current", "next"],
+                    "boundary_policy": "replicate_nearest_slice",
+                    "source": "same_volume_masked_kspace_only",
+                }
+                if args.input_mode == INPUT_MODE_NEIGHBOR_ZF
                 else None
             ),
             "normalization": "shared_detached_reconstruction_amax",
@@ -1345,8 +1406,23 @@ def main() -> int:
             )
             for group in optimizer.param_groups:
                 group["lr"] = lr
+            masked_kspace = batch["masked_kspace"].to(device)
+            neighbor_masked_kspace = None
+            if args.input_mode == INPUT_MODE_NEIGHBOR_ZF:
+                if masked_kspace.shape[1] % 3 != 0:
+                    raise RuntimeError(
+                        "adjacent-slice k-space channel count is not divisible by three"
+                    )
+                previous_kspace, center_kspace, next_kspace = torch.chunk(
+                    masked_kspace,
+                    3,
+                    dim=1,
+                )
+                neighbor_masked_kspace = (previous_kspace, next_kspace)
+            else:
+                center_kspace = masked_kspace
             prepared = PromptMRInput(
-                batch["masked_kspace"].to(device),
+                center_kspace,
                 batch["mask"].to(device),
                 batch["num_low_frequencies"].to(device),
                 int(batch["acceleration"][0]),
@@ -1357,6 +1433,11 @@ def main() -> int:
                 crop_size=tuple(map(int, batch["target"].shape[-2:])),
                 use_checkpoint=False,
                 compute_sens_per_coil=True,
+                **(
+                    {"neighbor_masked_kspace": neighbor_masked_kspace}
+                    if neighbor_masked_kspace is not None
+                    else {}
+                ),
             )
             target = batch["target"].to(device)
             maximum = batch["max_value"].to(device)
@@ -1465,6 +1546,7 @@ def main() -> int:
             "parameter_count": registered_parameter_count(
                 args.variant,
                 args.mask_conditioned,
+                args.input_mode,
             ),
             "mask_conditioned": args.mask_conditioned,
             "mask_conditioning": (
@@ -1473,7 +1555,17 @@ def main() -> int:
             "input_mode": args.input_mode,
             "zero_filled_definition": (
                 ZERO_FILLED_DEFINITION
-                if args.input_mode == INPUT_MODE_ZF_CONTEXT
+                if args.input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
+                else None
+            ),
+            "adjacent_slice_context": (
+                {
+                    "count": 3,
+                    "positions": ["previous", "current", "next"],
+                    "boundary_policy": "replicate_nearest_slice",
+                    "source": "same_volume_masked_kspace_only",
+                }
+                if args.input_mode == INPUT_MODE_NEIGHBOR_ZF
                 else None
             ),
             "normalization": "shared_detached_reconstruction_amax",
@@ -1502,6 +1594,8 @@ def main() -> int:
                 (
                     "naf_s_plus_mask_conditioner"
                     if args.mask_conditioned
+                    else "naf_s_plus_adjacent_zf_stem"
+                    if args.input_mode == INPUT_MODE_NEIGHBOR_ZF
                     else "naf_s_only"
                 )
                 if args.epochs in {10, 15, 20, 21}
@@ -1588,6 +1682,7 @@ def main() -> int:
             "parameter_count": registered_parameter_count(
                 args.variant,
                 args.mask_conditioned,
+                args.input_mode,
             ),
             "mask_conditioned": args.mask_conditioned,
             "mask_conditioning": (
@@ -1596,7 +1691,17 @@ def main() -> int:
             "input_mode": args.input_mode,
             "zero_filled_definition": (
                 ZERO_FILLED_DEFINITION
-                if args.input_mode == INPUT_MODE_ZF_CONTEXT
+                if args.input_mode in (INPUT_MODE_ZF_CONTEXT, INPUT_MODE_NEIGHBOR_ZF)
+                else None
+            ),
+            "adjacent_slice_context": (
+                {
+                    "count": 3,
+                    "positions": ["previous", "current", "next"],
+                    "boundary_policy": "replicate_nearest_slice",
+                    "source": "same_volume_masked_kspace_only",
+                }
+                if args.input_mode == INPUT_MODE_NEIGHBOR_ZF
                 else None
             ),
             "normalization": "shared_detached_reconstruction_amax",

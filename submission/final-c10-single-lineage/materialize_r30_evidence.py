@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Normalize and fail-closed validate the authoritative R29 VESSL receipts."""
+"""Normalize and fail-closed validate the authoritative R30 VESSL receipts."""
 
 from __future__ import annotations
 
@@ -17,16 +17,16 @@ ROOT = Path(__file__).resolve().parent
 REPRO = ROOT / "reproduction"
 EVIDENCE = ROOT / "evidence"
 MODEL = ROOT / "best_model.pt"
-TACTICS = REPRO / "final-tactics-c10-r29-zf-context.json"
-AMENDMENT = REPRO / "FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json"
-RUNTIME = REPRO / "FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json"
-PREFLIGHT = REPRO / "R29_CPU_PREFLIGHT.json"
-INPUT_MODE = "recon_zero_filled_residual"
+TACTICS = REPRO / "final-tactics-c10-r30-neighbor-zf.json"
+AMENDMENT = REPRO / "FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json"
+RUNTIME = REPRO / "FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
+PREFLIGHT = REPRO / "R30_CPU_PREFLIGHT.json"
+INPUT_MODE = "recon_zero_filled_residual_neighbor_zf"
 ZF_DEFINITION = "rss(fftshift(ifft2(ifftshift(masked_kspace),norm=ortho)))"
 
 
 def fail(message: str) -> None:
-    raise SystemExit(f"R29_EVIDENCE_REFUSED: {message}")
+    raise SystemExit(f"R30_EVIDENCE_REFUSED: {message}")
 
 
 def sha256(path: Path) -> str:
@@ -70,7 +70,7 @@ def copy_exact(source: Path, destination: Path) -> None:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--controller-receipt", type=Path, required=True)
-parser.add_argument("--r29-deployment-receipt", type=Path, required=True)
+parser.add_argument("--r30-deployment-receipt", type=Path, required=True)
 parser.add_argument("--generalist-receipt", type=Path, required=True)
 parser.add_argument("--acc4-terminal", type=Path, required=True)
 parser.add_argument("--acc8-terminal", type=Path, required=True)
@@ -114,17 +114,19 @@ change = amendment.get("amendment")
 if (
     tactics.get("schema") != "vessl-final-tactics-scalar-handoff-v1"
     or tactics.get("state") != "SEALED"
-    or amendment.get("schema") != "final-c10-single-lineage-r29-zf-context-amendment-v1"
+    or amendment.get("schema") != "final-c10-single-lineage-r30-neighbor-zf-amendment-v1"
     or amendment.get("state") != "SEALED"
-    or runtime.get("schema") != "final-c10-single-lineage-r29-inference-amendment-v1"
+    or runtime.get("schema") != "final-c10-single-lineage-r30-inference-amendment-v1"
     or runtime.get("state") != "SEALED"
-    or preflight.get("schema") != "vessl-r29-zf-context-cpu-preflight-v1"
+    or preflight.get("schema") != "vessl-r30-neighbor-zf-cpu-preflight-v1"
     or preflight.get("state") != "PASS"
     or preflight.get("cpu_only") is not True
     or preflight.get("cuda_initialized") is not False
     or preflight.get("actual_shipped_router_validation") is not True
+    or preflight.get("timed_neighbor_recon_slice_executed") is not True
+    or preflight.get("zero_initialized_output_identity") is not True
     or preflight.get("post_e49_optimizer_steps") != 97_061
-    or preflight.get("naf_s_parameter_count") != 72_625
+    or preflight.get("naf_s_parameter_count") != 73_489
     or preflight.get("unknown_mask_outer_tta") != ["identity"]
     or not isinstance(policy, dict)
     or policy.get("candidate_count") != 1
@@ -136,7 +138,7 @@ if (
     or change.get("post_e49_total_optimizer_steps") != 97_061
     or change.get("optimizer_step_budget_changed") is not False
 ):
-    fail("sealed R29 contract or CPU preflight is invalid")
+    fail("sealed R30 contract or CPU preflight is invalid")
 
 source_paths = {
     "controller.py": REPRO / "controller.py",
@@ -149,20 +151,20 @@ source_paths = {
     "promptmr_mask_router.py": REPRO / "promptmr_mask_router.py",
     "promptmr_legal_mask.py": REPRO / "promptmr_legal_mask.py",
     "test_part.py": REPRO / "test_part.py",
-    "preflight_r29.py": REPRO / "preflight_r29.py",
+    "preflight_r30.py": REPRO / "preflight_r30.py",
 }
 sealed_sources = amendment.get("source_hashes")
 if not isinstance(sealed_sources, dict):
-    fail("R29 source hash map is absent")
+    fail("R30 source hash map is absent")
 for name, path in source_paths.items():
     if not path.is_file() or sha256(path) != sealed_sources.get(name):
-        fail(f"R29 reproduction source drifted: {name}")
+        fail(f"R30 reproduction source drifted: {name}")
 
-deployment = load(args.r29_deployment_receipt)
+deployment = load(args.r30_deployment_receipt)
 deployment_sources = deployment.get("source_hashes")
 if (
-    deployment.get("schema") != "vessl-c10-single-lineage-r29-zf-context-deployment-v1"
-    or deployment.get("state") != "ACTIVE_CURRENT_C10_PRESERVED_R29_ZF_CONTEXT_ARMED"
+    deployment.get("schema") != "vessl-c10-single-lineage-r30-neighbor-zf-deployment-v1"
+    or deployment.get("state") != "ACTIVE_CURRENT_C10_PRESERVED_R30_NEIGHBOR_ZF_ARMED"
     or deployment.get("trainer_signal_sent") is not False
     or deployment.get("active_generalist_process_touched") is not False
     or deployment.get("active_generalist_recipe_changed") is not False
@@ -173,13 +175,13 @@ if (
     or deployment.get("final_package_count") != 1
     or deployment.get("fallback_registered") is not False
     or deployment.get("official_evaluation_max_runs") != 1
-    or deployment.get("r29_amendment_sha256") != sha256(AMENDMENT)
-    or deployment.get("r29_tactics_sha256") != sha256(TACTICS)
-    or deployment.get("r29_runtime_sha256") != sha256(RUNTIME)
+    or deployment.get("r30_amendment_sha256") != sha256(AMENDMENT)
+    or deployment.get("r30_tactics_sha256") != sha256(TACTICS)
+    or deployment.get("r30_runtime_sha256") != sha256(RUNTIME)
     or not isinstance(deployment_sources, dict)
     or any(deployment_sources.get(name) != digest for name, digest in sealed_sources.items())
 ):
-    fail("R29 deployment did not preserve the active single lineage")
+    fail("R30 deployment did not preserve the active single lineage")
 
 controller = load(args.controller_receipt)
 model_sha = sha256(MODEL)
@@ -205,7 +207,7 @@ if (
     or admission.get("leaderboard_data_used") is not False
     or admission.get("official_reconstruction_path") is not True
 ):
-    fail("controller final receipt is not the exact R29 primary package")
+    fail("controller final receipt is not the exact R30 primary package")
 
 generalist = load(args.generalist_receipt)
 if (
@@ -221,7 +223,7 @@ if (
 
 specialist_receipts: dict[str, dict] = {}
 for route, terminal_path, steps, horizon, epoch in (
-    ("acc4", args.acc4_terminal, 4_672, 35_040, 1),
+    ("acc4", args.acc4_terminal, 7_008, 35_040, 2),
     ("acc8", args.acc8_terminal, 1_158, 2_315, 0),
 ):
     terminal = load(terminal_path)
@@ -235,7 +237,7 @@ for route, terminal_path, steps, horizon, epoch in (
     ):
         fail(f"{route} terminal receipt is invalid")
     specialist_receipts[route] = {
-        "schema": "fastmri-r29-specialist-receipt-v1",
+        "schema": "fastmri-r30-specialist-receipt-v1",
         "state": "PASS",
         "route": route,
         "checkpoint": checkpoint,
@@ -261,19 +263,26 @@ if (
     or naf.get("variant") != "NAF_S"
     or naf.get("epochs") != 21
     or naf.get("parent_epoch") != 49
-    or naf.get("optimizer_steps") != 91_231
+    or naf.get("optimizer_steps") != 88_895
     or naf.get("lr_horizon_optimizer_steps") != 93_567
     or naf.get("input_mode") != INPUT_MODE
     or naf.get("zero_filled_definition") != ZF_DEFINITION
     or naf.get("normalization") != "shared_detached_reconstruction_amax"
     or naf.get("spatial_match") != "center_crop_then_zero_pad"
+    or naf.get("adjacent_slice_context")
+    != {
+        "count": 3,
+        "positions": ["previous", "current", "next"],
+        "boundary_policy": "replicate_nearest_slice",
+        "source": "same_volume_masked_kspace_only",
+    }
     or naf.get("main_parameters_updated") is not False
     or naf.get("external_learned_state_imported") is not False
 ):
-    fail("NAF_S receipt is not the exact R29 ZF-context contract")
+    fail("NAF_S receipt is not the exact R30 neighbor-ZF contract")
 
 policy_receipt = {
-    "schema": "fastmri-r29-policy-receipt-v1",
+    "schema": "fastmri-r30-policy-receipt-v1",
     "state": "PASS",
     "candidate_count": 1,
     "final_package_count": 1,
@@ -282,13 +291,18 @@ policy_receipt = {
     "routing_input": "input_kspace_mask_only_inside_recon_slice",
     "unknown_or_mismatch_route": "generalist_identity",
     "post_refiner_input_mode": INPUT_MODE,
+    "adjacent_slice_context": {
+        "count": 3,
+        "boundary_policy": "replicate_nearest_slice",
+        "source": "same_volume_masked_kspace_only",
+    },
     "learned_state_source": "VESSL_ONLY",
     "external_learned_state_imported": False,
     "leaderboard_data_used_for_training_or_selection": False,
     "tactics_sha256": sha256(TACTICS),
     "amendment_sha256": sha256(AMENDMENT),
     "runtime_sha256": sha256(RUNTIME),
-    "deployment_receipt_sha256": sha256(args.r29_deployment_receipt),
+    "deployment_receipt_sha256": sha256(args.r30_deployment_receipt),
     "controller_receipt_sha256": sha256(args.controller_receipt),
 }
 
@@ -304,12 +318,12 @@ for path, payload in outputs.items():
     if path.exists():
         fail(f"normalized evidence already exists: {path}")
     atomic_json(path, payload)
-copy_exact(args.r29_deployment_receipt, EVIDENCE / "r29-amendment-deployment-receipt.json")
+copy_exact(args.r30_deployment_receipt, EVIDENCE / "r30-amendment-deployment-receipt.json")
 
 atomic_json(
     EVIDENCE / "evidence-materialization-receipt.json",
     {
-        "schema": "fastmri-r29-evidence-materialization-v1",
+        "schema": "fastmri-r30-evidence-materialization-v1",
         "state": "PASS",
         "created_unix": time.time(),
         "best_model_sha256": model_sha,
@@ -318,8 +332,8 @@ atomic_json(
         "fallback_registered": False,
         "outputs": {
             path.relative_to(ROOT).as_posix(): sha256(path)
-            for path in (*outputs.keys(), EVIDENCE / "r29-amendment-deployment-receipt.json")
+            for path in (*outputs.keys(), EVIDENCE / "r30-amendment-deployment-receipt.json")
         },
     },
 )
-print("R29_EVIDENCE_MATERIALIZED")
+print("R30_EVIDENCE_MATERIALIZED")

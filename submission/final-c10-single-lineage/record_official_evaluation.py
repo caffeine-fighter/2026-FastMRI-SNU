@@ -88,7 +88,7 @@ def start() -> int:
     atomic_json(
         START,
         {
-            "schema": "fastmri-r29-official-evaluation-start-v1",
+            "schema": "fastmri-r30-official-evaluation-start-v1",
             "state": "STARTED",
             "attempt": 1,
             "command": "bash run_official_evaluation_once.sh",
@@ -118,7 +118,7 @@ def finish(return_code: int) -> int:
         raise RuntimeError("official evaluation receipt already exists")
     start_value = load_json(START)
     if (
-        start_value.get("schema") != "fastmri-r29-official-evaluation-start-v1"
+        start_value.get("schema") != "fastmri-r30-official-evaluation-start-v1"
         or start_value.get("state") != "STARTED"
         or start_value.get("attempt") != 1
         or start_value.get("best_model_sha256") != sha256(MODEL)
@@ -150,7 +150,7 @@ def finish(return_code: int) -> int:
         return_code = return_code or 124
         state = "FAIL"
     receipt = {
-        "schema": "fastmri-r29-official-evaluation-receipt-v1",
+        "schema": "fastmri-r30-official-evaluation-receipt-v1",
         "state": state,
         "attempt": 1,
         "return_code": return_code,

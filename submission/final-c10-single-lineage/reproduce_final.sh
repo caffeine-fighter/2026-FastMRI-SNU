@@ -8,11 +8,11 @@ REPRO_ROOT="$PACKAGE_ROOT/reproduction"
 DATA_ROOT="${DATA_ROOT:-/root/Data}"
 RESULT_ROOT=/root/result
 MANIFEST="$REPRO_ROOT/organizer-data-provenance.json"
-R29_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json"
-R29_RUNTIME="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json"
-R29_PREFLIGHT="$REPRO_ROOT/R29_CPU_PREFLIGHT.json"
-R29_SPECIALIST_PRODUCTION_SHA256="ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
-RUN_NAME="EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_R29_REPRO"
+R30_AMENDMENT="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json"
+R30_RUNTIME="$REPRO_ROOT/FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
+R30_PREFLIGHT="$REPRO_ROOT/R30_CPU_PREFLIGHT.json"
+R30_SPECIALIST_PRODUCTION_SHA256="ec86306162dae4da087f0033beec924d2368e242a2df4a4d3e4607f399e0de2b"
+RUN_NAME="EXP_PROMPTMR_R2_C10_G20_FINAL_DELAY5_COS50_E40_SEED430_R30_REPRO"
 RUN_DIR="$RESULT_ROOT/$RUN_NAME"
 E49_STEP=228928
 E49_CHECKPOINT="$RUN_DIR/checkpoints/checkpoint-last-000228928.pt"
@@ -25,9 +25,9 @@ fi
 test -f "$PROJECT_ROOT/recon_eval.py"
 test -f "$REPRO_ROOT/source-sha256sums.txt"
 test -f "$MANIFEST"
-test -f "$R29_AMENDMENT"
-test -f "$R29_RUNTIME"
-test -f "$R29_PREFLIGHT"
+test -f "$R30_AMENDMENT"
+test -f "$R30_RUNTIME"
+test -f "$R30_PREFLIGHT"
 test -d "$DATA_ROOT/train/kspace"
 test -d "$DATA_ROOT/train/image"
 test -d "$DATA_ROOT/val/kspace"
@@ -35,10 +35,10 @@ test -d "$DATA_ROOT/val/image"
 mkdir -p "$RESULT_ROOT"
 for path in \
   "$RUN_DIR" \
-  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E2_S4672_SEED430_R29_REPRO" \
-  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R29_REPRO" \
-  "$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_ZF_R29_REPRO" \
-  "$RESULT_ROOT/final-r29-single-package"; do
+  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E3_S7008_SEED430_R30_REPRO" \
+  "$RESULT_ROOT/EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R30_REPRO" \
+  "$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_NEIGHBOR_ZF_R30_REPRO" \
+  "$RESULT_ROOT/final-r30-single-package"; do
   if test -e "$path"; then
     echo "refusing to overwrite existing reproduction lineage: $path" >&2
     exit 1
@@ -48,9 +48,9 @@ done
 cd "$REPRO_ROOT"
 sha256sum -c source-sha256sums.txt
 
-python - "$R29_AMENDMENT" "$R29_RUNTIME" "$R29_PREFLIGHT" \
+python - "$R30_AMENDMENT" "$R30_RUNTIME" "$R30_PREFLIGHT" \
   "$REPRO_ROOT/specialist/promptmr_production.py" \
-  "$R29_SPECIALIST_PRODUCTION_SHA256" <<'PY'
+  "$R30_SPECIALIST_PRODUCTION_SHA256" <<'PY'
 import hashlib
 import json
 from pathlib import Path
@@ -64,15 +64,15 @@ expected_production = sys.argv[5]
 amendment = json.loads(amendment_path.read_text(encoding="utf-8"))
 runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
 preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
-assert amendment["schema"] == "final-c10-single-lineage-r29-zf-context-amendment-v1"
+assert amendment["schema"] == "final-c10-single-lineage-r30-neighbor-zf-amendment-v1"
 assert amendment["state"] == "SEALED"
 assert amendment["amendment"]["post_e49_total_optimizer_steps"] == 97061
-assert amendment["amendment"]["input_mode"] == "recon_zero_filled_residual"
+assert amendment["amendment"]["input_mode"] == "recon_zero_filled_residual_neighbor_zf"
 assert amendment["source_hashes"]["promptmr_production.py"] == expected_production
 assert hashlib.sha256(production_path.read_bytes()).hexdigest() == expected_production
-assert runtime["schema"] == "final-c10-single-lineage-r29-inference-amendment-v1"
+assert runtime["schema"] == "final-c10-single-lineage-r30-inference-amendment-v1"
 assert runtime["state"] == "SEALED"
-assert preflight["schema"] == "vessl-r29-zf-context-cpu-preflight-v1"
+assert preflight["schema"] == "vessl-r30-neighbor-zf-cpu-preflight-v1"
 assert preflight["state"] == "PASS"
 assert preflight["cpu_only"] is True
 assert preflight["cuda_initialized"] is False
@@ -83,7 +83,7 @@ assert preflight["fallback_registered"] is False
 assert preflight["actual_shipped_router_validation"] is True
 assert preflight["post_refiner_command_parser"] is True
 assert preflight["unknown_mask_outer_tta"] == ["identity"]
-print("R29_ZF_CONTEXT_REPRODUCTION_SOURCE_OK")
+print("R30_NEIGHBOR_ZF_REPRODUCTION_SOURCE_OK")
 PY
 
 install -m 0644 "$REPRO_ROOT/generalist/train.py" "$PROJECT_ROOT/train.py"
@@ -147,7 +147,7 @@ install -m 0644 "$REPRO_ROOT/specialist/train.py" "$PROJECT_ROOT/train.py"
 install -m 0644 "$REPRO_ROOT/specialist/promptmr_production.py" \
   "$PROJECT_ROOT/utils/learning/promptmr_production.py"
 
-ACC4_RUN="EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E2_S4672_SEED430_R29_REPRO"
+ACC4_RUN="EXP_PROMPTMR_R2_C10_ACC4_G10_FINAL_E3_S7008_SEED430_R30_REPRO"
 ACC4_DIR="$RESULT_ROOT/$ACC4_RUN"
 python -u train.py \
   --model-family promptmr-plus --promptmr-production --promptmr-rung R2 \
@@ -156,8 +156,8 @@ python -u train.py \
   --promptmr-mraugment conservative_immediate --promptmr-legal-mask-family \
   --promptmr-lr-schedule specialist_warmup1_cosine --promptmr-skip-validation \
   --precision fp32 --require-cuda-device-name "NVIDIA GeForce GTX 1080" \
-  --GPU-NUM 0 --batch-size 1 --num-epochs 2 \
-  --promptmr-stop-after-optimizer-steps 4672 \
+  --GPU-NUM 0 --batch-size 1 --num-epochs 3 \
+  --promptmr-stop-after-optimizer-steps 7008 \
   --promptmr-specialist-lr-horizon-optimizer-steps 35040 \
   --promptmr-mraugment-seed 433 --promptmr-legal-mask-seed 438 \
   --promptmr-specialist-loss-family exact_upstream_ssim \
@@ -168,7 +168,7 @@ python -u train.py \
   --promptmr-vessl-model-only-import-sha256 "$C10_SHA256" \
   >"$RESULT_ROOT/acc4-specialist.log" 2>&1
 
-ACC8_RUN="EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R29_REPRO"
+ACC8_RUN="EXP_PROMPTMR_R2_C10_ACC8_G10_FINAL_E1_S1158_SEED430_R30_REPRO"
 ACC8_DIR="$RESULT_ROOT/$ACC8_RUN"
 python -u train.py \
   --model-family promptmr-plus --promptmr-production --promptmr-rung R2 \
@@ -205,14 +205,14 @@ install -m 0644 "$REPRO_ROOT/generalist/train.py" "$PROJECT_ROOT/train.py"
 install -m 0644 "$REPRO_ROOT/generalist/promptmr_production.py" \
   "$PROJECT_ROOT/utils/learning/promptmr_production.py"
 
-NAF_DIR="$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_ZF_R29_REPRO"
+NAF_DIR="$RESULT_ROOT/VESSL_POST_REFINER_R2_C10_NAF_S_E21_BBOX05_NEIGHBOR_ZF_R30_REPRO"
 python -u "$REPRO_ROOT/vessl_train_post_refiner.py" \
   --base-checkpoint "$E49_CHECKPOINT" --base-checkpoint-sha256 "$C10_SHA256" \
   --acc4-checkpoint "$ACC4_CHECKPOINT" --acc4-checkpoint-sha256 "$ACC4_SHA256" \
   --acc8-checkpoint "$ACC8_CHECKPOINT" --acc8-checkpoint-sha256 "$ACC8_SHA256" \
   --variant NAF_S --views identity flip_lr --epochs 21 \
-  --optimizer-steps 91231 --lr-horizon-optimizer-steps 93567 \
-  --input-mode recon_zero_filled_residual \
+  --optimizer-steps 88895 --lr-horizon-optimizer-steps 93567 \
+  --input-mode recon_zero_filled_residual_neighbor_zf \
   --output-dir "$NAF_DIR" \
   --train-root "$DATA_ROOT/train" --trusted-data-manifest "$MANIFEST" \
   --extra-train-root "$DATA_ROOT/val" --extra-trusted-data-manifest "$MANIFEST" \
@@ -228,7 +228,7 @@ print(Path(json.loads(Path(sys.argv[1]).read_text())["checkpoint"]).resolve())
 PY
 )"
 NAF_SHA256="$(sha256sum "$NAF_CHECKPOINT" | awk '{print $1}')"
-FINAL_DIR="$RESULT_ROOT/final-r29-single-package"
+FINAL_DIR="$RESULT_ROOT/final-r30-single-package"
 mkdir -p "$FINAL_DIR"
 python -u "$REPRO_ROOT/vessl_build_routed_promptmr_checkpoint.py" \
   --generalist-checkpoint "$E49_CHECKPOINT" --generalist-sha256 "$C10_SHA256" \
@@ -240,4 +240,4 @@ python -u "$REPRO_ROOT/vessl_build_routed_promptmr_checkpoint.py" \
   --output "$FINAL_DIR/best_model.pt"
 
 test -f "$FINAL_DIR/best_model.pt"
-echo "R29_REPRODUCTION_COMPLETE $FINAL_DIR/best_model.pt"
+echo "R30_REPRODUCTION_COMPLETE $FINAL_DIR/best_model.pt"

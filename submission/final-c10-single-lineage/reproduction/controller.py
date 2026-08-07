@@ -133,7 +133,7 @@ STAGED_FINAL_ADMISSION = STAGED / "vessl_final_lazy_router_admission.py"
 STAGED_POST_REFINER = STAGED / "promptmr_post_refiner.py"
 STAGED_POST_REFINER_TRAIN = STAGED / "vessl_train_post_refiner.py"
 STAGED_RUNTIME_AMENDMENT = (
-    STAGED / "FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json"
+    STAGED / "FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json"
 )
 SPECIALIST_STAGED = Path(
     os.environ.get(
@@ -175,15 +175,15 @@ EXPECTED_STAGED_SHA256 = {
     ),
     STAGED_BUILDER: os.environ.get(
         "FASTMRI_G10_STAGED_BUILDER_SHA256",
-        "4da709fa46f99456b88a2011275f3ddf4e135e02917c6bc85032969ce245c916",
+        "68b20b6288c9d8708b3fa876e523439c7e8f39f15521631e58d6801411dd5252",
     ),
     STAGED_ROUTER: os.environ.get(
         "FASTMRI_G10_STAGED_ROUTER_SHA256",
-        "b87d38e84da34820258a067f9ebd61d12403d483a124fd367be9f45908fa1825",
+        "081c8d2c4db362ad6d18870305f5c580fb43c95794972bdd2a9c08f5caebdfb8",
     ),
     STAGED_TEST_PART: os.environ.get(
         "FASTMRI_G10_STAGED_TEST_PART_SHA256",
-        "8111150c1e4b2056fccb83a5f301367fbaf6f3d2eecf43730c894966d982b3f6",
+        "08f11340f6461ebfd2acdbe40cb96d7953d32cbecd595e2032f82448228006b4",
     ),
     STAGED_FINAL_ADMISSION: os.environ.get(
         "FASTMRI_G10_STAGED_FINAL_ADMISSION_SHA256",
@@ -191,15 +191,15 @@ EXPECTED_STAGED_SHA256 = {
     ),
     STAGED_POST_REFINER: os.environ.get(
         "FASTMRI_G10_STAGED_POST_REFINER_SHA256",
-        "2b06495d2f192134155fa771b1f482942ee5afb590f2a945bf42d982af990537",
+        "16a8182b0fc50acd650cd1cf833fb51512b341a8927ca22faf5c38658ce5dc66",
     ),
     STAGED_POST_REFINER_TRAIN: os.environ.get(
         "FASTMRI_G10_STAGED_POST_REFINER_TRAIN_SHA256",
-        "cfaf578c5ccec3d3db7fe02a63735d72b13613528ca93993987779b655dc88af",
+        "dba20a43f19b58ab4988de192e7694bc1704e438139c10bfe714e9e0afba27cc",
     ),
     STAGED_RUNTIME_AMENDMENT: os.environ.get(
-        "FASTMRI_R29_INFERENCE_AMENDMENT_SHA256",
-        "R29_RUNTIME_SHA256_MUST_BE_EXPLICITLY_BOUND",
+        "FASTMRI_R30_INFERENCE_AMENDMENT_SHA256",
+        "132912fafa63d9a73caf37368921269427cb12b417c4641e6ded836ad569ca82",
     ),
     STAGED_SPECIALIST_TRAIN: os.environ.get(
         "FASTMRI_R19_SPECIALIST_TRAIN_SHA256",
@@ -307,7 +307,7 @@ GENERALIST_HANDOFF_STEP = 4_672 * GENERALIST_HANDOFF_EPOCH
 if GENERALIST_HANDOFF_EPOCH != 49:
     raise RuntimeError("R23 requires the exact E49 generalist handoff")
 
-R19_ACC4_SCHEMA = "vessl-score-free-acc4-late-moe-e49-r25-e2-prefix-v1"
+R30_ACC4_SCHEMA = "vessl-score-free-acc4-late-moe-e49-r30-e3-prefix-v1"
 R19_ACC8_SCHEMA = "vessl-score-free-acc8-late-moe-e49-r23-r10-prefix-v1"
 R19_BBOX_LOSS_FAMILY = (
     "winner_foreground_ssim_l1_sqrt_area_plus_official384_bbox05_v2"
@@ -517,14 +517,14 @@ def validate_staged() -> None:
     staged_sources = amendment.get("staged_sources", {})
     if (
         amendment.get("schema")
-        != "final-c10-single-lineage-r29-inference-amendment-v1"
+        != "final-c10-single-lineage-r30-inference-amendment-v1"
         or amendment.get("state") != "SEALED"
         or amendment.get("scope")
-        != "INFERENCE_ONLY_FUTURE_SINGLE_FINAL_PACKAGE"
+        != "FUTURE_SINGLE_FINAL_PACKAGE_RUNTIME_FOR_R30_TRAINING_AMENDMENT"
         or runtime.get("all_work_inside_official_timed_recon_slice")
         is not True
         or runtime.get("post_refiner_input_mode")
-        != "recon_zero_filled_residual"
+        != "recon_zero_filled_residual_neighbor_zf"
         or runtime.get("unknown_mask_outer_tta") != ["identity"]
         or runtime.get("exact_mask_route_selected_inside_recon_slice")
         is not True
@@ -548,7 +548,7 @@ def validate_staged() -> None:
         or staged_sources.get("promptmr_mask_router.py")
         != EXPECTED_STAGED_SHA256[STAGED_MASK_ROUTER]
     ):
-        raise RuntimeError("invalid R29 inference amendment")
+        raise RuntimeError("invalid R30 inference amendment")
 
 
 def validate_handoffs(
@@ -650,12 +650,20 @@ def validate_handoffs(
             mask_conditioned = bool(
                 post_refiner.get("mask_conditioned", False)
             )
-            expected_parameter_count = registered_refiners.get(variant, -1) + (
-                1_440 if mask_conditioned and variant == "NAF_S" else 0
+            neighbor_zf = (
+                post_refiner.get("input_mode")
+                == "recon_zero_filled_residual_neighbor_zf"
+            )
+            expected_parameter_count = (
+                registered_refiners.get(variant, -1)
+                + (864 if neighbor_zf and variant == "NAF_S" else 0)
+                + (1_440 if mask_conditioned and variant == "NAF_S" else 0)
             )
             expected_trainable_scope = (
                 "naf_s_plus_mask_conditioner"
                 if mask_conditioned
+                else "naf_s_plus_adjacent_zf_stem"
+                if neighbor_zf
                 else "naf_s_only"
             )
             if (
@@ -754,7 +762,7 @@ def validate_handoffs(
                         != GENERALIST_HANDOFF_EPOCH
                         or post_refiner.get("parent_optimizer_step")
                         != GENERALIST_HANDOFF_STEP
-                        or post_refiner.get("optimizer_steps") != 91231
+                        or post_refiner.get("optimizer_steps") != 88895
                         or post_refiner.get("lr_horizon_optimizer_steps")
                         != 93567
                         or post_refiner.get("steps_per_epoch") != 4672
@@ -799,10 +807,11 @@ def validate_handoffs(
                 != GENERALIST_HANDOFF_EPOCH
                 or post_refiner.get("parent_optimizer_step")
                 != GENERALIST_HANDOFF_STEP
-                or post_refiner.get("optimizer_steps") != 91231
+                or post_refiner.get("optimizer_steps") != 88895
                 or post_refiner.get("lr_horizon_optimizer_steps") != 93567
                 or post_refiner.get("steps_per_epoch") != 4672
-                or post_refiner.get("trainable_parameter_scope") != "naf_s_only"
+                or post_refiner.get("trainable_parameter_scope")
+                != "naf_s_plus_adjacent_zf_stem"
                 or post_refiner.get("frozen_parameter_scope")
                 != "main_c10_e49_all_parameters"
                 or post_refiner.get("main_parameters_updated") is not False
@@ -810,7 +819,7 @@ def validate_handoffs(
                 or post_refiner.get("mask_conditioned") is not False
                 or post_refiner.get("mask_conditioning") is not None
                 or post_refiner.get("input_mode")
-                != "recon_zero_filled_residual"
+                != "recon_zero_filled_residual_neighbor_zf"
                 or post_refiner.get("zero_filled_definition")
                 != (
                     "rss(fftshift(ifft2(ifftshift(masked_kspace),"
@@ -820,6 +829,13 @@ def validate_handoffs(
                 != "shared_detached_reconstruction_amax"
                 or post_refiner.get("spatial_match")
                 != "center_crop_then_zero_pad"
+                or post_refiner.get("adjacent_slice_context")
+                != {
+                    "count": 3,
+                    "positions": ["previous", "current", "next"],
+                    "boundary_policy": "replicate_nearest_slice",
+                    "source": "same_volume_masked_kspace_only",
+                }
                 or post_refiner.get("training_data") != "organizer_train_plus_val_final"
                 or post_refiner.get("extra_train_root") != "/root/Data/val"
                 or post_refiner.get("loss_family")
@@ -855,13 +871,13 @@ def validate_handoffs(
                 != "equal_acc_real_acc8_real80_virtual20_v1"
                 or tactics_recipe.get("inference", {}).get("tta_views") != "acc8_identity_flip_lr"
                 or acc4.get("enabled") is not True
-                or acc4.get("schema") != R19_ACC4_SCHEMA
+                or acc4.get("schema") != R30_ACC4_SCHEMA
                 or acc4.get("late_branch_parent_epoch")
                 != GENERALIST_HANDOFF_EPOCH
                 or acc4.get("late_branch_parent_optimizer_step")
                 != GENERALIST_HANDOFF_STEP
-                or acc4.get("epochs") != 2
-                or acc4.get("optimizer_steps") != 4672
+                or acc4.get("epochs") != 3
+                or acc4.get("optimizer_steps") != 7008
                 or acc4.get("lr_horizon_optimizer_steps") != 35040
                 or float(acc4.get("peak_lr", -1)) != 2.5e-5
                 or acc4.get("loss_family") != "exact_upstream_ssim"
@@ -887,7 +903,7 @@ def validate_handoffs(
                 or acc8.get("mraugment") != "off"
             ):
                 raise RuntimeError(
-                    "single-final policy requires the sealed R25 E49 + ACC4-E2-prefix + ACC8-R10-prefix + NAF_S-91231/93567-horizon routed package"
+                    "single-final policy requires the sealed R30 E49 + ACC4-E3-prefix + ACC8-R10-prefix + adjacent-ZF NAF_S-88895/93567-horizon routed package"
                 )
         candidate_policy = tactics.get("candidate_policy")
         if SINGLE_FINAL_REQUIRED and (
@@ -1935,7 +1951,7 @@ def train_specialist(
     late_acc4_moe = (
         acceleration == "acc4"
         and specialist.get("schema")
-        in {"vessl-score-free-acc4-late-moe-e40-e55-v1", "vessl-score-free-acc4-late-moe-e51-asymmetric-v1", R19_ACC4_SCHEMA}
+        in {"vessl-score-free-acc4-late-moe-e40-e55-v1", "vessl-score-free-acc4-late-moe-e51-asymmetric-v1", R30_ACC4_SCHEMA}
         and late_acc4_moe_budgets.get(requested_epochs) == optimizer_steps
     )
     c10_adapter_late = (
@@ -1951,7 +1967,7 @@ def train_specialist(
         "vessl-score-free-acc4-late-moe-e51-asymmetric-v1",
         "vessl-score-free-acc8-late-moe-e51-asymmetric-v1",
         "vessl-score-free-acc8-late-moe-e51-quality-recovery-v1",
-        R19_ACC4_SCHEMA,
+        R30_ACC4_SCHEMA,
         R19_ACC8_SCHEMA,
     }
     if asymmetric_e51 and (
@@ -2007,17 +2023,17 @@ def train_specialist(
         and specialist.get("trainable_parameter_scope")
         == "core.mask_prompt_conditioner"
     )
-    r25_acc4_prefix = (
+    r30_acc4_prefix = (
         acceleration == "acc4"
-        and specialist.get("schema") == R19_ACC4_SCHEMA
-        and requested_epochs == 2
-        and optimizer_steps == 4_672
+        and specialist.get("schema") == R30_ACC4_SCHEMA
+        and requested_epochs == 3
+        and optimizer_steps == 7_008
     )
     maximum_peak_lr = (
         5e-5
         if r19_acc8_moe
         else 2.5e-5
-        if r25_acc4_prefix
+        if r30_acc4_prefix
         else 2e-5
         if late_moe
         else 3e-4 if adapter_only_prompt else 1e-4
@@ -2270,7 +2286,7 @@ def train_specialist(
         2_315
         if r19_acc8_moe
         else 35_040
-        if r25_acc4_prefix
+        if r30_acc4_prefix
         else optimizer_steps
         if asymmetric_e51
         else 35_040 if acceleration == "acc4" else 34_725
@@ -2498,7 +2514,7 @@ def train_post_refiner(
     )
     refiner_identity = object_sha256(
         {
-            "schema": "vessl-r29-zf-context-post-refiner-run-identity-v1",
+            "schema": "vessl-r30-neighbor-zf-post-refiner-run-identity-v1",
             "generalist_sha256": parent[1],
             "acc4_sha256": acc4_parent[1],
             "acc8_sha256": acc8_parent[1],
@@ -2515,7 +2531,7 @@ def train_post_refiner(
         f"VESSL_POST_REFINER_{winner}_{variant}_"
         f"E{refiner_epochs}_"
         f"{'BBOX05_FULLDATA_' if bbox_aligned_full_data else ''}"
-        f"SEED430_R29_{refiner_identity[:16]}"
+        f"SEED430_R30_{refiner_identity[:16]}"
     )
     recoveries = 0
     while True:
@@ -2535,6 +2551,8 @@ def train_post_refiner(
             == refiner_recipe.get("input_mode")
             and receipt.get("zero_filled_definition")
             == refiner_recipe.get("zero_filled_definition")
+            and receipt.get("adjacent_slice_context")
+            == refiner_recipe.get("adjacent_slice_context")
             and receipt.get("normalization")
             == refiner_recipe.get("normalization")
             and receipt.get("spatial_match")
@@ -3263,7 +3281,7 @@ def main() -> int:
             ):
                 dual_late_moe = (
                     acc4_specialist.get("schema")
-                    == R19_ACC4_SCHEMA
+                    == R30_ACC4_SCHEMA
                     and acc8_specialist.get("schema")
                     == R19_ACC8_SCHEMA
                     and int(acc4_specialist.get("late_branch_parent_epoch", -1))
@@ -3383,7 +3401,7 @@ def main() -> int:
                 post_refiner_checkpoint=post_refiner_checkpoint,
                 post_refiner_sha256=post_refiner_sha256,
                 tta_views=tta_views,
-                suffix=f"{winner}_DEADLINE_MAX_SCORE_R29",
+                suffix=f"{winner}_DEADLINE_MAX_SCORE_R30",
             )
             decision = "SELECTED_ARCHITECTURE_VESSL_SCRATCH_COMPLETE"
     if final_mode != "PRIMARY_REQUESTED":

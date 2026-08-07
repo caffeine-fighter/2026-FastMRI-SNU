@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CPU-only fail-closed preflight for the R29 future-stage amendment."""
+"""CPU-only fail-closed preflight for the R30 neighbor-ZF amendment."""
 
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ import torch
 
 
 ROOT = Path(__file__).resolve().parent
-OUTPUT = ROOT / "R29_CPU_PREFLIGHT.json"
-INPUT_MODE = "recon_zero_filled_residual"
+OUTPUT = ROOT / "R30_CPU_PREFLIGHT.json"
+INPUT_MODE = "recon_zero_filled_residual_neighbor_zf"
 ZERO_FILLED_DEFINITION = (
     "rss(fftshift(ifft2(ifftshift(masked_kspace),norm=ortho)))"
 )
@@ -79,7 +79,7 @@ def install_router_imports():
         ROOT / "promptmr_mask_router.py",
     )
     router = load(
-        "r29_promptmr_router",
+        "r30_promptmr_router",
         ROOT / "promptmr_router.py",
     )
     return legal, mask_router, router
@@ -133,10 +133,10 @@ def routed_checkpoint() -> dict[str, object]:
             "epoch": 21,
             "parent_epoch": 49,
             "late_branch_epochs": [50, 70],
-            "trainable_parameter_scope": "naf_s_only",
+            "trainable_parameter_scope": "naf_s_plus_adjacent_zf_stem",
             "frozen_parameter_scope": "main_c10_e49_all_parameters",
             "main_parameters_updated": False,
-            "optimizer_steps": 91_231,
+            "optimizer_steps": 88_895,
             "lr_horizon_optimizer_steps": 93_567,
             "steps_per_epoch": 4_672,
             "partial_terminal_epoch": True,
@@ -160,10 +160,17 @@ def routed_checkpoint() -> dict[str, object]:
             "external_learned_state_imported": False,
             "training_data_contract": training_contract,
             "post_refiner_state": {},
+            "parameter_count": 73_489,
             "input_mode": INPUT_MODE,
             "zero_filled_definition": ZERO_FILLED_DEFINITION,
             "normalization": "shared_detached_reconstruction_amax",
             "spatial_match": "center_crop_then_zero_pad",
+            "adjacent_slice_context": {
+                "count": 3,
+                "positions": ["previous", "current", "next"],
+                "boundary_policy": "replicate_nearest_slice",
+                "source": "same_volume_masked_kspace_only",
+            },
         },
     }
 
@@ -196,7 +203,7 @@ def compile_function(path: Path, name: str, namespace: dict[str, object]):
 if torch.cuda.is_initialized():
     raise RuntimeError("CUDA was initialized before the CPU-only preflight")
 
-post = load("r29_promptmr_post_refiner", ROOT / "promptmr_post_refiner.py")
+post = load("r30_promptmr_post_refiner", ROOT / "promptmr_post_refiner.py")
 torch.manual_seed(430)
 directional = post.NAFResidualImageRefiner(
     variant="NAF_S",
@@ -207,12 +214,24 @@ zf_context = post.NAFResidualImageRefiner(
     variant="NAF_S",
     input_mode=post.INPUT_MODE_ZF_CONTEXT,
 )
+torch.manual_seed(430)
+neighbor_zf = post.NAFResidualImageRefiner(
+    variant="NAF_S",
+    input_mode=post.INPUT_MODE_NEIGHBOR_ZF,
+)
 directional_count = sum(parameter.numel() for parameter in directional.parameters())
 zf_count = sum(parameter.numel() for parameter in zf_context.parameters())
+neighbor_zf_count = sum(parameter.numel() for parameter in neighbor_zf.parameters())
 if directional_count != 72_625 or zf_count != 72_625:
     raise RuntimeError("NAF_S parameter-count contract drifted")
 if state_sha256(directional) != state_sha256(zf_context):
-    raise RuntimeError("R29 changed NAF_S initialization or state shape")
+    raise RuntimeError("R30 changed NAF_S initialization or state shape")
+if neighbor_zf_count != 73_489:
+    raise RuntimeError("neighbor-ZF NAF_S parameter-count contract drifted")
+if bool(torch.count_nonzero(neighbor_zf.head.weight)) or bool(
+    torch.count_nonzero(neighbor_zf.head.bias)
+):
+    raise RuntimeError("neighbor-ZF NAF_S output is not zero initialized")
 
 generator = torch.Generator(device="cpu").manual_seed(430)
 paired = torch.randn(1, 5, 24, 20, 2, generator=generator)
@@ -252,14 +271,19 @@ class DummyBase(torch.nn.Module):
 base = DummyBase()
 wrapper = post.BaseOnceRefinerTTA(
     base,
-    zf_context,
+    neighbor_zf,
     views=("identity", "flip_lr"),
 )
-output = wrapper(SimpleNamespace(kspace=paired, acceleration=4))
+output = wrapper(
+    SimpleNamespace(kspace=paired, acceleration=4),
+    neighbor_masked_kspace=(paired * 0.75, paired * 1.25),
+)
 if base.calls != 1 or output.shape != (1, 18, 24):
-    raise RuntimeError("base-once ZF wrapper contract failed")
+    raise RuntimeError("base-once neighbor-ZF wrapper contract failed")
 if not bool(torch.isfinite(output).all().item()):
-    raise RuntimeError("ZF wrapper output is nonfinite")
+    raise RuntimeError("neighbor-ZF wrapper output is nonfinite")
+if not torch.equal(output, torch.ones_like(output)):
+    raise RuntimeError("zero-initialized neighbor-ZF wrapper changed base output")
 
 legal, mask_router, router = install_router_imports()
 for acceleration in (4, 8):
@@ -281,10 +305,10 @@ if unknown_key != "generalist" or unknown_receipt.get("specialist_activated") is
 valid = routed_checkpoint()
 contract = router.RoutedCheckpointContract.validate(valid)
 if contract.post_refiner_enabled is not True:
-    raise RuntimeError("actual shipped-router R29 contract did not validate")
+    raise RuntimeError("actual shipped-router R30 contract did not validate")
 for field, bad_value in (
     ("optimizer_steps", 93_567),
-    ("lr_horizon_optimizer_steps", 91_231),
+    ("lr_horizon_optimizer_steps", 88_895),
     ("input_mode", "recon_horizontal_vertical"),
 ):
     mutated = json.loads(json.dumps(valid))
@@ -298,9 +322,9 @@ for field, bad_value in (
 
 trainer_source = (ROOT / "vessl_train_post_refiner.py").read_text(encoding="utf-8")
 for required in (
-    "expected_step = {4: 4_672, 8: 1_158}",
+    "expected_step = {4: 7_008, 8: 1_158}",
     "expected_horizon = {4: 35_040, 8: 2_315}",
-    "args.input_mode != INPUT_MODE_ZF_CONTEXT",
+    "args.input_mode != INPUT_MODE_NEIGHBOR_ZF",
 ):
     if required not in trainer_source:
         raise RuntimeError(f"trainer contract repair is absent: {required}")
@@ -318,7 +342,8 @@ parse_post = compile_function(
         },
         "ALLOWED_VIEWS": ("identity", "flip_lr", "flip_ud", "rot180"),
         "INPUT_MODE_DIRECTIONAL": "recon_horizontal_vertical",
-        "INPUT_MODE_ZF_CONTEXT": INPUT_MODE,
+        "INPUT_MODE_ZF_CONTEXT": "recon_zero_filled_residual",
+        "INPUT_MODE_NEIGHBOR_ZF": INPUT_MODE,
         "BBOX_ALIGNED_LOSS_FAMILY": (
             "winner_foreground_ssim_l1_sqrt_area_plus_"
             "official384_bbox05_v2"
@@ -339,9 +364,9 @@ try:
         "--input-mode", INPUT_MODE,
         "--views", "identity", "flip_lr",
         "--epochs", "21",
-        "--optimizer-steps", "91231",
+        "--optimizer-steps", "88895",
         "--lr-horizon-optimizer-steps", "93567",
-        "--output-dir", "/root/result/naf-r29",
+        "--output-dir", "/root/result/naf-r30",
         "--train-root", "/root/Data/train",
         "--trusted-data-manifest", "/root/result/provenance.json",
         "--extra-train-root", "/root/Data/val",
@@ -359,14 +384,14 @@ finally:
     sys.argv = saved_argv
 if (
     parsed_post.input_mode != INPUT_MODE
-    or parsed_post.optimizer_steps != 91_231
+    or parsed_post.optimizer_steps != 88_895
     or parsed_post.lr_horizon_optimizer_steps != 93_567
 ):
-    raise RuntimeError("R29 post-refiner command/parser contract failed")
+    raise RuntimeError("R30 post-refiner command/parser contract failed")
 
 controller_train_source = function_source(ROOT / "controller.py", "train_post_refiner")
 if '"--input-mode"' not in controller_train_source:
-    raise RuntimeError("controller does not pass the sealed R29 input mode")
+    raise RuntimeError("controller does not pass the sealed R30 input mode")
 
 test_part_path = ROOT / "test_part.py"
 prep_source = function_source(test_part_path, "prep_volume")
@@ -377,6 +402,9 @@ for required in (
     "select_component(",
     "_views_for_route(model, route)",
     "infer_acceleration_from_mask(ctx[\"mask\"])",
+    "neighbor_masked_kspace",
+    "previous_index",
+    "next_index",
 ):
     if required not in recon_source:
         raise RuntimeError(f"timed exact-route invariant is absent: {required}")
@@ -384,25 +412,92 @@ views_source = function_source(test_part_path, "_views_for_route")
 if 'if route == "generalist":' not in views_source or 'return ("identity",)' not in views_source:
     raise RuntimeError("unknown/generalist outer-TTA identity contract is absent")
 
+timed_recon_slice = compile_function(
+    test_part_path,
+    "recon_slice",
+    {
+        "torch": torch,
+        "NAFResidualImageRefiner": post.NAFResidualImageRefiner,
+        "INPUT_MODE_NEIGHBOR_ZF": post.INPUT_MODE_NEIGHBOR_ZF,
+        "select_component": lambda *args, **kwargs: ("acc4", {}),
+        "infer_acceleration_from_mask": lambda mask: 4,
+        "_views_for_route": lambda model, route: ("identity",),
+        "_transform_tta_input": lambda kspace, mask, view: (kspace, mask),
+        "PromptMRInput": lambda **kwargs: SimpleNamespace(**kwargs),
+        "_restore_tta_output": lambda output, view: output,
+        "_center_crop_or_zero_pad": lambda output, shape: output,
+    },
+)
+
+
+class DummyRoutedBase:
+    generalist_component = "generalist"
+
+    def __init__(self) -> None:
+        self.released = False
+
+    def release_active(self) -> None:
+        self.released = True
+
+
+class DummyTimedModel:
+    def __init__(self) -> None:
+        self.base_model = DummyRoutedBase()
+        self.refiner = neighbor_zf
+        self.neighbor_calls = []
+
+    def __call__(self, prepared, **kwargs):
+        self.neighbor_calls.append(kwargs.get("neighbor_masked_kspace"))
+        return torch.ones(1, 18, 24, dtype=torch.float32)
+
+
+timed_model = DummyTimedModel()
+timed_volume = torch.randn(3, 5, 18, 24, 2, generator=generator)
+timed_context = {
+    "volume": timed_volume,
+    "mask": torch.ones(1, 1, 1, 24, 1, dtype=torch.bool),
+    "num_low_frequencies": torch.tensor([-1], dtype=torch.int64),
+    "crop_size": (18, 24),
+    "num_slices": 3,
+}
+for slice_index in (1, 0, 2):
+    result = timed_recon_slice(timed_model, timed_context, slice_index)
+    if result.shape != (18, 24) or not bool(torch.isfinite(result).all().item()):
+        raise RuntimeError("timed neighbor-ZF recon_slice output contract failed")
+center_neighbors, first_neighbors, last_neighbors = timed_model.neighbor_calls
+if (
+    not torch.equal(center_neighbors[0], timed_volume[0].unsqueeze(0))
+    or not torch.equal(center_neighbors[1], timed_volume[2].unsqueeze(0))
+    or not torch.equal(first_neighbors[0], timed_volume[0].unsqueeze(0))
+    or not torch.equal(first_neighbors[1], timed_volume[1].unsqueeze(0))
+    or not torch.equal(last_neighbors[0], timed_volume[1].unsqueeze(0))
+    or not torch.equal(last_neighbors[1], timed_volume[2].unsqueeze(0))
+    or timed_model.base_model.released is not True
+):
+    raise RuntimeError("timed neighbor-ZF boundary/dispatch contract failed")
+
 if torch.cuda.is_initialized():
-    raise RuntimeError("CPU-only R29 preflight initialized CUDA")
+    raise RuntimeError("CPU-only R30 preflight initialized CUDA")
 
 receipt = {
-    "schema": "vessl-r29-zf-context-cpu-preflight-v1",
+    "schema": "vessl-r30-neighbor-zf-cpu-preflight-v1",
     "state": "PASS",
     "cpu_only": True,
     "cuda_initialized": False,
     "candidate_count": 1,
     "fallback_registered": False,
-    "post_e49_optimizer_steps": 4_672 + 1_158 + 91_231,
-    "naf_s_parameter_count": zf_count,
-    "initialization_state_identical": True,
+    "post_e49_optimizer_steps": 7_008 + 1_158 + 88_895,
+    "naf_s_parameter_count": neighbor_zf_count,
+    "zero_initialized_output_identity": True,
+    "adjacent_slice_count": 3,
+    "adjacent_boundary_policy": "replicate_nearest_slice",
     "zf_oracle_max_abs": zf_oracle_max_abs,
     "exact_acc4_dispatch": True,
     "exact_acc8_dispatch": True,
     "unknown_mask_generalist_dispatch": True,
     "unknown_mask_outer_tta": ["identity"],
     "actual_shipped_router_validation": True,
+    "timed_neighbor_recon_slice_executed": True,
     "post_refiner_command_parser": True,
     "contract_mutations_rejected": [
         "optimizer_steps",

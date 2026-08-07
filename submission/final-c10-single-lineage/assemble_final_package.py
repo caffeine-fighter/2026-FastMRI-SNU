@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically assemble and seal the only R29 final package on VESSL."""
+"""Atomically assemble and seal the only R30 final package on VESSL."""
 
 from __future__ import annotations
 
@@ -18,12 +18,12 @@ import uuid
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CONTROL = Path(
-    "/root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R29_ZF_CONTEXT_R1"
+    "/root/result/VESSL_G10_G11_TERMINAL_SUCCESSOR_AMENDMENT_R30_NEIGHBOR_ZF_R1"
 )
 DEFAULT_PROJECT = Path("/root/2026-FastMRI-SNU-promptmr-plus")
 DEFAULT_HANDOFF = Path("/root/result/VESSL_SCORE_FREE_HANDOFFS")
-DEFAULT_STAGE = Path("/root/codex_ops/vessl_g10_architecture_dispatcher_r29_zf_context")
-DEFAULT_SPECIALIST = Path("/root/codex_ops/terminal_legal_specialist_r13_acc4_e2")
+DEFAULT_STAGE = Path("/root/codex_ops/vessl_g10_architecture_dispatcher_r30_neighbor_zf")
+DEFAULT_SPECIALIST = Path("/root/codex_ops/terminal_legal_specialist_r14_acc4_e3")
 DEFAULT_PROVENANCE = Path(
     "/root/result/EXP_FI_ACC8_CKPT_BASE_E30_R1/fi-acc8-full-training/provenance.json"
 )
@@ -137,7 +137,7 @@ def validate_controller(value: dict, receipt_path: Path) -> None:
         or value.get("external_learned_state_imported") is not False
         or value.get("all_final_learned_state_vessl_only") is not True
     ):
-        fail(f"controller is not the exact single-final R29 run: {receipt_path}")
+        fail(f"controller is not the exact single-final R30 run: {receipt_path}")
 
 
 def controller_file(controller: dict, run_key: str, filename: str) -> Path:
@@ -148,10 +148,10 @@ def controller_file(controller: dict, run_key: str, filename: str) -> Path:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=Path, default=Path("/root/result/FINAL_C10_SINGLE_PACKAGE_R29"))
+parser.add_argument("--output", type=Path, default=Path("/root/result/FINAL_C10_SINGLE_PACKAGE_R30"))
 parser.add_argument("--controller-receipt", type=Path, default=DEFAULT_CONTROL / "receipt.json")
 parser.add_argument(
-    "--r29-deployment-receipt", type=Path, default=DEFAULT_CONTROL / "r29-deployment-receipt.json"
+    "--r30-deployment-receipt", type=Path, default=DEFAULT_CONTROL / "r30-deployment-receipt.json"
 )
 parser.add_argument("--project-source", type=Path, default=DEFAULT_PROJECT)
 parser.add_argument("--handoff-root", type=Path, default=DEFAULT_HANDOFF)
@@ -196,7 +196,7 @@ for item in snapshot_files:
     if not source.is_file() or sha256(source) != item.get("sha256"):
         fail(f"source snapshot hash mismatch: {source}")
 
-staging = Path(tempfile.mkdtemp(prefix=".final-c10-r29-assembly-", dir=output.parent))
+staging = Path(tempfile.mkdtemp(prefix=".final-c10-r30-assembly-", dir=output.parent))
 try:
     copy_skeleton(staging)
 
@@ -220,10 +220,10 @@ try:
 
     reproduction = staging / "reproduction"
     reproduction_sources = {
-        "FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json": args.handoff_root / "FINAL_C10_SINGLE_LINEAGE_R29_ZF_CONTEXT.json",
-        "final-tactics-c10-r29-zf-context.json": args.handoff_root / "final-tactics-c10-r29-zf-context.json",
-        "FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json": args.stage / "FINAL_C10_SINGLE_LINEAGE_R29_INFERENCE.json",
-        "R29_CPU_PREFLIGHT.json": args.stage / "R29_CPU_PREFLIGHT.json",
+        "FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json": args.handoff_root / "FINAL_C10_SINGLE_LINEAGE_R30_NEIGHBOR_ZF.json",
+        "final-tactics-c10-r30-neighbor-zf.json": args.handoff_root / "final-tactics-c10-r30-neighbor-zf.json",
+        "FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json": args.stage / "FINAL_C10_SINGLE_LINEAGE_R30_INFERENCE.json",
+        "R30_CPU_PREFLIGHT.json": args.stage / "R30_CPU_PREFLIGHT.json",
         "controller.py": args.stage / "controller.py",
         "generalist/train.py": args.stage / "train.py",
         "generalist/promptmr_production.py": args.stage / "promptmr_production.py",
@@ -236,7 +236,7 @@ try:
         "promptmr_mask_router.py": args.stage / "promptmr_mask_router.py",
         "promptmr_legal_mask.py": args.stage / "promptmr_legal_mask.py",
         "test_part.py": args.stage / "test_part.py",
-        "preflight_r29.py": args.stage / "preflight_r29.py",
+        "preflight_r30.py": args.stage / "preflight_r30.py",
         "organizer-data-provenance.json": args.provenance,
         "inference-source-snapshot-manifest.json": snapshot_manifest,
     }
@@ -267,12 +267,12 @@ try:
     atomic_json(
         staging / "evidence/assembly-receipt.json",
         {
-            "schema": "vessl-r29-single-final-package-assembly-v1",
+            "schema": "vessl-r30-single-final-package-assembly-v1",
             "state": "PASS",
             "candidate_count": 1,
             "fallback_registered": False,
             "controller_receipt_sha256": sha256(args.controller_receipt),
-            "r29_deployment_receipt_sha256": sha256(args.r29_deployment_receipt),
+            "r30_deployment_receipt_sha256": sha256(args.r30_deployment_receipt),
             "final_checkpoint_sha256": checkpoint_sha,
             "inference_source_snapshot_manifest_sha256": sha256(snapshot_manifest),
             "snapshot_destinations": snapshot_destinations,
@@ -286,9 +286,9 @@ try:
     subprocess.run(
         [
             sys.executable,
-            str(staging / "materialize_r29_evidence.py"),
+            str(staging / "materialize_r30_evidence.py"),
             "--controller-receipt", str(raw / "controller-final-receipt.json"),
-            "--r29-deployment-receipt", str(args.r29_deployment_receipt),
+            "--r30-deployment-receipt", str(args.r30_deployment_receipt),
             "--generalist-receipt", str(generalist_receipt),
             "--acc4-terminal", str(raw / "acc4-terminal.json"),
             "--acc8-terminal", str(raw / "acc8-terminal.json"),
@@ -304,7 +304,7 @@ try:
     print(
         json.dumps(
             {
-                "state": "FINAL_C10_R29_SINGLE_PACKAGE_ASSEMBLED",
+                "state": "FINAL_C10_R30_SINGLE_PACKAGE_ASSEMBLED",
                 "output": str(output),
                 "candidate_count": 1,
                 "best_model_sha256": checkpoint_sha,
