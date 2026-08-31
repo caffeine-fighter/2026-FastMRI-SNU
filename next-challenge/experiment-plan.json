@@ -1,0 +1,166 @@
+{
+  "schema": "fastmri-next-challenge-award-plan-v1",
+  "state": "PREPARED_NOT_LAUNCHED",
+  "objective_priority": [
+    "AWARD",
+    "WIN",
+    "COMPLETION"
+  ],
+  "evidence_policy": {
+    "prior_year_results_are_priors_not_facts_about_new_data": true,
+    "rules_must_be_reconfirmed_at_launch": true,
+    "matched_comparisons_required": true,
+    "four_cell_metrics": [
+      "acc4_full",
+      "acc4_bbox",
+      "acc8_full",
+      "acc8_bbox"
+    ]
+  },
+  "incumbent": {
+    "architecture": "PromptMR+",
+    "cascades": 8,
+    "inference": "single_pass",
+    "tta": false,
+    "unknown_mask_route": "generalist",
+    "reason": "C8 outperformed C10 in the final observed comparison and has a better GTX1080 cost envelope"
+  },
+  "challengers": {
+    "c10": {
+      "default": "SCREEN_ONLY",
+      "minimum_quality_gain": 0.0003,
+      "maximum_single_cell_regression": 0.0002,
+      "must_improve_gtx1080_final_score": true
+    },
+    "c12_or_larger": {
+      "default": "DISABLED",
+      "requires_new_matched_evidence": true
+    }
+  },
+  "hardware_contract": {
+    "final_training_environment": "VESSL_GTX1080",
+    "final_training_vram_mib": 8192,
+    "final_training_from_allowed_initialization": true,
+    "external_learned_state_import": false,
+    "research_environments": [
+      "RTX3090",
+      "RTX_A6000"
+    ],
+    "admission_sequence": [
+      "max_shape_acc4_forward_backward_optimizer",
+      "max_shape_acc8_forward_backward_optimizer",
+      "steady_optimizer_step",
+      "checkpoint_save_reload",
+      "post_reload_optimizer_step",
+      "official_single_pass_inference",
+      "process_vram_check",
+      "finite_and_shape_parity"
+    ]
+  },
+  "methodology": {
+    "training_mask_family": "infer_from_new_dataset_then_cover_all_legal_acceleration_width_acs_residue_cells",
+    "public_frequency_weighting": false,
+    "mask_conditioning": "small_shared_trunk_adapter_or_prompt",
+    "specialist_policy": {
+      "acc4": "ENABLE_ONLY_AFTER_MATCHED_FULL_AND_BBOX_GAIN",
+      "acc8": "GENERALIST_UNLESS_SPECIALIST_WINS_MATCHED_GATE",
+      "simultaneous_full_model_ensemble": false
+    },
+    "fine_tuning_prior": {
+      "peak_lr": 0.00001,
+      "warmup_epochs": 1,
+      "decay_starts_immediately_after_warmup": true,
+      "select_best_across_all_completed_milestones": true,
+      "training_loss_alone_can_continue_training": false
+    },
+    "inference_tta": {
+      "enabled": false,
+      "reason": "Observed GTX1080 quality gain did not offset the time-score loss",
+      "reopen_only_if_scoring_formula_changes": true
+    }
+  },
+  "timeline": [
+    {
+      "phase": "RULES_AND_DATA_AUDIT",
+      "start_hours_after_data_release": 0,
+      "deadline_hours_after_data_release": 6,
+      "outputs": [
+        "rule-delta.json",
+        "dataset-inventory.json",
+        "mask-family-report.json"
+      ]
+    },
+    {
+      "phase": "C8_HARDWARE_BASELINE",
+      "start_hours_after_data_release": 6,
+      "deadline_hours_after_data_release": 24,
+      "outputs": [
+        "gtx1080-admission.json",
+        "one-epoch-throughput.json",
+        "external-device-parity.json"
+      ]
+    },
+    {
+      "phase": "MATCHED_METHOD_SCREEN",
+      "start_hours_after_data_release": 24,
+      "deadline_hours_after_data_release": 72,
+      "axes": [
+        "legal_mask_mraugment",
+        "augmentation_onset",
+        "low_lr_short_decay",
+        "mask_conditioned_adapter",
+        "c10_challenger"
+      ]
+    },
+    {
+      "phase": "VESSL_FINAL_GENERALIST",
+      "preferred_start_hours_after_data_release": 72,
+      "latest_start_days_before_deadline": 20,
+      "architecture_default": "C8",
+      "fresh_lineage": true
+    },
+    {
+      "phase": "PARALLEL_LATE_RESEARCH",
+      "runs_while_vessl_generalist_trains": true,
+      "axes": [
+        "acc4_specialist",
+        "acc8_specialist_adjudication",
+        "checkpoint_averaging",
+        "small_single_pass_refiner"
+      ]
+    },
+    {
+      "phase": "FREEZE_AND_PACKAGE",
+      "architecture_freeze_days_before_deadline": 3,
+      "admission_days_before_deadline": 2,
+      "archive_ready_days_before_deadline": 1,
+      "new_training_on_submission_day": false
+    }
+  ],
+  "promotion_gates": {
+    "automatic_promote_quality_gain": 0.0003,
+    "repeat_if_quality_gain_at_least": 0.0001,
+    "reject_if_absolute_gain_below": 0.0001,
+    "reject_single_cell_regression_at_least": 0.0003,
+    "reject_if_gtx1080_final_score_decreases": true
+  },
+  "retention": {
+    "rolling_checkpoints": 2,
+    "sparse_preregistered_milestones": true,
+    "checkpoint_copy_per_evaluation": false,
+    "metrics_format": "JSON_OR_CSV"
+  },
+  "hard_stop_conditions": [
+    "OOM",
+    "NONFINITE",
+    "DATA_CORRUPTION",
+    "CHECKPOINT_UNRECOVERABLE",
+    "PROGRESS_STALE"
+  ],
+  "nonblocking_conditions": [
+    "OPTIONAL_TELEMETRY_FAILURE",
+    "STALE_UI_MARKER",
+    "REDUNDANT_VERIFIER_FAILURE",
+    "NONCANONICAL_REVIEW_STATUS"
+  ]
+}
